@@ -29,6 +29,16 @@ export interface CustomerProfile {
   notes: string[];
 }
 
+// Defines how much high-growth / high-volatility exposure is appropriate for
+// this client. Exposure = share of invested dollars in the "growth" category.
+//   below sweetSpotMin            -> too conservative for the client
+//   sweetSpotMin..penaltyThreshold -> risk allocated well (expected returns)
+//   above penaltyThreshold        -> too much risk: a downturn haircuts gains
+export interface RiskProfile {
+  sweetSpotMin: number;
+  penaltyThreshold: number;
+}
+
 export interface Level {
   id: number;
   name: string;
@@ -37,6 +47,7 @@ export interface Level {
   tagline: string;
   customer: CustomerProfile | null;
   ideal: Record<Category, number>;
+  riskProfile: RiskProfile;
   stockIds: string[];
 }
 
@@ -73,6 +84,9 @@ const LEVELS: Level[] = [
     },
     // Growth-tilted aggressive mix. Stocks = 80 (growth 60 + dividend 20), bonds = 20.
     ideal: { growth: 60, dividend: 20, bond: 20 },
+    // Aggressive young client: ~70-80% high-growth is the sweet spot; going
+    // above 80% courts a damaging downturn.
+    riskProfile: { sweetSpotMin: 0.7, penaltyThreshold: 0.8 },
     stockIds: allStockIds,
   },
 
@@ -85,6 +99,7 @@ const LEVELS: Level[] = [
     tagline: 'A 45-year-old balancing growth with growing responsibilities.',
     customer: null,
     ideal: { growth: 40, dividend: 30, bond: 30 },
+    riskProfile: { sweetSpotMin: 0.35, penaltyThreshold: 0.55 },
     stockIds: allStockIds,
   },
   {
@@ -95,6 +110,7 @@ const LEVELS: Level[] = [
     tagline: 'A 62-year-old who needs to protect what they have built.',
     customer: null,
     ideal: { growth: 20, dividend: 35, bond: 45 },
+    riskProfile: { sweetSpotMin: 0.1, penaltyThreshold: 0.3 },
     stockIds: allStockIds,
   },
 ];
