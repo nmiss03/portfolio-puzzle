@@ -1,32 +1,32 @@
 // Central design tokens so every screen shares one look.
-// "Trading terminal" dark palette — calm navy with bright accents.
+// Light theme — clean white cards on a soft gray background with a blue accent.
 
 import { Category } from './data/stocks';
 
 export const colors = {
-  bg: '#0B1220',
-  surface: '#16203A',
-  surfaceAlt: '#1B2740',
-  border: '#27355A',
-  borderStrong: '#3A4D7A',
+  bg: '#f5f5f5',
+  surface: '#ffffff',
+  surfaceAlt: '#eef1f5',
+  border: '#cccccc',
+  borderStrong: '#b3b3b3',
 
-  text: '#E6EDF7',
-  subtext: '#9FB0CC',
-  muted: '#6B7CA0',
+  text: '#1a1a1a',
+  subtext: '#4a4a4a',
+  muted: '#888888',
 
-  primary: '#3B82F6',
-  primaryDark: '#2563EB',
+  primary: '#4a90e2',
+  primaryDark: '#357abd',
 
-  success: '#22C55E',
-  warning: '#F59E0B',
-  danger: '#EF4444',
+  success: '#2e7d32',
+  warning: '#c77700',
+  danger: '#c0392b',
 
   // Asset categories (used for badges + charts)
-  growth: '#8B5CF6',
-  dividend: '#06B6D4',
-  bond: '#10B981',
+  growth: '#7c4dff',
+  dividend: '#0288d1',
+  bond: '#2e9e6b',
 
-  white: '#FFFFFF',
+  white: '#ffffff',
   black: '#000000',
 };
 
@@ -46,9 +46,9 @@ export const spacing = {
 };
 
 export const radius = {
-  sm: 8,
-  md: 12,
-  lg: 16,
+  sm: 4,
+  md: 8,
+  lg: 12,
   pill: 999,
 };
 

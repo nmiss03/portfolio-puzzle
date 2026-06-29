@@ -59,9 +59,9 @@ export default function Button({
 
 const styles = StyleSheet.create({
   base: {
-    paddingVertical: spacing.md + 2,
-    paddingHorizontal: spacing.lg,
-    borderRadius: radius.md,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: radius.sm,
     alignItems: 'center',
     justifyContent: 'center',
   },

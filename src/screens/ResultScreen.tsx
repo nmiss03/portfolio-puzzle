@@ -35,7 +35,7 @@ export default function ResultScreen() {
     if (!nextLevel || nextLevel.locked) return;
     startLevel(nextLevel.id);
     router.dismissAll();
-    router.push('/profile');
+    router.push('/CustomerIntro');
   };
 
   return (

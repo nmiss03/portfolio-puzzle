@@ -21,7 +21,7 @@ export default function LevelSelect() {
 
   const onSelect = (id: number) => {
     startLevel(id);
-    router.push('/profile');
+    router.push('/CustomerIntro');
   };
 
   return (

@@ -77,7 +77,7 @@ export default function AllocationUI() {
   const submit = () => {
     if (!isValid) return;
     submitAllocations(toNumeric(values));
-    router.push('/result');
+    router.push('/ResultScreen');
   };
 
   return (
