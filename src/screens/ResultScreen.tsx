@@ -1,27 +1,45 @@
 import React from 'react';
 import { View, Text, ScrollView, StyleSheet } from 'react-native';
+import { useRouter } from 'expo-router';
 
-import Header from '../components/Header';
 import Button from '../components/Button';
 import AllocationBar from '../components/AllocationBar';
 import { getLevel } from '../data/levels';
+import { FeedbackTone } from '../data/scoring';
+import { useGame } from '../state/GameContext';
 import { colors, spacing, radius, font } from '../theme';
 
-const toneColor = {
+const toneColor: Record<FeedbackTone, string> = {
   success: colors.success,
   warning: colors.warning,
   info: colors.primary,
 };
 
-export default function ResultScreen({ level, result, onRetry, onNextLevel, onHome }) {
+export default function ResultScreen() {
+  const router = useRouter();
+  const { level, result, startLevel } = useGame();
+
+  if (!result) {
+    return (
+      <View style={styles.emptyScreen}>
+        <Text style={styles.emptyText}>No results yet — build a portfolio first.</Text>
+        <Button title="Back to Levels" onPress={() => router.dismissAll()} style={{ marginTop: spacing.lg }} />
+      </View>
+    );
+  }
+
   const nextLevel = getLevel(level.id + 1);
-  const hasNext = !!nextLevel;
   const nextLocked = nextLevel ? nextLevel.locked : true;
+
+  const goNext = () => {
+    if (!nextLevel || nextLevel.locked) return;
+    startLevel(nextLevel.id);
+    router.dismissAll();
+    router.push('/profile');
+  };
 
   return (
     <View style={styles.screen}>
-      <Header title="Results" subtitle={`Level ${level.id} · ${level.name}`} onBack={onHome} />
-
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         {/* Score hero */}
         <View style={styles.scoreCard}>
@@ -64,27 +82,24 @@ export default function ResultScreen({ level, result, onRetry, onNextLevel, onHo
         {/* Feedback */}
         <Text style={styles.sectionLabel}>FEEDBACK</Text>
         {result.messages.map((m, i) => (
-          <View key={i} style={[styles.feedback, { borderLeftColor: toneColor[m.tone] || colors.primary }]}>
-            <Text style={[styles.feedbackTitle, { color: toneColor[m.tone] || colors.primary }]}>
-              {m.title}
-            </Text>
+          <View key={i} style={[styles.feedback, { borderLeftColor: toneColor[m.tone] }]}>
+            <Text style={[styles.feedbackTitle, { color: toneColor[m.tone] }]}>{m.title}</Text>
             <Text style={styles.feedbackText}>{m.text}</Text>
           </View>
         ))}
       </ScrollView>
 
       <View style={styles.footer}>
-        {hasNext && (
+        {nextLevel && (
           <Button
             title={nextLocked ? `Next: ${nextLevel.name} (Coming Soon)` : `Next Level: ${nextLevel.name}  ›`}
-            onPress={() => onNextLevel(nextLevel.id)}
+            onPress={goNext}
             disabled={nextLocked}
-            variant="primary"
           />
         )}
         <View style={styles.footerRow}>
-          <Button title="Try Again" onPress={onRetry} variant="secondary" style={styles.footerBtn} />
-          <Button title="All Levels" onPress={onHome} variant="secondary" style={styles.footerBtn} />
+          <Button title="Try Again" onPress={() => router.back()} variant="secondary" style={styles.footerBtn} />
+          <Button title="All Levels" onPress={() => router.dismissAll()} variant="secondary" style={styles.footerBtn} />
         </View>
       </View>
     </View>
@@ -95,8 +110,19 @@ const styles = StyleSheet.create({
   screen: {
     flex: 1,
   },
+  emptyScreen: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: spacing.xl,
+  },
+  emptyText: {
+    color: colors.subtext,
+    fontSize: font.md,
+    textAlign: 'center',
+  },
   content: {
-    paddingHorizontal: spacing.lg,
+    padding: spacing.lg,
     paddingBottom: spacing.xl,
   },
   scoreCard: {

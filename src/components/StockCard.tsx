@@ -3,6 +3,7 @@ import { View, Text, StyleSheet } from 'react-native';
 
 import Badge from './Badge';
 import StatItem from './StatItem';
+import { Stock } from '../data/stocks';
 import { colors, spacing, radius, font, categoryMeta } from '../theme';
 import { formatPrice, formatPE, formatPercent, volatilityLabel } from '../utils/format';
 
@@ -10,7 +11,7 @@ import { formatPrice, formatPE, formatPercent, volatilityLabel } from '../utils/
  * Full stock card for the dashboard: identity, price, category, and the key
  * fundamentals (P/E, dividend yield, volatility).
  */
-export default function StockCard({ stock }) {
+export default function StockCard({ stock }: { stock: Stock }) {
   const cat = categoryMeta[stock.category];
   const vol = volatilityLabel(stock.volatility);
 

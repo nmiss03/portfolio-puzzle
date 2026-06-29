@@ -1,28 +1,30 @@
 import React from 'react';
 import { View, Text, ScrollView, StyleSheet } from 'react-native';
+import { useRouter } from 'expo-router';
 
-import Header from '../components/Header';
 import Button from '../components/Button';
 import StockCard from '../components/StockCard';
-import { getStocksByIds } from '../data/stocks';
+import { getStocksByIds, Category } from '../data/stocks';
+import { useGame } from '../state/GameContext';
 import { colors, spacing, radius, font, categoryMeta } from '../theme';
 
-export default function StockDashboard({ level, onBack, onContinue }) {
+export default function StockDashboard() {
+  const router = useRouter();
+  const { level } = useGame();
   const stocks = getStocksByIds(level.stockIds);
 
-  // Group counts for the little summary strip.
   const counts = stocks.reduce(
     (acc, s) => {
-      acc[s.category] = (acc[s.category] || 0) + 1;
+      acc[s.category] += 1;
       return acc;
     },
-    { growth: 0, dividend: 0, bond: 0 }
+    { growth: 0, dividend: 0, bond: 0 } as Record<Category, number>
   );
+
+  const order: Category[] = ['growth', 'dividend', 'bond'];
 
   return (
     <View style={styles.screen}>
-      <Header title="Stock Dashboard" subtitle={`${stocks.length} instruments available`} onBack={onBack} />
-
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <Text style={styles.intro}>
           Here's the menu. Compare fundamentals — high P/E, no dividend and high volatility usually
@@ -30,7 +32,7 @@ export default function StockDashboard({ level, onBack, onContinue }) {
         </Text>
 
         <View style={styles.legendStrip}>
-          {['growth', 'dividend', 'bond'].map((c) => (
+          {order.map((c) => (
             <View key={c} style={styles.legendItem}>
               <View style={[styles.dot, { backgroundColor: categoryMeta[c].color }]} />
               <Text style={styles.legendText}>
@@ -46,7 +48,7 @@ export default function StockDashboard({ level, onBack, onContinue }) {
       </ScrollView>
 
       <View style={styles.footer}>
-        <Button title="Build the Portfolio  ›" onPress={onContinue} />
+        <Button title="Build the Portfolio  ›" onPress={() => router.push('/allocate')} />
       </View>
     </View>
   );
@@ -57,7 +59,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   content: {
-    paddingHorizontal: spacing.lg,
+    padding: spacing.lg,
     paddingBottom: spacing.xl,
   },
   intro: {

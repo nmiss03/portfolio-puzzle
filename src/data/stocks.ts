@@ -1,15 +1,32 @@
 // Hardcoded universe of 10 instruments available in Level 1.
 //
-// category: 'growth' | 'dividend' | 'bond'   -> used by the scoring engine
-// assetClass: 'stock' | 'bond'               -> used for the stocks-vs-bonds split
-// peRatio:    null means "N/A" (no positive earnings, or not applicable to bonds)
+// category   -> used by the scoring engine to bucket the portfolio
+// assetClass -> used for the stocks-vs-bonds split
+// peRatio: null means "N/A" (no positive earnings, or not applicable to bonds)
 // dividendYield / volatility are annualized percentages
 //
 // The data is intentionally readable: growth names have sky-high P/E, zero
 // dividend and high volatility; dividend names are cheaper with real yield and
 // calmer prices; bonds barely move and pay steady income.
 
-const STOCKS = [
+export type Category = 'growth' | 'dividend' | 'bond';
+export type AssetClass = 'stock' | 'bond';
+
+export interface Stock {
+  id: string;
+  ticker: string;
+  name: string;
+  sector: string;
+  price: number;
+  peRatio: number | null;
+  dividendYield: number;
+  volatility: number;
+  category: Category;
+  assetClass: AssetClass;
+  blurb: string;
+}
+
+const STOCKS: Stock[] = [
   // ---- 5 tech / growth -------------------------------------------------
   {
     id: 'nvx',
@@ -147,13 +164,15 @@ const STOCKS = [
   },
 ];
 
-// Lookup helpers used across screens.
-export const stocksById = STOCKS.reduce((acc, s) => {
-  acc[s.id] = s;
-  return acc;
-}, {});
+export const stocksById: Record<string, Stock> = STOCKS.reduce(
+  (acc, s) => {
+    acc[s.id] = s;
+    return acc;
+  },
+  {} as Record<string, Stock>
+);
 
-export function getStocksByIds(ids) {
+export function getStocksByIds(ids: string[]): Stock[] {
   return ids.map((id) => stocksById[id]).filter(Boolean);
 }
 

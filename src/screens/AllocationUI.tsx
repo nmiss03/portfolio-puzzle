@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -8,32 +8,63 @@ import {
   Platform,
   Pressable,
 } from 'react-native';
+import { useRouter, useNavigation } from 'expo-router';
 
-import Header from '../components/Header';
 import Button from '../components/Button';
 import AllocationRow from '../components/AllocationRow';
 import AllocationBar from '../components/AllocationBar';
 import { getStocksByIds } from '../data/stocks';
-import { summarizeAllocation } from '../data/scoring';
+import { summarizeAllocation, Allocations } from '../data/scoring';
+import { useGame } from '../state/GameContext';
 import { colors, spacing, radius, font } from '../theme';
 
-export default function AllocationUI({ level, initialAllocations, onBack, onSubmit }) {
+type Values = Record<string, string>;
+
+export default function AllocationUI() {
+  const router = useRouter();
+  const navigation = useNavigation();
+  const { level, allocations, saveAllocations, submitAllocations } = useGame();
   const stocks = useMemo(() => getStocksByIds(level.stockIds), [level]);
 
   // Local editable state: stock id -> string percent ("" means 0).
-  const [values, setValues] = useState(() => {
-    const init = {};
+  const [values, setValues] = useState<Values>(() => {
+    const init: Values = {};
     stocks.forEach((s) => {
-      const v = initialAllocations && initialAllocations[s.id];
+      const v = allocations[s.id];
       init[s.id] = v ? String(v) : '';
     });
     return init;
   });
 
-  const handleChange = (id, next) => setValues((prev) => ({ ...prev, [id]: next }));
+  const toNumeric = (vals: Values): Allocations => {
+    const numeric: Allocations = {};
+    stocks.forEach((s) => (numeric[s.id] = Number(vals[s.id]) || 0));
+    return numeric;
+  };
+
+  // Keep edits in the shared store so they survive navigating back & forth.
+  useEffect(() => {
+    saveAllocations(toNumeric(values));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [values]);
+
+  // A "Reset" action in the header.
+  useEffect(() => {
+    navigation.setOptions({
+      headerRight: () => (
+        <Pressable onPress={resetAll} hitSlop={8} accessibilityRole="button">
+          <Text style={styles.reset}>Reset</Text>
+        </Pressable>
+      ),
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [navigation]);
+
+  const handleChange = (id: string, next: string) =>
+    setValues((prev) => ({ ...prev, [id]: next }));
 
   const resetAll = () => {
-    const cleared = {};
+    const cleared: Values = {};
     stocks.forEach((s) => (cleared[s.id] = ''));
     setValues(cleared);
   };
@@ -41,29 +72,16 @@ export default function AllocationUI({ level, initialAllocations, onBack, onSubm
   const { byCategory, total } = useMemo(() => summarizeAllocation(values, stocks), [values, stocks]);
   const remaining = 100 - total;
   const isValid = total === 100;
-
   const totalColor = isValid ? colors.success : total > 100 ? colors.danger : colors.warning;
 
   const submit = () => {
     if (!isValid) return;
-    const numeric = {};
-    stocks.forEach((s) => (numeric[s.id] = Number(values[s.id]) || 0));
-    onSubmit(numeric);
+    submitAllocations(toNumeric(values));
+    router.push('/result');
   };
 
   return (
     <View style={styles.screen}>
-      <Header
-        title="Build the Portfolio"
-        subtitle="Allocate 100% across the stocks"
-        onBack={onBack}
-        right={
-          <Pressable onPress={resetAll} hitSlop={8} accessibilityRole="button">
-            <Text style={styles.reset}>Reset</Text>
-          </Pressable>
-        }
-      />
-
       {/* Live summary */}
       <View style={styles.summary}>
         <View style={styles.summaryTop}>
@@ -83,7 +101,6 @@ export default function AllocationUI({ level, initialAllocations, onBack, onSubm
       <KeyboardAvoidingView
         style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
       >
         <ScrollView
           contentContainerStyle={styles.content}
@@ -115,6 +132,7 @@ export default function AllocationUI({ level, initialAllocations, onBack, onSubm
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
+    paddingTop: spacing.md,
   },
   flex: {
     flex: 1,

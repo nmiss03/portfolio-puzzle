@@ -1,16 +1,23 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, StyleProp, ViewStyle } from 'react-native';
 
-import { colors, spacing, font } from '../theme';
+import { colors, font } from '../theme';
+
+interface StatItemProps {
+  label: string;
+  value: string;
+  valueColor?: string;
+  style?: StyleProp<ViewStyle>;
+}
 
 /**
  * A compact label-over-value stat cell, used inside stock cards.
  */
-export default function StatItem({ label, value, valueColor, style }) {
+export default function StatItem({ label, value, valueColor, style }: StatItemProps) {
   return (
     <View style={[styles.cell, style]}>
       <Text style={styles.label}>{label}</Text>
-      <Text style={[styles.value, valueColor && { color: valueColor }]}>{value}</Text>
+      <Text style={[styles.value, valueColor ? { color: valueColor } : null]}>{value}</Text>
     </View>
   );
 }

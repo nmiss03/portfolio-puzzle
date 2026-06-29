@@ -8,19 +8,52 @@
 // weight falls within the ideal weight. Summed across categories this is a
 // clean 0–100 number (it equals 100 - (sum of |diff|)/2). 100 = perfect match.
 
-const CATEGORIES = ['growth', 'dividend', 'bond'];
+import { Stock, Category, AssetClass } from './stocks';
+import { Level } from './levels';
 
-export function summarizeAllocation(allocations, stocks) {
-  const byCategory = { growth: 0, dividend: 0, bond: 0 };
+export type Allocations = Record<string, number>;
+
+// A raw, possibly-string allocation map (e.g. straight from text inputs).
+// summarizeAllocation coerces values with Number(), so it accepts either.
+export type RawAllocations = Record<string, number | string | undefined>;
+
+export type FeedbackTone = 'success' | 'warning' | 'info';
+
+export interface FeedbackMessage {
+  tone: FeedbackTone;
+  title: string;
+  text: string;
+}
+
+export interface AllocationSummary {
+  byCategory: Record<Category, number>;
+  byAssetClass: Record<AssetClass, number>;
+  total: number;
+}
+
+export interface ScoreResult extends AllocationSummary {
+  score: number;
+  ideal: Record<Category, number>;
+  idealAssetClass: Record<AssetClass, number>;
+  rating: string;
+  ratingColor: string;
+  headline: string;
+  messages: FeedbackMessage[];
+}
+
+const CATEGORIES: Category[] = ['growth', 'dividend', 'bond'];
+
+export function summarizeAllocation(allocations: RawAllocations, stocks: Stock[]): AllocationSummary {
+  const byCategory: Record<Category, number> = { growth: 0, dividend: 0, bond: 0 };
   let total = 0;
 
   stocks.forEach((s) => {
     const v = Number(allocations[s.id]) || 0;
-    if (byCategory[s.category] != null) byCategory[s.category] += v;
+    byCategory[s.category] += v;
     total += v;
   });
 
-  const byAssetClass = {
+  const byAssetClass: Record<AssetClass, number> = {
     stock: byCategory.growth + byCategory.dividend,
     bond: byCategory.bond,
   };
@@ -28,18 +61,15 @@ export function summarizeAllocation(allocations, stocks) {
   return { byCategory, byAssetClass, total };
 }
 
-export function scoreAllocation(allocations, stocks, level) {
+export function scoreAllocation(allocations: Allocations, stocks: Stock[], level: Level): ScoreResult {
   const { byCategory, byAssetClass, total } = summarizeAllocation(allocations, stocks);
   const ideal = level.ideal;
 
   // Overlap: sum of the per-category minimum of player vs. ideal.
-  const overlap = CATEGORIES.reduce(
-    (sum, c) => sum + Math.min(byCategory[c], ideal[c] || 0),
-    0
-  );
+  const overlap = CATEGORIES.reduce((sum, c) => sum + Math.min(byCategory[c], ideal[c] || 0), 0);
   const score = Math.max(0, Math.min(100, Math.round(overlap)));
 
-  const idealAssetClass = {
+  const idealAssetClass: Record<AssetClass, number> = {
     stock: (ideal.growth || 0) + (ideal.dividend || 0),
     bond: ideal.bond || 0,
   };
@@ -57,7 +87,7 @@ export function scoreAllocation(allocations, stocks, level) {
   };
 }
 
-function ratingFor(score) {
+function ratingFor(score: number): { rating: string; color: string } {
   if (score >= 90) return { rating: 'Excellent', color: '#22C55E' };
   if (score >= 75) return { rating: 'Strong', color: '#84CC16' };
   if (score >= 60) return { rating: 'Decent', color: '#F59E0B' };
@@ -65,9 +95,22 @@ function ratingFor(score) {
   return { rating: 'Needs Work', color: '#EF4444' };
 }
 
-function buildFeedback(byCategory, byAssetClass, ideal, idealAssetClass, score) {
+interface Feedback {
+  rating: string;
+  ratingColor: string;
+  headline: string;
+  messages: FeedbackMessage[];
+}
+
+function buildFeedback(
+  byCategory: Record<Category, number>,
+  byAssetClass: Record<AssetClass, number>,
+  ideal: Record<Category, number>,
+  idealAssetClass: Record<AssetClass, number>,
+  score: number
+): Feedback {
   const { rating, color } = ratingFor(score);
-  const messages = [];
+  const messages: FeedbackMessage[] = [];
 
   const bondDiff = byAssetClass.bond - idealAssetClass.bond;
   const growthDiff = byCategory.growth - (ideal.growth || 0);
@@ -127,7 +170,7 @@ function buildFeedback(byCategory, byAssetClass, ideal, idealAssetClass, score) 
     });
   }
 
-  let headline;
+  let headline: string;
   if (score >= 90) headline = 'Nailed it.';
   else if (score >= 75) headline = 'Close — solid portfolio.';
   else if (score >= 60) headline = 'On the right track.';

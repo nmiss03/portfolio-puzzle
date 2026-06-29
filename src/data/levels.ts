@@ -8,11 +8,39 @@
 // Level 1 is fully playable. Levels 2 & 3 are stubbed as `locked` so the level
 // picker shows the full roadmap of 3 levels.
 
-import STOCKS from './stocks';
+import STOCKS, { Category } from './stocks';
+
+export type Difficulty = 'Easy' | 'Medium' | 'Hard';
+export type RiskTolerance = 'Low' | 'Moderate' | 'High';
+
+export interface CustomerProfile {
+  name: string;
+  age: number;
+  occupation: string;
+  salary: number;
+  dependents: number;
+  riskTolerance: RiskTolerance;
+  horizonYears: number;
+  goal: string;
+  summary: string;
+  targetSummary: string;
+  notes: string[];
+}
+
+export interface Level {
+  id: number;
+  name: string;
+  difficulty: Difficulty;
+  locked: boolean;
+  tagline: string;
+  customer: CustomerProfile | null;
+  ideal: Record<Category, number>;
+  stockIds: string[];
+}
 
 const allStockIds = STOCKS.map((s) => s.id);
 
-const LEVELS = [
+const LEVELS: Level[] = [
   {
     id: 1,
     name: 'The Young Saver',
@@ -68,12 +96,15 @@ const LEVELS = [
   },
 ];
 
-export const levelsById = LEVELS.reduce((acc, l) => {
-  acc[l.id] = l;
-  return acc;
-}, {});
+export const levelsById: Record<number, Level> = LEVELS.reduce(
+  (acc, l) => {
+    acc[l.id] = l;
+    return acc;
+  },
+  {} as Record<number, Level>
+);
 
-export function getLevel(id) {
+export function getLevel(id: number): Level | undefined {
   return levelsById[id];
 }
 

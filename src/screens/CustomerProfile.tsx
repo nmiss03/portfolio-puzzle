@@ -1,20 +1,32 @@
 import React from 'react';
 import { View, Text, ScrollView, StyleSheet } from 'react-native';
+import { useRouter } from 'expo-router';
 
-import Header from '../components/Header';
 import Button from '../components/Button';
 import Badge from '../components/Badge';
+import { useGame } from '../state/GameContext';
+import { RiskTolerance } from '../data/levels';
 import { colors, spacing, radius, font } from '../theme';
 import { formatMoney } from '../utils/format';
 
-const riskColor = {
+const riskColor: Record<RiskTolerance, string> = {
   Low: colors.bond,
   Moderate: colors.warning,
   High: colors.danger,
 };
 
-export default function CustomerProfile({ level, onBack, onContinue }) {
+export default function CustomerProfile() {
+  const router = useRouter();
+  const { level } = useGame();
   const c = level.customer;
+
+  if (!c) {
+    return (
+      <View style={styles.emptyScreen}>
+        <Text style={styles.emptyText}>This level is not available yet.</Text>
+      </View>
+    );
+  }
 
   const facts = [
     { label: 'Age', value: `${c.age}` },
@@ -25,8 +37,6 @@ export default function CustomerProfile({ level, onBack, onContinue }) {
 
   return (
     <View style={styles.screen}>
-      <Header title="Client Profile" subtitle={`Level ${level.id} · ${level.difficulty}`} onBack={onBack} />
-
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         {/* Identity card */}
         <View style={styles.card}>
@@ -38,7 +48,7 @@ export default function CustomerProfile({ level, onBack, onContinue }) {
               <Text style={styles.name}>{c.name}</Text>
               <Text style={styles.occupation}>{c.occupation}</Text>
             </View>
-            <Badge label={`Risk: ${c.riskTolerance}`} color={riskColor[c.riskTolerance] || colors.warning} />
+            <Badge label={`Risk: ${c.riskTolerance}`} color={riskColor[c.riskTolerance]} />
           </View>
 
           <View style={styles.factsGrid}>
@@ -77,13 +87,13 @@ export default function CustomerProfile({ level, onBack, onContinue }) {
       </ScrollView>
 
       <View style={styles.footer}>
-        <Button title="View the Stocks  ›" onPress={onContinue} />
+        <Button title="View the Stocks  ›" onPress={() => router.push('/stocks')} />
       </View>
     </View>
   );
 }
 
-function initials(name) {
+function initials(name: string): string {
   return name
     .split(' ')
     .map((p) => p[0])
@@ -96,8 +106,18 @@ const styles = StyleSheet.create({
   screen: {
     flex: 1,
   },
+  emptyScreen: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: spacing.xl,
+  },
+  emptyText: {
+    color: colors.subtext,
+    fontSize: font.md,
+  },
   content: {
-    paddingHorizontal: spacing.lg,
+    padding: spacing.lg,
     paddingBottom: spacing.xl,
   },
   card: {

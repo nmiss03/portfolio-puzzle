@@ -1,12 +1,27 @@
 import React from 'react';
-import { Pressable, Text, StyleSheet, ActivityIndicator, View } from 'react-native';
+import {
+  Pressable,
+  Text,
+  StyleSheet,
+  ActivityIndicator,
+  View,
+  StyleProp,
+  ViewStyle,
+} from 'react-native';
 
 import { colors, radius, spacing, font } from '../theme';
 
-/**
- * Reusable pressable button.
- * variant: 'primary' | 'secondary' | 'ghost' | 'danger'
- */
+type Variant = 'primary' | 'secondary' | 'ghost' | 'danger';
+
+interface ButtonProps {
+  title: string;
+  onPress?: () => void;
+  variant?: Variant;
+  disabled?: boolean;
+  loading?: boolean;
+  style?: StyleProp<ViewStyle>;
+}
+
 export default function Button({
   title,
   onPress,
@@ -14,8 +29,9 @@ export default function Button({
   disabled = false,
   loading = false,
   style,
-}) {
+}: ButtonProps) {
   const isDisabled = disabled || loading;
+  const v = variantStyles[variant];
 
   return (
     <Pressable
@@ -23,7 +39,7 @@ export default function Button({
       disabled={isDisabled}
       style={({ pressed }) => [
         styles.base,
-        variantStyles[variant].container,
+        v.container,
         pressed && !isDisabled && styles.pressed,
         isDisabled && styles.disabled,
         style,
@@ -33,13 +49,9 @@ export default function Button({
     >
       <View style={styles.content}>
         {loading && (
-          <ActivityIndicator
-            size="small"
-            color={variantStyles[variant].text.color}
-            style={{ marginRight: spacing.sm }}
-          />
+          <ActivityIndicator size="small" color={v.text.color} style={{ marginRight: spacing.sm }} />
         )}
-        <Text style={[styles.text, variantStyles[variant].text]}>{title}</Text>
+        <Text style={[styles.text, v.text]}>{title}</Text>
       </View>
     </Pressable>
   );
@@ -70,25 +82,25 @@ const styles = StyleSheet.create({
   },
 });
 
-const variantStyles = {
-  primary: StyleSheet.create({
+const variantStyles: Record<Variant, { container: ViewStyle; text: { color: string } & object }> = {
+  primary: {
     container: { backgroundColor: colors.primary },
     text: { color: colors.white },
-  }),
-  secondary: StyleSheet.create({
+  },
+  secondary: {
     container: {
       backgroundColor: colors.surfaceAlt,
       borderWidth: 1,
       borderColor: colors.borderStrong,
     },
     text: { color: colors.text },
-  }),
-  ghost: StyleSheet.create({
+  },
+  ghost: {
     container: { backgroundColor: 'transparent' },
     text: { color: colors.subtext },
-  }),
-  danger: StyleSheet.create({
+  },
+  danger: {
     container: { backgroundColor: colors.danger },
     text: { color: colors.white },
-  }),
+  },
 };

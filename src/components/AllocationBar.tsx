@@ -1,14 +1,27 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 
-import { colors, spacing, radius, font, categoryMeta } from '../theme';
+import { Category } from '../data/stocks';
+import { colors, spacing, font, categoryMeta } from '../theme';
+
+interface AllocationBarProps {
+  byCategory: Record<Category, number>;
+  total?: number;
+  showLegend?: boolean;
+  height?: number;
+}
 
 /**
  * A stacked bar showing the growth / dividend / bond split of an allocation,
- * with an optional legend. `byCategory` is { growth, dividend, bond } in %.
+ * with an optional legend. `byCategory` values are percentages.
  */
-export default function AllocationBar({ byCategory, total, showLegend = true, height = 14 }) {
-  const order = ['growth', 'dividend', 'bond'];
+export default function AllocationBar({
+  byCategory,
+  total,
+  showLegend = true,
+  height = 14,
+}: AllocationBarProps) {
+  const order: Category[] = ['growth', 'dividend', 'bond'];
   const sum = total != null ? total : order.reduce((a, c) => a + (byCategory[c] || 0), 0);
 
   return (
@@ -23,7 +36,10 @@ export default function AllocationBar({ byCategory, total, showLegend = true, he
             return (
               <View
                 key={c}
-                style={{ width: `${(v / Math.max(sum, 100)) * 100}%`, backgroundColor: categoryMeta[c].color }}
+                style={{
+                  width: `${(v / Math.max(sum, 100)) * 100}%`,
+                  backgroundColor: categoryMeta[c].color,
+                }}
               />
             );
           })

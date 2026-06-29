@@ -1,9 +1,10 @@
 # Portfolio Puzzle 📊
 
-A portfolio rebalancing puzzle game built with **React Native + Expo**. You play
-the role of a financial advisor: read each client's profile, study the available
-stocks, and build the asset allocation that best fits their situation. Match the
-ideal allocation to score 100.
+A portfolio rebalancing puzzle game built with **React Native + Expo + TypeScript**
+and **expo-router** (file-based navigation). You play the role of a financial
+advisor: read each client's profile, study the available stocks, and build the
+asset allocation that best fits their situation. Match the ideal allocation to
+score 100.
 
 This repo contains **Level 1 of 3**, fully playable. Levels 2 & 3 appear in the
 level picker as a locked roadmap.
@@ -30,6 +31,7 @@ cushion: **~80% stocks (growth-heavy) / ~20% bonds**.
 ```bash
 npm install
 npm start          # then press i (iOS), a (Android), or w (web)
+npm run typecheck  # tsc --noEmit
 ```
 
 Requires the [Expo CLI / Expo Go](https://docs.expo.dev/get-started/installation/).
@@ -38,18 +40,23 @@ Uses only React Native's built-in components — no external UI libraries.
 ## Project structure
 
 ```
-index.js                  # Expo entry point -> registers app/App.js
-app/
-  App.js                  # screen state machine (no nav library)
-  theme.js                # colors, spacing, fonts
+src/
+  app/                    # expo-router routes (file-based navigation)
+    _layout.tsx           # Stack navigator + GameProvider
+    index.tsx             # -> LevelSelect
+    profile.tsx           # -> CustomerProfile
+    stocks.tsx            # -> StockDashboard
+    allocate.tsx          # -> AllocationUI
+    result.tsx            # -> ResultScreen
+  screens/                # screen implementations
+  state/GameContext.tsx   # shared level / allocation / result state
   data/
-    stocks.js             # 10 hardcoded instruments
-    levels.js             # customer profiles + ideal allocations
-    scoring.js            # allocation -> 0-100 score + feedback
+    stocks.ts             # 10 hardcoded instruments (+ types)
+    levels.ts             # customer profiles + ideal allocations
+    scoring.ts            # allocation -> 0-100 score + feedback
   components/             # Button, Badge, StockCard, AllocationRow, ...
-  screens/                # LevelSelect, CustomerProfile, StockDashboard,
-                          #   AllocationUI, ResultScreen
-  utils/format.js         # price / % / volatility formatting helpers
+  utils/format.ts         # price / % / volatility formatting helpers
+  theme.ts                # colors, spacing, fonts
 ```
 
 ## Scoring

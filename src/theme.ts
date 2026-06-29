@@ -1,6 +1,8 @@
 // Central design tokens so every screen shares one look.
 // "Trading terminal" dark palette — calm navy with bright accents.
 
+import { Category } from './data/stocks';
+
 export const colors = {
   bg: '#0B1220',
   surface: '#16203A',
@@ -28,8 +30,7 @@ export const colors = {
   black: '#000000',
 };
 
-// Color + friendly label for each allocation category.
-export const categoryMeta = {
+export const categoryMeta: Record<Category, { label: string; color: string }> = {
   growth: { label: 'Growth', color: colors.growth },
   dividend: { label: 'Dividend', color: colors.dividend },
   bond: { label: 'Bond', color: colors.bond },

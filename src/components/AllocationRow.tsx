@@ -2,30 +2,33 @@ import React from 'react';
 import { View, Text, TextInput, Pressable, StyleSheet } from 'react-native';
 
 import Badge from './Badge';
+import { Stock } from '../data/stocks';
 import { colors, spacing, radius, font, categoryMeta } from '../theme';
 import { formatPrice, volatilityLabel } from '../utils/format';
 
+interface AllocationRowProps {
+  stock: Stock;
+  /** Current percent as a string ("" means 0). */
+  value: string;
+  onChange: (id: string, next: string) => void;
+  step?: number;
+}
+
 /**
- * One editable allocation row for a single stock.
- *
- * props:
- *  - stock     the stock object
- *  - value     string (the current percent, "" means 0)
- *  - onChange  (id, nextString) => void
- *  - step      stepper increment (default 5)
+ * One editable allocation row for a single stock: identity + number input with
+ * +/- steppers.
  */
-export default function AllocationRow({ stock, value, onChange, step = 5 }) {
+export default function AllocationRow({ stock, value, onChange, step = 5 }: AllocationRowProps) {
   const cat = categoryMeta[stock.category];
   const vol = volatilityLabel(stock.volatility);
   const numeric = Number(value) || 0;
 
-  const setNumber = (n) => {
+  const setNumber = (n: number) => {
     const clamped = Math.max(0, Math.min(100, n));
     onChange(stock.id, clamped === 0 ? '' : String(clamped));
   };
 
-  const handleText = (text) => {
-    // digits only, clamp to 0..100
+  const handleText = (text: string) => {
     const digits = text.replace(/[^0-9]/g, '');
     if (digits === '') return onChange(stock.id, '');
     let n = parseInt(digits, 10);
@@ -73,7 +76,15 @@ export default function AllocationRow({ stock, value, onChange, step = 5 }) {
   );
 }
 
-function StepButton({ label, onPress, disabled }) {
+function StepButton({
+  label,
+  onPress,
+  disabled,
+}: {
+  label: string;
+  onPress: () => void;
+  disabled: boolean;
+}) {
   return (
     <Pressable
       onPress={onPress}

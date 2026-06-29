@@ -2,6 +2,7 @@
   "expo": {
     "name": "Portfolio Puzzle",
     "slug": "portfolio-puzzle",
+    "scheme": "portfoliopuzzle",
     "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "dark",
@@ -13,6 +14,9 @@
     "assetBundlePatterns": [
       "**/*"
     ],
+    "plugins": [
+      "expo-router"
+    ],
     "ios": {
       "supportsTablet": true
     },
@@ -22,7 +26,8 @@
       }
     },
     "web": {
-      "bundler": "metro"
+      "bundler": "metro",
+      "output": "static"
     }
   }
 }

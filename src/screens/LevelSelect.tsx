@@ -1,19 +1,34 @@
 import React from 'react';
 import { View, Text, Pressable, ScrollView, StyleSheet } from 'react-native';
+import { useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import LEVELS from '../data/levels';
+import LEVELS, { Difficulty } from '../data/levels';
 import Badge from '../components/Badge';
+import { useGame } from '../state/GameContext';
 import { colors, spacing, radius, font } from '../theme';
 
-const difficultyColor = {
+const difficultyColor: Record<Difficulty, string> = {
   Easy: colors.success,
   Medium: colors.warning,
   Hard: colors.danger,
 };
 
-export default function LevelSelect({ onSelectLevel }) {
+export default function LevelSelect() {
+  const router = useRouter();
+  const { startLevel } = useGame();
+  const insets = useSafeAreaInsets();
+
+  const onSelect = (id: number) => {
+    startLevel(id);
+    router.push('/profile');
+  };
+
   return (
-    <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+    <ScrollView
+      contentContainerStyle={[styles.content, { paddingTop: insets.top + spacing.lg }]}
+      showsVerticalScrollIndicator={false}
+    >
       <View style={styles.hero}>
         <Text style={styles.kicker}>PORTFOLIO PUZZLE</Text>
         <Text style={styles.title}>Be the Advisor</Text>
@@ -29,7 +44,7 @@ export default function LevelSelect({ onSelectLevel }) {
           <Pressable
             key={level.id}
             disabled={locked}
-            onPress={() => onSelectLevel(level.id)}
+            onPress={() => onSelect(level.id)}
             style={({ pressed }) => [
               styles.card,
               locked && styles.cardLocked,
@@ -78,7 +93,6 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.xxl,
   },
   hero: {
-    marginTop: spacing.lg,
     marginBottom: spacing.xl,
   },
   kicker: {
