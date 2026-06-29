@@ -1,181 +1,99 @@
-// Scoring engine.
+// Scoring engine — 40-year growth simulation + 3-star rating.
 //
-// The player allocates a percentage to each individual stock. We roll those up
-// into three category buckets (growth / dividend / bond) and an asset-class
-// split (stock / bond), then compare the category mix to the level's ideal.
+// The player buys whole shares of stocks with a fixed pot of starting capital.
+// We project each holding forward 40 years using a historical-average annual
+// return based on its category, compound it, and sum. Leftover (uninvested)
+// cash does not grow, so deploying capital matters.
 //
-// Score = "portfolio overlap": for each category, how much of the player's
-// weight falls within the ideal weight. Summed across categories this is a
-// clean 0–100 number (it equals 100 - (sum of |diff|)/2). 100 = perfect match.
+//   final_i   = cost_i * (1 + annualReturn[category_i]) ^ 40
+//   finalValue = Σ final_i + uninvestedCash
+//   totalReturn = finalValue - startingCapital
+//
+// Stars are awarded on totalReturn, with a one-tier bump if 90%+ of the
+// capital was deployed.
 
-import { Stock, Category, AssetClass } from './stocks';
+import { Stock, Category } from './stocks';
 import { Level } from './levels';
 
-export type Allocations = Record<string, number>;
+export type Holdings = Record<string, number>; // stockId -> shares owned
 
-// A raw, possibly-string allocation map (e.g. straight from text inputs).
-// summarizeAllocation coerces values with Number(), so it accepts either.
-export type RawAllocations = Record<string, number | string | undefined>;
+// Historical-average annual returns by category.
+export const ANNUAL_RETURN: Record<Category, number> = {
+  growth: 0.12,
+  dividend: 0.07,
+  bond: 0.04,
+};
 
-export type FeedbackTone = 'success' | 'warning' | 'info';
+export const SIM_YEARS = 40;
 
-export interface FeedbackMessage {
-  tone: FeedbackTone;
-  title: string;
-  text: string;
+export interface SimulationResult {
+  startingCapital: number;
+  invested: number;
+  uninvested: number;
+  /** Fraction of starting capital actually deployed (0..1). */
+  deployedPct: number;
+  finalValue: number;
+  totalReturn: number;
+  /** Final star count after the deployment bonus (0..3). */
+  stars: number;
+  /** Stars from returns alone, before the bonus. */
+  baseStars: number;
+  bonusApplied: boolean;
+  label: string;
+  byCategoryInvested: Record<Category, number>;
 }
 
-export interface AllocationSummary {
-  byCategory: Record<Category, number>;
-  byAssetClass: Record<AssetClass, number>;
-  total: number;
+function starsForReturn(totalReturn: number): number {
+  if (totalReturn >= 10000) return 3;
+  if (totalReturn >= 7500) return 2;
+  if (totalReturn >= 5000) return 1;
+  return 0;
 }
 
-export interface ScoreResult extends AllocationSummary {
-  score: number;
-  ideal: Record<Category, number>;
-  idealAssetClass: Record<AssetClass, number>;
-  rating: string;
-  ratingColor: string;
-  headline: string;
-  messages: FeedbackMessage[];
+function labelForStars(stars: number): string {
+  if (stars >= 3) return 'Excellent growth!';
+  if (stars === 2) return 'Good growth';
+  if (stars === 1) return 'Okay growth';
+  return 'Needs improvement';
 }
 
-const CATEGORIES: Category[] = ['growth', 'dividend', 'bond'];
+export function simulatePortfolio(holdings: Holdings, stocks: Stock[], level: Level): SimulationResult {
+  const startingCapital = level.customer?.startingCapital ?? 50000;
 
-export function summarizeAllocation(allocations: RawAllocations, stocks: Stock[]): AllocationSummary {
-  const byCategory: Record<Category, number> = { growth: 0, dividend: 0, bond: 0 };
-  let total = 0;
+  let invested = 0;
+  let finalInvested = 0;
+  const byCategoryInvested: Record<Category, number> = { growth: 0, dividend: 0, bond: 0 };
 
   stocks.forEach((s) => {
-    const v = Number(allocations[s.id]) || 0;
-    byCategory[s.category] += v;
-    total += v;
+    const shares = holdings[s.id] || 0;
+    const cost = shares * s.price;
+    if (cost <= 0) return;
+    invested += cost;
+    byCategoryInvested[s.category] += cost;
+    finalInvested += cost * Math.pow(1 + ANNUAL_RETURN[s.category], SIM_YEARS);
   });
 
-  const byAssetClass: Record<AssetClass, number> = {
-    stock: byCategory.growth + byCategory.dividend,
-    bond: byCategory.bond,
-  };
+  const uninvested = Math.max(0, startingCapital - invested);
+  const finalValue = finalInvested + uninvested;
+  const totalReturn = finalValue - startingCapital;
+  const deployedPct = startingCapital > 0 ? invested / startingCapital : 0;
 
-  return { byCategory, byAssetClass, total };
-}
-
-export function scoreAllocation(allocations: Allocations, stocks: Stock[], level: Level): ScoreResult {
-  const { byCategory, byAssetClass, total } = summarizeAllocation(allocations, stocks);
-  const ideal = level.ideal;
-
-  // Overlap: sum of the per-category minimum of player vs. ideal.
-  const overlap = CATEGORIES.reduce((sum, c) => sum + Math.min(byCategory[c], ideal[c] || 0), 0);
-  const score = Math.max(0, Math.min(100, Math.round(overlap)));
-
-  const idealAssetClass: Record<AssetClass, number> = {
-    stock: (ideal.growth || 0) + (ideal.dividend || 0),
-    bond: ideal.bond || 0,
-  };
-
-  const feedback = buildFeedback(byCategory, byAssetClass, ideal, idealAssetClass, score);
+  const baseStars = starsForReturn(totalReturn);
+  // Reward fully deploying the capital: bump one tier (but not from a fail).
+  const bonusApplied = deployedPct >= 0.9 && baseStars >= 1 && baseStars < 3;
+  const stars = bonusApplied ? Math.min(3, baseStars + 1) : baseStars;
 
   return {
-    score,
-    total,
-    byCategory,
-    byAssetClass,
-    ideal,
-    idealAssetClass,
-    ...feedback,
+    startingCapital,
+    invested,
+    uninvested,
+    deployedPct,
+    finalValue,
+    totalReturn,
+    stars,
+    baseStars,
+    bonusApplied,
+    label: labelForStars(stars),
+    byCategoryInvested,
   };
-}
-
-function ratingFor(score: number): { rating: string; color: string } {
-  if (score >= 90) return { rating: 'Excellent', color: '#22C55E' };
-  if (score >= 75) return { rating: 'Strong', color: '#84CC16' };
-  if (score >= 60) return { rating: 'Decent', color: '#F59E0B' };
-  if (score >= 40) return { rating: 'Off Target', color: '#F97316' };
-  return { rating: 'Needs Work', color: '#EF4444' };
-}
-
-interface Feedback {
-  rating: string;
-  ratingColor: string;
-  headline: string;
-  messages: FeedbackMessage[];
-}
-
-function buildFeedback(
-  byCategory: Record<Category, number>,
-  byAssetClass: Record<AssetClass, number>,
-  ideal: Record<Category, number>,
-  idealAssetClass: Record<AssetClass, number>,
-  score: number
-): Feedback {
-  const { rating, color } = ratingFor(score);
-  const messages: FeedbackMessage[] = [];
-
-  const bondDiff = byAssetClass.bond - idealAssetClass.bond;
-  const growthDiff = byCategory.growth - (ideal.growth || 0);
-  const dividendDiff = byCategory.dividend - (ideal.dividend || 0);
-
-  // Asset-class (stocks vs bonds) is the headline lesson.
-  if (bondDiff <= -10) {
-    messages.push({
-      tone: 'warning',
-      title: 'Too aggressive',
-      text:
-        "You're light on bonds. Even a young investor keeps a cushion of bonds " +
-        'so the whole portfolio is not exposed to a market crash.',
-    });
-  } else if (bondDiff >= 12) {
-    messages.push({
-      tone: 'warning',
-      title: 'Too conservative',
-      text:
-        "That's a lot of bonds for someone with a 40-year horizon. They can " +
-        'afford more risk — shift weight from bonds into growth.',
-    });
-  }
-
-  // Within-stocks tilt (growth vs dividend).
-  if (growthDiff <= -15) {
-    messages.push({
-      tone: 'info',
-      title: 'Needs more growth',
-      text:
-        'Lean harder into the high-growth tech names. Over 40 years, compounding ' +
-        'growth matters far more than current income.',
-    });
-  } else if (growthDiff >= 20) {
-    messages.push({
-      tone: 'info',
-      title: 'Very concentrated in growth',
-      text:
-        'Almost everything is in high-flyers. A slice of steady dividend payers ' +
-        'smooths the ride without giving up much upside.',
-    });
-  }
-
-  if (dividendDiff <= -18 && growthDiff > -15) {
-    messages.push({
-      tone: 'info',
-      title: 'Light on dividend payers',
-      text: 'A little exposure to steady dividend stocks adds balance.',
-    });
-  }
-
-  if (messages.length === 0) {
-    messages.push({
-      tone: 'success',
-      title: 'Well balanced',
-      text: 'This matches an aggressive long-term profile nicely — great read of the client.',
-    });
-  }
-
-  let headline: string;
-  if (score >= 90) headline = 'Nailed it.';
-  else if (score >= 75) headline = 'Close — solid portfolio.';
-  else if (score >= 60) headline = 'On the right track.';
-  else if (score >= 40) headline = 'Not quite — re-read the client.';
-  else headline = "This portfolio doesn't fit the client.";
-
-  return { rating, ratingColor: color, headline, messages };
 }

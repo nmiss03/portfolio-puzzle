@@ -24,6 +24,11 @@ export interface Stock {
   category: Category;
   assetClass: AssetClass;
   blurb: string;
+  /** One-line neutral company description. */
+  description: string;
+  /** A few sentences mixing relevant and irrelevant facts — the player reads
+   *  to separate signal from noise. */
+  background: string;
 }
 
 const STOCKS: Stock[] = [
@@ -40,6 +45,9 @@ const STOCKS: Stock[] = [
     category: 'growth',
     assetClass: 'stock',
     blurb: 'Designs AI accelerator chips. Explosive revenue growth, no dividend.',
+    description: 'Designs the high-end chips that power AI data centers worldwide.',
+    background:
+      'Founded in 2009 in Austin, Texas. Revenue has tripled in the last three years as AI demand exploded. The CEO is an avid marathon runner. Holds a commanding share of the AI accelerator market. Its campus cafeteria is famous for free smoothies.',
   },
   {
     id: 'qcld',
@@ -53,6 +61,9 @@ const STOCKS: Stock[] = [
     category: 'growth',
     assetClass: 'stock',
     blurb: 'Cloud + quantum compute platform reinvesting every dollar into growth.',
+    description: 'Runs a fast-growing cloud platform and an experimental quantum division.',
+    background:
+      'Started as a college side project in 2014. Reinvests nearly all profit back into expansion rather than paying dividends. The headquarters has a rooftop beehive. Customer base is doubling roughly every two years. Its mascot is a cartoon owl named Q.',
   },
   {
     id: 'byte',
@@ -66,6 +77,9 @@ const STOCKS: Stock[] = [
     category: 'growth',
     assetClass: 'stock',
     blurb: 'Generative-AI tooling startup. Priced for huge future earnings.',
+    description: 'Builds developer tools for generative-AI applications.',
+    background:
+      'A young company that IPO\'d only last year. Its products are still early but adoption among startups is climbing quickly. The founders met at a hackathon. It has the highest valuation-to-earnings ratio of any name on this list. Their office dog, Pixel, has a popular social media account.',
   },
   {
     id: 'sln',
@@ -79,6 +93,9 @@ const STOCKS: Stock[] = [
     category: 'growth',
     assetClass: 'stock',
     blurb: 'Next-gen solar manufacturer scaling fast in a booming sector.',
+    description: 'Manufactures next-generation high-efficiency solar panels.',
+    background:
+      'Founded in 2011 in Arizona. Operates in the fast-growing but volatile clean-energy sector. The company sponsors a local little-league team. Demand swings sharply with government subsidy cycles. Its newest factory runs entirely on its own solar power.',
   },
   {
     id: 'mdgn',
@@ -92,6 +109,9 @@ const STOCKS: Stock[] = [
     category: 'growth',
     assetClass: 'stock',
     blurb: 'Pre-profit gene-therapy lab. High risk, high potential reward.',
+    description: 'A clinical-stage biotech developing gene therapies.',
+    background:
+      'Spun out of a university research lab in 2016. It is not yet profitable and its value hinges on trial results. The lab keeps a tank of tropical fish in the lobby. A single FDA decision could double or halve the stock. Its scientists publish frequently in major journals.',
   },
 
   // ---- 3 dividend stocks ----------------------------------------------
@@ -107,6 +127,9 @@ const STOCKS: Stock[] = [
     category: 'dividend',
     assetClass: 'stock',
     blurb: 'Boring, steady packaged-foods giant that pays a dependable dividend.',
+    description: 'A century-old packaged-foods company with steady sales.',
+    background:
+      'Founded in 1921 and family-run for three generations. Sales barely move year to year, which makes it dependable. It has paid an uninterrupted dividend for over 40 years. The original factory still operates in Ohio. The current CEO collects vintage cookbooks.',
   },
   {
     id: 'mgb',
@@ -120,6 +143,9 @@ const STOCKS: Stock[] = [
     category: 'dividend',
     assetClass: 'stock',
     blurb: 'Large retail bank. Modest growth, attractive dividend yield.',
+    description: 'A large national retail and commercial bank.',
+    background:
+      'Traces its roots to 1888. Profits grow slowly but it returns a lot of cash to shareholders via dividends. It recently updated its mobile app to positive reviews. Earnings are sensitive to interest-rate changes. The bank sponsors an annual charity 10k run.',
   },
   {
     id: 'pwg',
@@ -133,6 +159,9 @@ const STOCKS: Stock[] = [
     category: 'dividend',
     assetClass: 'stock',
     blurb: 'Regulated electric utility. Low growth, low volatility, fat dividend.',
+    description: 'A regulated electric utility serving several states.',
+    background:
+      'Established in 1934 as a public power provider. Its regulated rates make revenue very predictable and the stock calm. It pays one of the highest dividends on this list. The company is slowly expanding into wind power. Its headquarters lobby features a small museum of antique light bulbs.',
   },
 
   // ---- 2 bonds ---------------------------------------------------------
@@ -148,6 +177,9 @@ const STOCKS: Stock[] = [
     category: 'bond',
     assetClass: 'bond',
     blurb: 'Government bonds. The safe-haven anchor of a portfolio.',
+    description: 'A fund holding U.S. government bonds of various maturities.',
+    background:
+      'Backed by the full faith and credit of the U.S. government, so default risk is minimal. Its price moves very little, making it a portfolio anchor. The fund was launched in 2002. Returns are modest but steady. The fund manager is based in Boston and bikes to work.',
   },
   {
     id: 'corp',
@@ -161,6 +193,9 @@ const STOCKS: Stock[] = [
     category: 'bond',
     assetClass: 'bond',
     blurb: 'High-quality corporate bonds. A bit more yield, still very stable.',
+    description: 'A fund holding investment-grade corporate bonds.',
+    background:
+      'Holds bonds from large, financially healthy companies. It yields a little more than government bonds in exchange for slightly more risk. The fund celebrated its 20th anniversary recently. Price movements are small and gradual. Its prospectus is printed on recycled paper.',
   },
 ];
 

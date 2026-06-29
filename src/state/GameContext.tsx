@@ -1,62 +1,61 @@
 // Shared game state across the expo-router screens.
 //
-// Because each route is its own component, the selected level, the in-progress
-// allocation, and the computed result live in a Context provider mounted at the
-// root layout. Screens read/update this instead of passing params around.
+// The selected level, the in-progress share holdings, and the computed
+// simulation result live in a Context provider mounted at the root layout so
+// each route (its own component) can read/update them.
 
 import React, { createContext, useCallback, useContext, useMemo, useState } from 'react';
 
 import { getLevel, Level } from '../data/levels';
 import { getStocksByIds } from '../data/stocks';
-import { Allocations, ScoreResult, scoreAllocation } from '../data/scoring';
+import { Holdings, SimulationResult, simulatePortfolio } from '../data/scoring';
 
 interface GameContextValue {
   level: Level;
   levelId: number;
-  allocations: Allocations;
-  result: ScoreResult | null;
+  holdings: Holdings;
+  result: SimulationResult | null;
   /** Begin a level: select it and clear any previous progress. */
   startLevel: (id: number) => void;
-  /** Persist an in-progress allocation (so it survives navigation). */
-  saveAllocations: (a: Allocations) => void;
-  /** Score the allocation, store the result, and return it. */
-  submitAllocations: (a: Allocations) => ScoreResult;
+  /** Persist in-progress holdings (so they survive navigation). */
+  saveHoldings: (h: Holdings) => void;
+  /** Run the 40-year simulation, store the result, and return it. */
+  submitHoldings: (h: Holdings) => SimulationResult;
 }
 
 const GameContext = createContext<GameContextValue | undefined>(undefined);
 
 export function GameProvider({ children }: { children: React.ReactNode }) {
   const [levelId, setLevelId] = useState(1);
-  const [allocations, setAllocations] = useState<Allocations>({});
-  const [result, setResult] = useState<ScoreResult | null>(null);
+  const [holdings, setHoldings] = useState<Holdings>({});
+  const [result, setResult] = useState<SimulationResult | null>(null);
 
-  // Level 1 is guaranteed to exist; fall back to it defensively.
   const level = getLevel(levelId) ?? (getLevel(1) as Level);
 
   const startLevel = useCallback((id: number) => {
     const target = getLevel(id);
     if (!target || target.locked) return;
     setLevelId(id);
-    setAllocations({});
+    setHoldings({});
     setResult(null);
   }, []);
 
-  const saveAllocations = useCallback((a: Allocations) => setAllocations(a), []);
+  const saveHoldings = useCallback((h: Holdings) => setHoldings(h), []);
 
-  const submitAllocations = useCallback(
-    (a: Allocations): ScoreResult => {
-      setAllocations(a);
+  const submitHoldings = useCallback(
+    (h: Holdings): SimulationResult => {
+      setHoldings(h);
       const stocks = getStocksByIds(level.stockIds);
-      const scored = scoreAllocation(a, stocks, level);
-      setResult(scored);
-      return scored;
+      const sim = simulatePortfolio(h, stocks, level);
+      setResult(sim);
+      return sim;
     },
     [level]
   );
 
   const value = useMemo<GameContextValue>(
-    () => ({ level, levelId, allocations, result, startLevel, saveAllocations, submitAllocations }),
-    [level, levelId, allocations, result, startLevel, saveAllocations, submitAllocations]
+    () => ({ level, levelId, holdings, result, startLevel, saveHoldings, submitHoldings }),
+    [level, levelId, holdings, result, startLevel, saveHoldings, submitHoldings]
   );
 
   return <GameContext.Provider value={value}>{children}</GameContext.Provider>;

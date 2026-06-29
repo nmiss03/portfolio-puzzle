@@ -1,5 +1,5 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, ScrollView, StyleSheet } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -15,23 +15,14 @@ const DIALOGUE = [
   'So yeah, help me figure out where to put this $50,000 I\'ve saved up. I want it working for me.',
 ];
 
-const BUBBLE_DELAY_MS = 1500;
-
 export default function CustomerIntro() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { level } = useGame();
 
-  const [visibleCount, setVisibleCount] = useState(0);
-  const scrollRef = useRef<ScrollView>(null);
-
-  useEffect(() => {
-    if (visibleCount >= DIALOGUE.length) return;
-    const timer = setTimeout(() => setVisibleCount((c) => c + 1), BUBBLE_DELAY_MS);
-    return () => clearTimeout(timer);
-  }, [visibleCount]);
-
-  const allShown = visibleCount >= DIALOGUE.length;
+  // Which bubble is currently shown (one at a time, click to advance).
+  const [index, setIndex] = useState(0);
+  const isLast = index === DIALOGUE.length - 1;
 
   const startAnalysis = () => {
     const customer = level.customer;
@@ -41,17 +32,16 @@ export default function CustomerIntro() {
     });
   };
 
+  const onNext = () => {
+    if (isLast) startAnalysis();
+    else setIndex((i) => i + 1);
+  };
+
   return (
-    <ScrollView
-      ref={scrollRef}
-      style={styles.screen}
-      contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 32 }]}
-      onContentSizeChange={() => scrollRef.current?.scrollToEnd({ animated: true })}
-    >
+    <View style={[styles.screen, { paddingTop: insets.top + 24, paddingBottom: insets.bottom + 24 }]}>
       {/* ---- Pixel-art client at a desk ---- */}
       <View style={styles.scene}>
         <View style={styles.character}>
-          {/* Head with eyes + mouth */}
           <View style={styles.head}>
             <View style={styles.eyesRow}>
               <View style={C.eye} />
@@ -60,38 +50,30 @@ export default function CustomerIntro() {
             <View style={styles.mouth} />
           </View>
 
-          {/* Arms on each side of the body */}
           <View style={styles.torso}>
             <View style={styles.arm} />
             <View style={styles.body} />
             <View style={styles.arm} />
           </View>
         </View>
-
         <View style={styles.desk} />
       </View>
 
-      {/* ---- Conversational dialogue bubbles ---- */}
-      <View style={styles.dialogue}>
-        {DIALOGUE.slice(0, visibleCount).map((line, i) => (
-          <View key={i} style={styles.bubble}>
-            <Text style={styles.bubbleText}>{line}</Text>
-          </View>
-        ))}
-
-        {!allShown && (
-          <View style={styles.typing}>
-            <Text style={styles.typingText}>…</Text>
-          </View>
-        )}
+      {/* ---- One dialogue bubble at a time ---- */}
+      <View style={styles.bubbleArea}>
+        <View style={styles.bubble}>
+          <Text style={styles.bubbleText}>{DIALOGUE[index]}</Text>
+        </View>
+        <Text style={styles.counter}>
+          {index + 1} / {DIALOGUE.length}
+        </Text>
       </View>
 
-      {allShown && (
-        <View style={styles.actions}>
-          <Button title="Start Portfolio Analysis" onPress={startAnalysis} />
-        </View>
-      )}
-    </ScrollView>
+      {/* ---- Advance / start ---- */}
+      <View style={styles.actions}>
+        <Button title={isLast ? 'Start Portfolio Analysis' : 'Next'} onPress={onNext} />
+      </View>
+    </View>
   );
 }
 
@@ -100,6 +82,7 @@ const PALETTE = {
   card: '#ffffff',
   border: '#cccccc',
   text: '#1a1a1a',
+  muted: '#888888',
   skin: '#D4A574',
   shirt: '#8B6F47',
   eye: '#0066CC',
@@ -107,7 +90,6 @@ const PALETTE = {
   desk: '#3A3A3A',
 };
 
-// Small reusable raw style for the eye squares.
 const C = StyleSheet.create({
   eye: {
     width: 6,
@@ -120,17 +102,14 @@ const styles = StyleSheet.create({
   screen: {
     flex: 1,
     backgroundColor: PALETTE.bg,
-  },
-  content: {
     paddingHorizontal: 20,
-    paddingTop: 24,
     alignItems: 'center',
+    justifyContent: 'space-between',
   },
 
   // Scene
   scene: {
     alignItems: 'center',
-    marginBottom: 24,
   },
   character: {
     alignItems: 'center',
@@ -172,8 +151,8 @@ const styles = StyleSheet.create({
     marginTop: 6,
   },
 
-  // Dialogue
-  dialogue: {
+  // Bubble
+  bubbleArea: {
     width: '100%',
     alignItems: 'center',
   },
@@ -183,7 +162,6 @@ const styles = StyleSheet.create({
     borderColor: PALETTE.border,
     borderRadius: 4,
     padding: 16,
-    marginTop: 12,
     maxWidth: 320,
   },
   bubbleText: {
@@ -191,25 +169,15 @@ const styles = StyleSheet.create({
     fontSize: 16,
     lineHeight: 23,
   },
-  typing: {
-    backgroundColor: PALETTE.card,
-    borderWidth: 2,
-    borderColor: PALETTE.border,
-    borderRadius: 4,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
+  counter: {
+    color: PALETTE.muted,
+    fontSize: 13,
+    fontWeight: '700',
     marginTop: 12,
-  },
-  typingText: {
-    color: PALETTE.text,
-    fontSize: 18,
-    fontWeight: '800',
-    letterSpacing: 2,
   },
 
   actions: {
     width: '100%',
     maxWidth: 320,
-    marginTop: 24,
   },
 });
