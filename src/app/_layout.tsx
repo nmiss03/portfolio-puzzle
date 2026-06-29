@@ -8,14 +8,9 @@ import { colors, font } from '../theme';
 
 // Root layout: wires up the navigation stack and the shared game state.
 //
-// Flow: index (LevelSelect)
-//        -> (profile)/CustomerIntro    (conversational cutscene)
-//        -> (game)/PortfolioBuilder    (buy shares with game currency)
-//        -> (game)/ResultScreen        (score + feedback from holdings)
-//
-// The (profile) and (game) groups are organizational only — they don't change
-// the URL. The native stack auto-renders a back button on every screen pushed
-// on top of another, i.e. everything except the "index" home route.
+// Flow: index (start screen) -> (game)/DayScreen (the whole day-by-day career,
+// which manages its own internal phases: day intro -> client intro -> portfolio
+// builder -> day transition -> game over, plus the Client Book overlay).
 export default function RootLayout() {
   return (
     <SafeAreaProvider>
@@ -35,9 +30,7 @@ export default function RootLayout() {
         >
           {/* Home / entry point — LevelSelect. The root, so no back button. */}
           <Stack.Screen name="index" options={{ headerShown: false }} />
-          <Stack.Screen name="(profile)/CustomerIntro" options={{ title: 'Meet the Client' }} />
-          <Stack.Screen name="(game)/PortfolioBuilder" options={{ title: 'Portfolio Builder' }} />
-          <Stack.Screen name="(game)/ResultScreen" options={{ title: 'Results' }} />
+          <Stack.Screen name="(game)/DayScreen" options={{ headerShown: false }} />
         </Stack>
       </GameProvider>
     </SafeAreaProvider>

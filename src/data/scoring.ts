@@ -1,169 +1,119 @@
-// Scoring engine — 40-year growth simulation + 3-star rating.
+// Per-client portfolio scoring, returns, and happiness impact.
 //
-// The player buys whole shares of stocks with a fixed pot of starting capital.
-// We project each holding forward 40 years using a historical-average annual
-// return based on its category, compound it, and sum. Leftover (uninvested)
-// cash does not grow, so deploying capital matters.
-//
-//   final_i   = cost_i * (1 + annualReturn[category_i]) ^ 40
-//   finalValue = Σ final_i + uninvestedCash
-//   totalReturn = finalValue - startingCapital
-//
-// Stars are awarded on totalReturn, with a one-tier bump if 90%+ of the
-// capital was deployed.
+// A client's portfolio earns a single-period (annualized) return based on its
+// allocation. Matching the client's profile adds a bonus; over-concentrating
+// (and especially taking more high-growth risk than the client can stomach)
+// triggers a drawdown that can push the return negative — which is how a client
+// can lose money, score 0 stars, and grow unhappy.
 
-import { Stock, Category } from './stocks';
-import { Level } from './levels';
+import STOCKS, { Category } from './stocks';
+import { ClientProfile } from './gameState';
 
-export type Holdings = Record<string, number>; // stockId -> shares owned
+export type Holdings = Record<string, number>; // stockId -> shares
 
-// Historical-average annual returns by category.
 export const ANNUAL_RETURN: Record<Category, number> = {
   growth: 0.12,
   dividend: 0.07,
   bond: 0.04,
 };
 
-export const SIM_YEARS = 40;
+const PROFILE_BONUS = 0.1; // +10% to gains when allocation fits the client
+const UNBALANCED_PENALTY = 0.15; // -15% to gains when >80% sits in one category
+const UNBALANCED_THRESHOLD = 0.8;
+const PROFILE_TOLERANCE = 0.12; // stock% within ±12pts of ideal counts as a match
+const DRAWDOWN_FACTOR = 0.6; // how hard excess high-growth risk bites
 
-// When the high-growth exposure exceeds the client's penalty threshold, an
-// "unforeseen" downturn wipes out a slice of the gains. The further over the
-// line, the worse the crash.
-const RISK_PENALTY_BASE = 0.25; // gains lost right at the threshold
-const RISK_PENALTY_SLOPE = 1.75; // extra loss per point of over-exposure
-const RISK_PENALTY_MAX = 0.65; // never wipe more than this share of gains
+const stocksById: Record<string, (typeof STOCKS)[number]> = STOCKS.reduce(
+  (acc, s) => {
+    acc[s.id] = s;
+    return acc;
+  },
+  {} as Record<string, (typeof STOCKS)[number]>
+);
 
-// Star tiers, expressed as the total return measured in MULTIPLES of the
-// starting capital (return / startingCapital). Over a 40-year horizon money
-// compounds enormously, so absolute dollar thresholds are meaningless — these
-// multiples are what separate an aggressive growth portfolio from a timid one:
-//
-//   fully-deployed all-bonds    ~3.8x   -> 0 stars (too conservative for a 25yo)
-//   fully-deployed all-dividend ~14x    -> 1 star
-//   moderate growth tilt        ~16-40x -> 2 stars
-//   growth-heavy (the right call) ~40x+ -> 3 stars
-export const STAR_RETURN_MULTIPLE = {
-  three: 40,
-  two: 16,
-  one: 6,
-};
-
-export type RiskVerdict = 'conservative' | 'wellAllocated' | 'excessive';
-
-export interface SimulationResult {
-  startingCapital: number;
+export interface DayResult {
   invested: number;
-  uninvested: number;
-  /** Fraction of starting capital actually deployed (0..1). */
-  deployedPct: number;
-  /** Pre-penalty 40-year value (the "expected" growth). */
-  expectedFinalValue: number;
-  /** Final value after any risk penalty. */
-  finalValue: number;
-  totalReturn: number;
-  /** Final star count after the deployment bonus (0..3). */
-  stars: number;
-  /** Stars from returns alone, before the excessive-risk cap. */
-  baseStars: number;
-  label: string;
-  byCategoryInvested: Record<Category, number>;
-
-  // ---- asset-mix risk grading ----
-  /** Share of invested dollars in high-growth / high-volatility names (0..1). */
-  highGrowthPct: number;
-  riskVerdict: RiskVerdict;
-  riskMessage: string;
-  /** True if an over-risk downturn cut the gains. */
-  penaltyApplied: boolean;
-  /** Dollars lost to the downturn (0 if none). */
-  penaltyAmount: number;
+  byCategory: Record<Category, number>; // dollars
+  stockPct: number; // stocks / invested
+  highGrowthPct: number; // growth / invested
+  blendedReturn: number; // weighted annual return before modifiers
+  gain: number; // dollars (can be negative)
+  returnPct: number; // gain / initialCapital (fraction, can be negative)
+  stars: number; // 0..3
+  profileMatch: boolean;
+  diversified: boolean; // all three categories present
+  unbalanced: boolean; // >80% in one category
+  drawdownApplied: boolean;
 }
 
-function starsForReturn(totalReturn: number, startingCapital: number): number {
-  const multiple = startingCapital > 0 ? totalReturn / startingCapital : 0;
-  if (multiple >= STAR_RETURN_MULTIPLE.three) return 3;
-  if (multiple >= STAR_RETURN_MULTIPLE.two) return 2;
-  if (multiple >= STAR_RETURN_MULTIPLE.one) return 1;
-  return 0;
-}
-
-function labelForStars(stars: number): string {
-  if (stars >= 3) return 'Excellent growth!';
-  if (stars === 2) return 'Good growth';
-  if (stars === 1) return 'Okay growth';
-  return 'Needs improvement';
-}
-
-export function simulatePortfolio(holdings: Holdings, stocks: Stock[], level: Level): SimulationResult {
-  const startingCapital = level.customer?.startingCapital ?? 50000;
-
+export function scorePortfolio(holdings: Holdings, client: ClientProfile): DayResult {
+  const byCategory: Record<Category, number> = { growth: 0, dividend: 0, bond: 0 };
   let invested = 0;
-  let finalInvested = 0;
-  const byCategoryInvested: Record<Category, number> = { growth: 0, dividend: 0, bond: 0 };
 
-  stocks.forEach((s) => {
-    const shares = holdings[s.id] || 0;
+  Object.entries(holdings).forEach(([id, shares]) => {
+    const s = stocksById[id];
+    if (!s || shares <= 0) return;
     const cost = shares * s.price;
-    if (cost <= 0) return;
     invested += cost;
-    byCategoryInvested[s.category] += cost;
-    finalInvested += cost * Math.pow(1 + ANNUAL_RETURN[s.category], SIM_YEARS);
+    byCategory[s.category] += cost;
   });
 
-  const uninvested = Math.max(0, startingCapital - invested);
-  const expectedFinalValue = finalInvested + uninvested;
-  const deployedPct = startingCapital > 0 ? invested / startingCapital : 0;
+  const empty = invested <= 0;
+  const stockDollars = byCategory.growth + byCategory.dividend;
+  const stockPct = empty ? 0 : stockDollars / invested;
+  const highGrowthPct = empty ? 0 : byCategory.growth / invested;
 
-  // ---- Asset-mix risk grading -------------------------------------------
-  // How concentrated is the portfolio in high-growth / high-volatility names?
-  const highGrowthPct = invested > 0 ? byCategoryInvested.growth / invested : 0;
-  const { sweetSpotMin, penaltyThreshold } = level.riskProfile;
+  const blendedReturn = empty
+    ? 0
+    : (['growth', 'dividend', 'bond'] as Category[]).reduce(
+        (sum, c) => sum + (byCategory[c] / invested) * ANNUAL_RETURN[c],
+        0
+      );
 
-  let riskVerdict: RiskVerdict;
-  let riskMessage: string;
-  let penaltyFraction = 0;
+  const profileMatch = !empty && Math.abs(stockPct - client.idealStockPct) <= PROFILE_TOLERANCE;
+  const diversified = byCategory.growth > 0 && byCategory.dividend > 0 && byCategory.bond > 0;
+  const maxShare = empty ? 0 : Math.max(byCategory.growth, byCategory.dividend, byCategory.bond) / invested;
+  const unbalanced = !empty && maxShare > UNBALANCED_THRESHOLD;
 
-  if (highGrowthPct > penaltyThreshold) {
-    riskVerdict = 'excessive';
-    riskMessage = 'You took on too much risk — a market downturn wiped out a chunk of your gains.';
-    const over = highGrowthPct - penaltyThreshold; // 0..(1 - threshold)
-    penaltyFraction = Math.min(RISK_PENALTY_MAX, RISK_PENALTY_BASE + over * RISK_PENALTY_SLOPE);
-  } else if (highGrowthPct >= sweetSpotMin) {
-    riskVerdict = 'wellAllocated';
-    riskMessage = 'You allocated risk very well — right in this client\'s sweet spot.';
-  } else {
-    riskVerdict = 'conservative';
-    riskMessage = 'A bit conservative for this client — they could have taken on more growth.';
-  }
+  // Multiplier on gains for fit / concentration.
+  let mult = 1;
+  if (profileMatch) mult += PROFILE_BONUS;
+  if (unbalanced) mult -= UNBALANCED_PENALTY;
 
-  const expectedGains = expectedFinalValue - startingCapital;
-  const penaltyAmount = Math.max(0, expectedGains) * penaltyFraction;
-  const finalValue = expectedFinalValue - penaltyAmount;
-  const totalReturn = finalValue - startingCapital;
-  const penaltyApplied = penaltyAmount > 0;
+  // Risk drawdown: high-growth exposure above the client's tolerance hurts,
+  // scaling with how far over the line — enough to turn returns negative.
+  const excessRisk = Math.max(0, highGrowthPct - client.riskTolerance);
+  const drawdown = excessRisk * DRAWDOWN_FACTOR; // fraction of invested
+  const drawdownApplied = drawdown > 0;
 
-  const baseStars = starsForReturn(totalReturn, startingCapital);
-  let stars = baseStars;
-  // Taking on excessive risk caps the score: the perfect rating is reserved
-  // for portfolios that stayed inside the client's risk sweet spot.
-  if (riskVerdict === 'excessive') stars = Math.min(stars, 2);
+  const gain = invested * blendedReturn * mult - invested * drawdown;
+  const returnPct = client.initialCapital > 0 ? gain / client.initialCapital : 0;
+
+  const stars = returnPct >= 0.1 ? 3 : returnPct >= 0.05 ? 2 : returnPct >= 0 ? 1 : 0;
 
   return {
-    startingCapital,
     invested,
-    uninvested,
-    deployedPct,
-    expectedFinalValue,
-    finalValue,
-    totalReturn,
-    stars,
-    baseStars,
-    label: labelForStars(stars),
-    byCategoryInvested,
+    byCategory,
+    stockPct,
     highGrowthPct,
-    riskVerdict,
-    riskMessage,
-    penaltyApplied,
-    penaltyAmount,
+    blendedReturn,
+    gain,
+    returnPct,
+    stars,
+    profileMatch,
+    diversified,
+    unbalanced,
+    drawdownApplied,
   };
+}
+
+// How much a finalized day moves the happiness meter.
+export function happinessDelta(result: DayResult): number {
+  let d = -5; // natural decay
+  if (result.stars >= 2) d += 10;
+  else if (result.stars === 1) d += 5;
+  else d -= 15; // 0 stars / negative returns
+  if (result.diversified) d += 5;
+  if (result.unbalanced) d -= 10;
+  return d;
 }
