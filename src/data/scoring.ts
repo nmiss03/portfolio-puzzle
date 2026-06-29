@@ -26,6 +26,21 @@ export const ANNUAL_RETURN: Record<Category, number> = {
 
 export const SIM_YEARS = 40;
 
+// Star tiers, expressed as the total return measured in MULTIPLES of the
+// starting capital (return / startingCapital). Over a 40-year horizon money
+// compounds enormously, so absolute dollar thresholds are meaningless — these
+// multiples are what separate an aggressive growth portfolio from a timid one:
+//
+//   fully-deployed all-bonds    ~3.8x   -> 0 stars (too conservative for a 25yo)
+//   fully-deployed all-dividend ~14x    -> 1 star
+//   moderate growth tilt        ~16-40x -> 2 stars
+//   growth-heavy (the right call) ~40x+ -> 3 stars
+export const STAR_RETURN_MULTIPLE = {
+  three: 40,
+  two: 16,
+  one: 6,
+};
+
 export interface SimulationResult {
   startingCapital: number;
   invested: number;
@@ -43,10 +58,11 @@ export interface SimulationResult {
   byCategoryInvested: Record<Category, number>;
 }
 
-function starsForReturn(totalReturn: number): number {
-  if (totalReturn >= 10000) return 3;
-  if (totalReturn >= 7500) return 2;
-  if (totalReturn >= 5000) return 1;
+function starsForReturn(totalReturn: number, startingCapital: number): number {
+  const multiple = startingCapital > 0 ? totalReturn / startingCapital : 0;
+  if (multiple >= STAR_RETURN_MULTIPLE.three) return 3;
+  if (multiple >= STAR_RETURN_MULTIPLE.two) return 2;
+  if (multiple >= STAR_RETURN_MULTIPLE.one) return 1;
   return 0;
 }
 
@@ -78,10 +94,12 @@ export function simulatePortfolio(holdings: Holdings, stocks: Stock[], level: Le
   const totalReturn = finalValue - startingCapital;
   const deployedPct = startingCapital > 0 ? invested / startingCapital : 0;
 
-  const baseStars = starsForReturn(totalReturn);
-  // Reward fully deploying the capital: bump one tier (but not from a fail).
-  const bonusApplied = deployedPct >= 0.9 && baseStars >= 1 && baseStars < 3;
-  const stars = bonusApplied ? Math.min(3, baseStars + 1) : baseStars;
+  const baseStars = starsForReturn(totalReturn, startingCapital);
+  // Reward fully deploying the capital with a one-tier bump — but the top tier
+  // is earned on returns alone, so the bonus can lift a 1-star to 2 and never
+  // reach 3 (a 3-star portfolio must clear the growth-tilted return threshold).
+  const bonusApplied = deployedPct >= 0.9 && baseStars === 1;
+  const stars = bonusApplied ? 2 : baseStars;
 
   return {
     startingCapital,
