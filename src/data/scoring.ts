@@ -63,9 +63,8 @@ export interface SimulationResult {
   totalReturn: number;
   /** Final star count after the deployment bonus (0..3). */
   stars: number;
-  /** Stars from returns alone, before the bonus. */
+  /** Stars from returns alone, before the excessive-risk cap. */
   baseStars: number;
-  bonusApplied: boolean;
   label: string;
   byCategoryInvested: Record<Category, number>;
 
@@ -144,11 +143,7 @@ export function simulatePortfolio(holdings: Holdings, stocks: Stock[], level: Le
   const penaltyApplied = penaltyAmount > 0;
 
   const baseStars = starsForReturn(totalReturn, startingCapital);
-  // Reward fully deploying the capital with a one-tier bump — but the top tier
-  // is earned on returns alone, so the bonus can lift a 1-star to 2 and never
-  // reach 3 (a 3-star portfolio must clear the growth-tilted return threshold).
-  const bonusApplied = deployedPct >= 0.9 && baseStars === 1;
-  let stars = bonusApplied ? 2 : baseStars;
+  let stars = baseStars;
   // Taking on excessive risk caps the score: the perfect rating is reserved
   // for portfolios that stayed inside the client's risk sweet spot.
   if (riskVerdict === 'excessive') stars = Math.min(stars, 2);
@@ -163,7 +158,6 @@ export function simulatePortfolio(holdings: Holdings, stocks: Stock[], level: Le
     totalReturn,
     stars,
     baseStars,
-    bonusApplied,
     label: labelForStars(stars),
     byCategoryInvested,
     highGrowthPct,

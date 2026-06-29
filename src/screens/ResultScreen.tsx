@@ -137,11 +137,6 @@ export default function ResultScreen() {
                 ))}
               </View>
               <Text style={styles.verdict}>{result.label}</Text>
-              {result.bonusApplied && (
-                <Text style={styles.bonus}>
-                  ★ Capital bonus: deployed {Math.round(result.deployedPct * 100)}% of the cash — +1 star!
-                </Text>
-              )}
               <View style={styles.statsRow}>
                 <Stat label="Invested" value={formatMoney(Math.round(result.invested))} />
                 <Stat label="Deployed" value={`${Math.round(result.deployedPct * 100)}%`} />
