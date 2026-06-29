@@ -1,26 +1,20 @@
 // Weekly portfolio scoring + happiness impact.
 //
-// Each week a client's portfolio earns a small return based on its allocation
-// (weekly = annual / 52). Matching the client's recommended mix adds a bonus;
-// over-concentrating in one sector applies a penalty that can push the weekly
-// return negative.
+// Each week a portfolio earns a small return: each holding contributes its
+// annualReturn / 52, weighted by dollar value. Matching the client's
+// recommended stock/bond split adds a bonus; over-concentrating in one sector
+// applies a penalty that can push the weekly return negative.
 
-import STOCKS, { Category } from './stocks';
+import STOCKS, { Sector } from './stocks';
 import { ClientProfile } from './gameState';
 
 export type Holdings = Record<string, number>; // stockId -> shares
 
-// Weekly average returns by category (~annual / 52).
-export const WEEKLY_RETURN: Record<Category, number> = {
-  growth: 0.0023, // ~12% / yr
-  dividend: 0.0013, // ~7% / yr
-  bond: 0.0008, // ~4% / yr
-};
-
 const PROFILE_BONUS_WEEKLY = 0.005; // +0.5%/wk when the mix fits the client
-const UNBALANCED_PENALTY_WEEKLY = 0.003; // -0.3%/wk when >80% sits in one sector
+const UNBALANCED_PENALTY_WEEKLY = 0.003; // -0.3%/wk when >80% in one sector
 const UNBALANCED_THRESHOLD = 0.8;
 const PROFILE_TOLERANCE = 0.12; // stock% within ±12pts of recommended
+const WEEKS_PER_YEAR = 52;
 
 const stocksById: Record<string, (typeof STOCKS)[number]> = STOCKS.reduce(
   (acc, s) => {
@@ -32,34 +26,36 @@ const stocksById: Record<string, (typeof STOCKS)[number]> = STOCKS.reduce(
 
 export interface WeekResult {
   invested: number;
-  byCategory: Record<Category, number>;
-  stockPct: number;
-  /** Effective weekly return rate applied to invested capital. */
-  weeklyRate: number;
-  /** Dollar return for the week (can be negative). */
-  weekReturnDollar: number;
+  stockPct: number; // non-bond value / invested
+  sectorsHeld: number;
+  weeklyRate: number; // effective weekly return rate on invested
+  weekReturnDollar: number; // can be negative
   profileMatch: boolean;
-  diversified: boolean;
-  unbalanced: boolean;
+  diversified: boolean; // 3+ sectors held
+  unbalanced: boolean; // >80% in one sector
 }
 
 export function scoreWeek(holdings: Holdings, client: ClientProfile): WeekResult {
-  const byCategory: Record<Category, number> = { growth: 0, dividend: 0, bond: 0 };
+  const bySector: Partial<Record<Sector, number>> = {};
   let invested = 0;
+  let stockDollars = 0;
+  let blended = 0;
 
   Object.entries(holdings).forEach(([id, shares]) => {
     const s = stocksById[id];
     if (!s || shares <= 0) return;
     const cost = shares * s.price;
     invested += cost;
-    byCategory[s.category] += cost;
+    bySector[s.sector] = (bySector[s.sector] || 0) + cost;
+    if (s.assetClass === 'stock') stockDollars += cost;
+    blended += cost * (s.annualReturn / WEEKS_PER_YEAR);
   });
 
   if (invested <= 0) {
     return {
       invested: 0,
-      byCategory,
       stockPct: 0,
+      sectorsHeld: 0,
       weeklyRate: 0,
       weekReturnDollar: 0,
       profileMatch: false,
@@ -68,24 +64,29 @@ export function scoreWeek(holdings: Holdings, client: ClientProfile): WeekResult
     };
   }
 
-  const stockPct = (byCategory.growth + byCategory.dividend) / invested;
-  const blended = (['growth', 'dividend', 'bond'] as Category[]).reduce(
-    (sum, c) => sum + (byCategory[c] / invested) * WEEKLY_RETURN[c],
-    0
-  );
+  blended /= invested; // weighted average weekly rate
+  const stockPct = stockDollars / invested;
+  const sectorsHeld = Object.keys(bySector).length;
+  const maxSectorShare = Math.max(...Object.values(bySector)) / invested;
 
   const profileMatch = Math.abs(stockPct - client.idealStockPct) <= PROFILE_TOLERANCE;
-  const diversified = byCategory.growth > 0 && byCategory.dividend > 0 && byCategory.bond > 0;
-  const maxShare = Math.max(byCategory.growth, byCategory.dividend, byCategory.bond) / invested;
-  const unbalanced = maxShare > UNBALANCED_THRESHOLD;
+  const diversified = sectorsHeld >= 3;
+  const unbalanced = maxSectorShare > UNBALANCED_THRESHOLD;
 
   let weeklyRate = blended;
   if (profileMatch) weeklyRate += PROFILE_BONUS_WEEKLY;
   if (unbalanced) weeklyRate -= UNBALANCED_PENALTY_WEEKLY;
 
-  const weekReturnDollar = invested * weeklyRate;
-
-  return { invested, byCategory, stockPct, weeklyRate, weekReturnDollar, profileMatch, diversified, unbalanced };
+  return {
+    invested,
+    stockPct,
+    sectorsHeld,
+    weeklyRate,
+    weekReturnDollar: invested * weeklyRate,
+    profileMatch,
+    diversified,
+    unbalanced,
+  };
 }
 
 // Weekly happiness change given the realized return fraction and diversification.

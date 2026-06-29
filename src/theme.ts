@@ -1,8 +1,6 @@
 // Central design tokens so every screen shares one look.
 // Light theme — clean white cards on a soft gray background with a blue accent.
 
-import { Category } from './data/stocks';
-
 export const colors = {
   bg: '#f5f5f5',
   surface: '#ffffff',
@@ -28,12 +26,6 @@ export const colors = {
 
   white: '#ffffff',
   black: '#000000',
-};
-
-export const categoryMeta: Record<Category, { label: string; color: string }> = {
-  growth: { label: 'Growth', color: colors.growth },
-  dividend: { label: 'Dividend', color: colors.dividend },
-  bond: { label: 'Bond', color: colors.bond },
 };
 
 export const spacing = {

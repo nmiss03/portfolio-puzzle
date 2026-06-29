@@ -5,7 +5,6 @@ import React, { createContext, useContext, useMemo, useReducer } from 'react';
 import CLIENTS from '../data/clients';
 import { stocksById } from '../data/stocks';
 import {
-  CharacterStyle,
   ClientProfile,
   Phase,
   RuntimeClient,
@@ -17,7 +16,7 @@ import { happinessDeltaWeek, scoreWeek } from '../data/scoring';
 export interface PerClientWeekResult {
   clientId: string;
   name: string;
-  character: CharacterStyle;
+  characterColor: string;
   returnDollar: number;
   returnPct: number;
   prevHappiness: number;
@@ -155,7 +154,7 @@ function reducer(state: State, action: Action): State {
         results.push({
           clientId: id,
           name: client.name,
-          character: client.character,
+          characterColor: client.characterColor,
           returnDollar,
           returnPct,
           prevHappiness,

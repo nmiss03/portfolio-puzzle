@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, ScrollView, StyleSheet, Animated, Easing } from 'react-native';
 
 import Button from '../../components/Button';
-import PixelClient from '../../components/PixelClient';
+import CharacterVisual from '../../components/CharacterVisual';
 import { useGame } from '../../state/GameContext';
 import { formatMoney } from '../../utils/format';
 
@@ -50,7 +50,7 @@ export default function WeekTransition({ onContinue }: { onContinue: () => void 
         const arrowUp = r.newHappiness >= r.prevHappiness;
         return (
           <View key={r.clientId} style={styles.row}>
-            <PixelClient character={r.character} scale={0.4} />
+            <CharacterVisual color={r.characterColor} width={36} height={50} />
             <View style={styles.rowMid}>
               <Text style={styles.rowName}>{r.name}</Text>
               <Text style={styles.rowHappy}>
@@ -86,11 +86,7 @@ export default function WeekTransition({ onContinue }: { onContinue: () => void 
             </Text>
           )}
 
-          <Button
-            title={t.unlocking ? `Start Week ${t.week + 1}  ›` : 'See Final Summary  ›'}
-            onPress={onContinue}
-            style={{ marginTop: 24, minWidth: 240 }}
-          />
+          <Button title="View Week Summary  ›" onPress={onContinue} style={{ marginTop: 24, minWidth: 240 }} />
         </>
       )}
     </ScrollView>

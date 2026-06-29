@@ -1,12 +1,6 @@
 // Core types + constants for the week-by-week portfolio-manager game.
 
-export interface CharacterStyle {
-  skin: string;
-  shirt: string;
-  hair: string;
-}
-
-export type RiskPreference = 'Conservative' | 'Moderate' | 'Moderate-to-Aggressive' | 'Aggressive';
+export type RiskPreference = 'conservative' | 'moderate' | 'aggressive' | 'moderate-aggressive';
 
 export interface WeekRecord {
   week: number;
@@ -21,14 +15,13 @@ export interface ClientProfile {
   name: string;
   age: number;
   occupation: string;
-  character: CharacterStyle;
+  characterColor: string; // simple colored-rectangle character
   background: string; // 1-2 sentence blurb
   dialogue: string[];
   riskPreference: RiskPreference;
-  /** Recommended share of the portfolio in stocks (vs bonds), 0..1. */
-  idealStockPct: number;
+  recommendedAllocation: string; // human-readable
+  idealStockPct: number; // recommended share in stocks, 0..1
   initialCapital: number;
-  /** Which week this client becomes available. */
   unlockedWeek: number;
 }
 
@@ -36,9 +29,7 @@ export interface ClientProfile {
 export interface RuntimeClient extends ClientProfile {
   holdings: Record<string, number>; // stockId -> shares
   happiness: number; // 0..100
-  /** Account value; only meaningful after a week has been transitioned. */
-  portfolioValue: number;
-  // Returns are null until the client has completed at least one week.
+  portfolioValue: number; // only meaningful after a transitioned week
   lastWeekReturnDollar: number | null;
   lastWeekReturnPct: number | null;
   allTimeReturnDollar: number;
@@ -47,9 +38,16 @@ export interface RuntimeClient extends ClientProfile {
   fired: boolean;
 }
 
-export type Phase = 'weekIntro' | 'clientIntro' | 'builder' | 'transition' | 'gameOver';
+export type Phase = 'weekIntro' | 'clientIntro' | 'builder' | 'transition' | 'summary' | 'gameOver';
 
 export const STARTING_HAPPINESS = 75;
+
+export const RISK_LABEL: Record<RiskPreference, string> = {
+  conservative: 'Conservative',
+  moderate: 'Moderate',
+  aggressive: 'Aggressive',
+  'moderate-aggressive': 'Moderate-Aggressive',
+};
 
 export function clampHappiness(n: number): number {
   return Math.max(0, Math.min(100, n));

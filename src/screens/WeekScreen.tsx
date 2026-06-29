@@ -7,8 +7,9 @@ import WeekIntro from './day/WeekIntro';
 import ClientIntro from './day/ClientIntro';
 import PortfolioBuilder from './day/PortfolioBuilder';
 import WeekTransition from './day/WeekTransition';
+import WeekSummaryScreen from './WeekSummaryScreen';
 import ClientBook from './ClientBook';
-import PixelClient from '../components/PixelClient';
+import CharacterVisual from '../components/CharacterVisual';
 import HappinessMeter from '../components/HappinessMeter';
 import Button from '../components/Button';
 import { useGame } from '../state/GameContext';
@@ -36,7 +37,9 @@ export default function WeekScreen() {
   } else if (state.phase === 'clientIntro') {
     body = <ClientIntro onDone={() => setPhase('builder')} />;
   } else if (state.phase === 'transition') {
-    body = <WeekTransition onContinue={advanceWeek} />;
+    body = <WeekTransition onContinue={() => setPhase('summary')} />;
+  } else if (state.phase === 'summary') {
+    body = <WeekSummaryScreen onContinue={advanceWeek} />;
   } else if (state.phase === 'gameOver') {
     body = <GameOver />;
   } else {
@@ -82,7 +85,7 @@ function GameOver() {
         const positive = c.allTimeReturnDollar >= 0;
         return (
           <View key={c.id} style={styles.overCard}>
-            <PixelClient character={c.character} scale={0.5} />
+            <CharacterVisual color={c.characterColor} width={50} height={68} />
             <View style={styles.overInfo}>
               <Text style={styles.overName}>{c.name}{c.fired ? '  (fired you)' : ''}</Text>
               <Text style={[styles.overReturn, { color: positive ? GREEN : RED }]}>
