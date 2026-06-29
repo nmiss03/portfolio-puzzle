@@ -21,6 +21,8 @@ export interface CustomerProfile {
   dependents: number;
   riskTolerance: RiskTolerance;
   horizonYears: number;
+  /** Cash the client has to invest, in dollars. */
+  startingCapital: number;
   goal: string;
   summary: string;
   targetSummary: string;
@@ -55,6 +57,7 @@ const LEVELS: Level[] = [
       dependents: 0,
       riskTolerance: 'High',
       horizonYears: 40,
+      startingCapital: 50000,
       goal: 'Aggressive long-term growth for retirement',
       summary:
         "Alex is 25, earns $60k, has no dependents and won't touch this money " +

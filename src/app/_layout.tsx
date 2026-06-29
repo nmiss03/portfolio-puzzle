@@ -9,10 +9,9 @@ import { colors, font } from '../theme';
 // Root layout: wires up the navigation stack and the shared game state.
 //
 // Flow: index (LevelSelect)
-//        -> (profile)/CustomerIntro   (animated cutscene)
-//        -> (game)/StockDashboard     (monitor-framed stock grid)
-//        -> (game)/AllocationUI       (build the portfolio)
-//        -> (game)/ResultScreen       (score + feedback)
+//        -> (profile)/CustomerIntro    (conversational cutscene)
+//        -> (game)/PortfolioBuilder    (buy shares with game currency)
+//        -> (game)/ResultScreen        (score + feedback from holdings)
 //
 // The (profile) and (game) groups are organizational only — they don't change
 // the URL. The native stack auto-renders a back button on every screen pushed
@@ -37,8 +36,7 @@ export default function RootLayout() {
           {/* Home / entry point — LevelSelect. The root, so no back button. */}
           <Stack.Screen name="index" options={{ headerShown: false }} />
           <Stack.Screen name="(profile)/CustomerIntro" options={{ title: 'Meet the Client' }} />
-          <Stack.Screen name="(game)/StockDashboard" options={{ title: 'Stock Terminal' }} />
-          <Stack.Screen name="(game)/AllocationUI" options={{ title: 'Build Portfolio' }} />
+          <Stack.Screen name="(game)/PortfolioBuilder" options={{ title: 'Portfolio Builder' }} />
           <Stack.Screen name="(game)/ResultScreen" options={{ title: 'Results' }} />
         </Stack>
       </GameProvider>

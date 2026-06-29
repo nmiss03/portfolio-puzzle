@@ -6,12 +6,13 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Button from '../components/Button';
 import { useGame } from '../state/GameContext';
 
-// The client tells their story one line at a time, like a cutscene.
+// The client talks naturally — the player has to *infer* the key facts:
+//   age ~25 · salary $60k · no dependents · HIGH risk · 40-year horizon · $50,000
 const DIALOGUE = [
-  "I'm 25 years old",
-  'Just starting my career, $60k salary',
-  'No dependents',
-  'Want to grow my wealth aggressively, 40-year horizon',
+  "Hey, thanks for taking the time. I've been working at my first job for about a year now and I'm finally making decent money.",
+  "My salary's around 60k — not huge, but I'm pretty frugal with spending. No one depends on me, which is nice.",
+  "I've got about 40 years until retirement, maybe longer. I want to be aggressive with this money because, honestly, I can afford to take some risks right now.",
+  'So yeah, help me figure out where to put this $50,000 I\'ve saved up. I want it working for me.',
 ];
 
 const BUBBLE_DELAY_MS = 1500;
@@ -21,7 +22,6 @@ export default function CustomerIntro() {
   const insets = useSafeAreaInsets();
   const { level } = useGame();
 
-  // How many dialogue bubbles are currently visible (revealed one by one).
   const [visibleCount, setVisibleCount] = useState(0);
   const scrollRef = useRef<ScrollView>(null);
 
@@ -34,11 +34,9 @@ export default function CustomerIntro() {
   const allShown = visibleCount >= DIALOGUE.length;
 
   const startAnalysis = () => {
-    // Pass the customer profile forward via route params (as well as keeping it
-    // in shared game state for the scoring screens downstream).
     const customer = level.customer;
     router.push({
-      pathname: '/StockDashboard',
+      pathname: '/PortfolioBuilder',
       params: customer ? { customer: JSON.stringify(customer) } : {},
     });
   };
@@ -53,16 +51,27 @@ export default function CustomerIntro() {
       {/* ---- Pixel-art client at a desk ---- */}
       <View style={styles.scene}>
         <View style={styles.character}>
+          {/* Head with eyes + mouth */}
           <View style={styles.head}>
-            <View style={[styles.eye, styles.eyeLeft]} />
-            <View style={[styles.eye, styles.eyeRight]} />
+            <View style={styles.eyesRow}>
+              <View style={C.eye} />
+              <View style={[C.eye, { marginLeft: 8 }]} />
+            </View>
+            <View style={styles.mouth} />
           </View>
-          <View style={styles.body} />
+
+          {/* Arms on each side of the body */}
+          <View style={styles.torso}>
+            <View style={styles.arm} />
+            <View style={styles.body} />
+            <View style={styles.arm} />
+          </View>
         </View>
+
         <View style={styles.desk} />
       </View>
 
-      {/* ---- Sequential dialogue bubbles ---- */}
+      {/* ---- Conversational dialogue bubbles ---- */}
       <View style={styles.dialogue}>
         {DIALOGUE.slice(0, visibleCount).map((line, i) => (
           <View key={i} style={styles.bubble}>
@@ -77,7 +86,6 @@ export default function CustomerIntro() {
         )}
       </View>
 
-      {/* ---- Start button (after the full story) ---- */}
       {allShown && (
         <View style={styles.actions}>
           <Button title="Start Portfolio Analysis" onPress={startAnalysis} />
@@ -87,21 +95,31 @@ export default function CustomerIntro() {
   );
 }
 
-const COLORS = {
+const PALETTE = {
   bg: '#f5f5f5',
   card: '#ffffff',
-  text: '#1a1a1a',
   border: '#cccccc',
-  headSkin: '#D4A574',
-  bodyShirt: '#8B6F47',
+  text: '#1a1a1a',
+  skin: '#D4A574',
+  shirt: '#8B6F47',
   eye: '#0066CC',
-  desk: '#4A4A4A',
+  mouth: '#704214',
+  desk: '#3A3A3A',
 };
+
+// Small reusable raw style for the eye squares.
+const C = StyleSheet.create({
+  eye: {
+    width: 6,
+    height: 6,
+    backgroundColor: PALETTE.eye,
+  },
+});
 
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: COLORS.bg,
+    backgroundColor: PALETTE.bg,
   },
   content: {
     paddingHorizontal: 20,
@@ -118,78 +136,80 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   head: {
-    width: 40,
-    height: 40,
-    backgroundColor: COLORS.headSkin,
-    position: 'relative',
+    width: 50,
+    height: 50,
+    backgroundColor: PALETTE.skin,
+    alignItems: 'center',
   },
-  eye: {
-    position: 'absolute',
-    width: 4,
-    height: 4,
-    backgroundColor: COLORS.eye,
-    top: 16,
+  eyesRow: {
+    flexDirection: 'row',
+    marginTop: 16,
   },
-  eyeLeft: {
-    left: 10,
+  mouth: {
+    width: 2,
+    height: 2,
+    backgroundColor: PALETTE.mouth,
+    marginTop: 10,
   },
-  eyeRight: {
-    right: 10,
+  torso: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
   },
   body: {
-    width: 60,
+    width: 50,
     height: 80,
-    backgroundColor: COLORS.bodyShirt,
-    marginTop: -2,
+    backgroundColor: PALETTE.shirt,
+  },
+  arm: {
+    width: 8,
+    height: 60,
+    backgroundColor: PALETTE.shirt,
   },
   desk: {
-    width: 120,
-    height: 20,
-    backgroundColor: COLORS.desk,
-    marginTop: 4,
+    width: 140,
+    height: 25,
+    backgroundColor: PALETTE.desk,
+    marginTop: 6,
   },
 
   // Dialogue
   dialogue: {
     width: '100%',
-    maxWidth: 460,
-    alignSelf: 'center',
+    alignItems: 'center',
   },
   bubble: {
-    backgroundColor: COLORS.card,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    borderRadius: 8,
-    padding: 12,
+    backgroundColor: PALETTE.card,
+    borderWidth: 2,
+    borderColor: PALETTE.border,
+    borderRadius: 4,
+    padding: 16,
     marginTop: 12,
+    maxWidth: 320,
   },
   bubbleText: {
-    color: COLORS.text,
+    color: PALETTE.text,
     fontSize: 16,
-    lineHeight: 22,
+    lineHeight: 23,
   },
   typing: {
-    backgroundColor: COLORS.card,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    borderRadius: 8,
-    paddingHorizontal: 14,
+    backgroundColor: PALETTE.card,
+    borderWidth: 2,
+    borderColor: PALETTE.border,
+    borderRadius: 4,
+    paddingHorizontal: 16,
     paddingVertical: 8,
     marginTop: 12,
-    alignSelf: 'flex-start',
   },
   typingText: {
-    color: COLORS.text,
+    color: PALETTE.text,
     fontSize: 18,
     fontWeight: '800',
     letterSpacing: 2,
   },
 
-  // Actions
   actions: {
     width: '100%',
-    maxWidth: 460,
-    alignSelf: 'center',
+    maxWidth: 320,
     marginTop: 24,
   },
 });
