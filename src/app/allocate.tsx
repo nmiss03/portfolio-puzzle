@@ -1,3 +1,8 @@
+import React from 'react';
+
 import AllocationUI from '../screens/AllocationUI';
 
-export default AllocationUI;
+// "/allocate" route.
+export default function AllocateRoute() {
+  return <AllocationUI />;
+}

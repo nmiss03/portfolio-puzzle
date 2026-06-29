@@ -14,19 +14,25 @@ export default function RootLayout() {
         <StatusBar style="light" />
         <Stack
           screenOptions={{
+            // Dark themed header shared by every screen. The native stack
+            // automatically renders a back button on any screen pushed on top
+            // of another (i.e. everything except the "index" home route).
             headerStyle: { backgroundColor: colors.bg },
             headerTintColor: colors.text,
             headerTitleStyle: { fontWeight: '800', fontSize: font.lg },
             headerShadowVisible: false,
             headerBackTitleVisible: false,
             contentStyle: { backgroundColor: colors.bg },
+            animation: 'slide_from_right',
           }}
         >
+          {/* Home / entry point — LevelSelect. No header so it can show its
+              own hero; it is the root, so it never needs a back button. */}
           <Stack.Screen name="index" options={{ headerShown: false }} />
           <Stack.Screen name="profile" options={{ title: 'Client Profile' }} />
           <Stack.Screen name="stocks" options={{ title: 'Stock Dashboard' }} />
           <Stack.Screen name="allocate" options={{ title: 'Build Portfolio' }} />
-          <Stack.Screen name="result" options={{ title: 'Results', headerBackVisible: false }} />
+          <Stack.Screen name="result" options={{ title: 'Results' }} />
         </Stack>
       </GameProvider>
     </SafeAreaProvider>

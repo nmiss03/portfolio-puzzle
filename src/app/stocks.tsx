@@ -1,3 +1,8 @@
+import React from 'react';
+
 import StockDashboard from '../screens/StockDashboard';
 
-export default StockDashboard;
+// "/stocks" route.
+export default function StocksRoute() {
+  return <StockDashboard />;
+}

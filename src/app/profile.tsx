@@ -1,3 +1,8 @@
+import React from 'react';
+
 import CustomerProfile from '../screens/CustomerProfile';
 
-export default CustomerProfile;
+// "/profile" route.
+export default function ProfileRoute() {
+  return <CustomerProfile />;
+}
