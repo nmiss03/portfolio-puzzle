@@ -8,9 +8,9 @@ import { colors, font } from '../theme';
 
 // Root layout: wires up the navigation stack and the shared game state.
 //
-// Flow: index (start screen) -> (game)/DayScreen (the whole day-by-day career,
-// which manages its own internal phases: day intro -> client intro -> portfolio
-// builder -> day transition -> game over, plus the Client Book overlay).
+// Flow: index (start screen) -> (game)/WeekScreen (the whole week-by-week
+// career, which manages its own internal phases: week intro -> client intro ->
+// portfolio builder -> week transition -> game over, plus the Client Book).
 export default function RootLayout() {
   return (
     <SafeAreaProvider>
@@ -30,7 +30,7 @@ export default function RootLayout() {
         >
           {/* Home / entry point — LevelSelect. The root, so no back button. */}
           <Stack.Screen name="index" options={{ headerShown: false }} />
-          <Stack.Screen name="(game)/DayScreen" options={{ headerShown: false }} />
+          <Stack.Screen name="(game)/WeekScreen" options={{ headerShown: false }} />
         </Stack>
       </GameProvider>
     </SafeAreaProvider>

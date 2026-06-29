@@ -3,11 +3,9 @@ import { View, Text, Pressable, ScrollView, StyleSheet } from 'react-native';
 
 import PixelClient from '../components/PixelClient';
 import HappinessMeter from '../components/HappinessMeter';
-import Stars from '../components/Stars';
 import Button from '../components/Button';
 import PortfolioBuilder from './day/PortfolioBuilder';
 import STOCKS from '../data/stocks';
-import { scorePortfolio } from '../data/scoring';
 import { RuntimeClient } from '../data/gameState';
 import { useGame } from '../state/GameContext';
 import { formatMoney } from '../utils/format';
@@ -15,15 +13,15 @@ import { formatMoney } from '../utils/format';
 const BLUE = '#4a90e2';
 const GREEN = '#22c55e';
 const RED = '#ef4444';
+const GRAY = '#666666';
 
-// Live projected value/return/stars for a client from their current holdings.
-function projection(client: RuntimeClient) {
-  const r = scorePortfolio(client.holdings, client);
-  return { value: client.initialCapital + r.gain, gain: r.gain, returnPct: r.returnPct, stars: r.stars };
+function returnText(dollar: number, pct: number) {
+  const positive = dollar >= 0;
+  return `${positive ? '+' : '-'}${formatMoney(Math.abs(Math.round(dollar)))} (${positive ? '+' : ''}${(pct * 100).toFixed(1)}%)`;
 }
 
 export default function ClientBook() {
-  const { state, clientList, toggleBook, openDetail, closeDetail } = useGame();
+  const { state, unlockedClients, teaserClient, toggleBook, openDetail, closeDetail } = useGame();
   if (!state.bookOpen) return null;
 
   const detailClient = state.detailClientId ? state.clients[state.detailClientId] : null;
@@ -41,31 +39,11 @@ export default function ClientBook() {
             </Pressable>
           </View>
 
-          <ScrollView contentContainerStyle={styles.grid}>
-            {clientList.map((c) => {
-              const p = projection(c);
-              const positive = p.gain >= 0;
-              return (
-                <Pressable key={c.id} style={styles.card} onPress={() => openDetail(c.id)}>
-                  <View style={styles.cardTop}>
-                    <PixelClient character={c.character} scale={0.5} />
-                  </View>
-                  <Text style={styles.cardName}>{c.name}</Text>
-                  {c.fired && <Text style={styles.firedTag}>FIRED</Text>}
-                  <Text style={styles.cardValue}>{formatMoney(Math.round(p.value))}</Text>
-                  <Text style={[styles.cardReturn, { color: positive ? GREEN : RED }]}>
-                    {positive ? '+' : '-'}
-                    {formatMoney(Math.abs(Math.round(p.gain)))} ({positive ? '+' : ''}
-                    {(p.returnPct * 100).toFixed(1)}%)
-                  </Text>
-                  <Stars count={c.lastStars ?? p.stars} size={16} style={styles.cardStars} />
-                  <View style={{ width: '100%', marginTop: 8 }}>
-                    <HappinessMeter value={c.happiness} height={8} showLabel={false} />
-                    <Text style={styles.happyPct}>{Math.round(c.happiness)}% happy</Text>
-                  </View>
-                </Pressable>
-              );
-            })}
+          <ScrollView contentContainerStyle={styles.list}>
+            {unlockedClients.map((c) => (
+              <ClientCard key={c.id} client={c} onPress={() => openDetail(c.id)} />
+            ))}
+            {teaserClient && <TeaserCard client={teaserClient} />}
           </ScrollView>
         </View>
       )}
@@ -73,12 +51,84 @@ export default function ClientBook() {
   );
 }
 
+function ClientCard({ client, onPress }: { client: RuntimeClient; onPress: () => void }) {
+  const hasHistory = client.performanceHistory.length > 0;
+  const positive = (client.lastWeekReturnDollar ?? 0) >= 0;
+
+  return (
+    <Pressable style={({ pressed }) => [styles.card, pressed && styles.cardPressed]} onPress={onPress}>
+      <View style={styles.cardRow}>
+        {/* Left: character */}
+        <View style={styles.charCol}>
+          <PixelClient character={client.character} scale={0.5} />
+        </View>
+
+        {/* Middle: info */}
+        <View style={styles.midCol}>
+          <Text style={styles.name}>
+            {client.name} <Text style={styles.age}>· {client.age}</Text>
+            {client.fired && <Text style={styles.fired}>  FIRED</Text>}
+          </Text>
+          <Text style={styles.occupation}>{client.occupation}</Text>
+          <Text style={styles.background} numberOfLines={2}>
+            {client.background}
+          </Text>
+          <Text style={styles.risk}>{client.riskPreference}</Text>
+        </View>
+
+        {/* Right: returns */}
+        <View style={styles.rightCol}>
+          <Text style={styles.statLabel}>Week-over-week</Text>
+          {hasHistory ? (
+            <Text style={[styles.wow, { color: positive ? GREEN : RED }]}>
+              {returnText(client.lastWeekReturnDollar ?? 0, client.lastWeekReturnPct ?? 0)}
+            </Text>
+          ) : (
+            <Text style={styles.pending}>pending</Text>
+          )}
+          <Text style={[styles.statLabel, { marginTop: 6 }]}>All-time</Text>
+          {hasHistory ? (
+            <Text style={styles.allTime}>
+              {returnText(client.allTimeReturnDollar, client.allTimeReturnPct)}
+            </Text>
+          ) : (
+            <Text style={styles.pending}>—</Text>
+          )}
+        </View>
+      </View>
+
+      {/* Happiness bar across the bottom */}
+      <View style={styles.happyBar}>
+        <View style={{ width: `${client.happiness}%`, height: '100%', backgroundColor: BLUE }} />
+      </View>
+    </Pressable>
+  );
+}
+
+function TeaserCard({ client }: { client: RuntimeClient }) {
+  return (
+    <View style={[styles.card, styles.teaser]}>
+      <View style={styles.cardRow}>
+        <View style={styles.charCol}>
+          <PixelClient character={client.character} scale={0.5} />
+        </View>
+        <View style={styles.midCol}>
+          <Text style={styles.name}>
+            {client.name} <Text style={styles.age}>· {client.age}</Text>
+          </Text>
+          <Text style={styles.unlockText}>Unlock next week →</Text>
+        </View>
+        <View style={styles.rightCol} />
+      </View>
+    </View>
+  );
+}
+
 function ClientDetail({ client, onClose }: { client: RuntimeClient; onClose: () => void }) {
   const { availableBalance } = useGame();
   const [editing, setEditing] = useState(false);
-  const p = projection(client);
-  const positive = p.gain >= 0;
-
+  const hasHistory = client.performanceHistory.length > 0;
+  const positive = (client.lastWeekReturnDollar ?? 0) >= 0;
   const ownedStocks = STOCKS.filter((s) => (client.holdings[s.id] || 0) > 0);
 
   return (
@@ -99,13 +149,23 @@ function ClientDetail({ client, onClose }: { client: RuntimeClient; onClose: () 
             <View style={styles.detailInfo}>
               <Text style={styles.detailName}>{client.name}</Text>
               <Text style={styles.detailMeta}>{client.age} · {client.occupation}</Text>
-              <Text style={styles.detailValue}>{formatMoney(Math.round(p.value))}</Text>
-              <Text style={[styles.detailReturn, { color: positive ? GREEN : RED }]}>
-                {positive ? '+' : '-'}
-                {formatMoney(Math.abs(Math.round(p.gain)))} ({positive ? '+' : ''}
-                {(p.returnPct * 100).toFixed(1)}%)
+              <Text style={styles.detailRisk}>{client.riskPreference}</Text>
+            </View>
+          </View>
+          <Text style={styles.detailBg}>{client.background}</Text>
+
+          <View style={styles.returnsRow}>
+            <View style={styles.returnsBox}>
+              <Text style={styles.statLabel}>Week-over-week</Text>
+              <Text style={[styles.wow, { color: positive ? GREEN : RED }]}>
+                {hasHistory ? returnText(client.lastWeekReturnDollar ?? 0, client.lastWeekReturnPct ?? 0) : 'pending'}
               </Text>
-              <Stars count={client.lastStars ?? p.stars} size={18} />
+            </View>
+            <View style={styles.returnsBox}>
+              <Text style={styles.statLabel}>All-time</Text>
+              <Text style={styles.allTime}>
+                {hasHistory ? returnText(client.allTimeReturnDollar, client.allTimeReturnPct) : '—'}
+              </Text>
             </View>
           </View>
 
@@ -113,25 +173,22 @@ function ClientDetail({ client, onClose }: { client: RuntimeClient; onClose: () 
             <HappinessMeter value={client.happiness} height={14} />
           </View>
 
-          <Text style={styles.sectionLabel}>Holdings</Text>
+          <Text style={styles.sectionLabel}>Holdings (cost basis)</Text>
           <View style={styles.tableHead}>
             <Text style={[styles.thName, styles.th]}>Stock</Text>
             <Text style={[styles.thNum, styles.th]}>Shares</Text>
             <Text style={[styles.thNum, styles.th]}>Cost</Text>
-            <Text style={[styles.thNum, styles.th]}>Value</Text>
           </View>
           {ownedStocks.length === 0 ? (
             <Text style={styles.empty}>No holdings yet.</Text>
           ) : (
             ownedStocks.map((s) => {
               const sh = client.holdings[s.id] || 0;
-              const v = sh * s.price;
               return (
                 <View key={s.id} style={styles.tableRow}>
                   <Text style={[styles.thName, styles.td]} numberOfLines={1}>{s.ticker}</Text>
                   <Text style={[styles.thNum, styles.td]}>{sh}</Text>
-                  <Text style={[styles.thNum, styles.td]}>{formatMoney(Math.round(v))}</Text>
-                  <Text style={[styles.thNum, styles.td]}>{formatMoney(Math.round(v))}</Text>
+                  <Text style={[styles.thNum, styles.td]}>{formatMoney(Math.round(sh * s.price))}</Text>
                 </View>
               );
             })
@@ -151,24 +208,39 @@ const styles = StyleSheet.create({
   panel: { height: '88%', backgroundColor: '#f5f5f5', borderTopLeftRadius: 16, borderTopRightRadius: 16, overflow: 'hidden' },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16, borderBottomWidth: 1, borderBottomColor: '#cccccc', backgroundColor: '#ffffff' },
   title: { color: '#1a1a1a', fontSize: 20, fontWeight: '900' },
-  close: { color: '#4a90e2', fontSize: 18, fontWeight: '800' },
+  close: { color: BLUE, fontSize: 18, fontWeight: '800' },
 
-  grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', padding: 16 },
-  card: { width: '48%', backgroundColor: '#ffffff', borderWidth: 1, borderColor: '#cccccc', borderRadius: 8, padding: 12, marginBottom: 14, alignItems: 'center' },
-  cardTop: { height: 60, justifyContent: 'center' },
-  cardName: { color: BLUE, fontSize: 16, fontWeight: '900', marginTop: 8 },
-  firedTag: { color: RED, fontSize: 11, fontWeight: '900', letterSpacing: 1, marginTop: 2 },
-  cardValue: { color: '#1a1a1a', fontSize: 16, fontWeight: '800', marginTop: 6 },
-  cardReturn: { fontSize: 13, fontWeight: '800', marginTop: 2 },
-  cardStars: { marginTop: 6 },
-  happyPct: { color: '#888888', fontSize: 11, fontWeight: '700', textAlign: 'center', marginTop: 4 },
+  list: { padding: 12 },
+  card: { backgroundColor: '#ffffff', borderWidth: 1, borderColor: '#cccccc', borderRadius: 6, padding: 12, marginVertical: 8, overflow: 'hidden' },
+  cardPressed: { borderColor: BLUE },
+  teaser: { opacity: 0.5 },
+  cardRow: { flexDirection: 'row' },
+  charCol: { width: 80, alignItems: 'flex-start', justifyContent: 'center' },
+  midCol: { flex: 1, paddingHorizontal: 8 },
+  name: { color: '#1a1a1a', fontSize: 16, fontWeight: '800' },
+  age: { color: '#888888', fontSize: 13, fontWeight: '600' },
+  fired: { color: RED, fontSize: 11, fontWeight: '900' },
+  occupation: { color: '#888888', fontSize: 12, marginTop: 1 },
+  background: { color: '#666666', fontSize: 13, fontStyle: 'italic', lineHeight: 18, marginTop: 4 },
+  risk: { color: '#888888', fontSize: 12, fontWeight: '700', marginTop: 4 },
+  unlockText: { color: '#666666', fontSize: 14, fontWeight: '700', marginTop: 8 },
+
+  rightCol: { width: 120, alignItems: 'flex-end' },
+  statLabel: { color: '#888888', fontSize: 10, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.3 },
+  wow: { fontSize: 14, fontWeight: '800', marginTop: 1, textAlign: 'right' },
+  allTime: { color: GRAY, fontSize: 12, fontWeight: '700', marginTop: 1, textAlign: 'right' },
+  pending: { color: '#bbbbbb', fontSize: 13, fontWeight: '700', marginTop: 1 },
+
+  happyBar: { height: 4, backgroundColor: '#e5e7eb', borderRadius: 2, marginTop: 10, overflow: 'hidden' },
 
   detailTop: { flexDirection: 'row', alignItems: 'center' },
   detailInfo: { flex: 1, marginLeft: 16 },
   detailName: { color: '#1a1a1a', fontSize: 22, fontWeight: '900' },
   detailMeta: { color: '#888888', fontSize: 13, fontWeight: '700', marginTop: 2 },
-  detailValue: { color: '#1a1a1a', fontSize: 20, fontWeight: '900', marginTop: 8 },
-  detailReturn: { fontSize: 15, fontWeight: '800', marginTop: 2 },
+  detailRisk: { color: BLUE, fontSize: 13, fontWeight: '800', marginTop: 4 },
+  detailBg: { color: '#666666', fontSize: 14, fontStyle: 'italic', lineHeight: 20, marginTop: 14 },
+  returnsRow: { flexDirection: 'row', marginTop: 16 },
+  returnsBox: { flex: 1 },
   happyBox: { backgroundColor: '#ffffff', borderWidth: 1, borderColor: '#cccccc', borderRadius: 8, padding: 16, marginTop: 16 },
   sectionLabel: { color: '#888888', fontSize: 13, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.5, marginTop: 18, marginBottom: 8 },
   tableHead: { flexDirection: 'row', paddingBottom: 6, borderBottomWidth: 1, borderBottomColor: '#cccccc' },

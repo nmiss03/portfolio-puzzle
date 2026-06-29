@@ -74,8 +74,8 @@ export default function PortfolioBuilder({ clientId }: { clientId: string }) {
     <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
       <View style={styles.monitor}>
         <View style={styles.headerBar}>
-          <Text style={styles.headerText}>{client.name} · Balance: {formatMoney(Math.round(balance))}</Text>
-          <Text style={styles.headerText}>Invested: {formatMoney(Math.round(invested))}</Text>
+          <Text style={styles.headerText}>Week {state.currentWeek} · {client.name}</Text>
+          <Text style={styles.headerText}>Balance: {formatMoney(Math.round(balance))}</Text>
         </View>
 
         <View style={styles.monitorScreen}>

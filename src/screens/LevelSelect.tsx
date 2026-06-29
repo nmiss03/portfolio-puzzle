@@ -4,7 +4,6 @@ import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import Button from '../components/Button';
-import CLIENTS from '../data/clients';
 import { useGame } from '../state/GameContext';
 
 export default function LevelSelect() {
@@ -14,7 +13,7 @@ export default function LevelSelect() {
 
   const beginCareer = () => {
     startGame();
-    router.push('/DayScreen');
+    router.push('/WeekScreen');
   };
 
   return (
@@ -31,8 +30,8 @@ export default function LevelSelect() {
       <View style={styles.card}>
         <Text style={styles.cardTitle}>Career Mode</Text>
         <Text style={styles.cardText}>
-          {CLIENTS.length} clients over {CLIENTS.length} days. Manage everyone's portfolio from your
-          Client Book — but a bad call can cost you the account.
+          A new client unlocks each week. Manage everyone's portfolio from your Client Book — but a
+          bad call can cost you the account.
         </Text>
       </View>
 

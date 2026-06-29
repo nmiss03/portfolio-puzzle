@@ -1,9 +1,18 @@
-// Core types + constants for the day-by-day portfolio-manager game.
+// Core types + constants for the week-by-week portfolio-manager game.
 
 export interface CharacterStyle {
   skin: string;
   shirt: string;
   hair: string;
+}
+
+export type RiskPreference = 'Conservative' | 'Moderate' | 'Moderate-to-Aggressive' | 'Aggressive';
+
+export interface WeekRecord {
+  week: number;
+  returnDollar: number;
+  returnPct: number; // fraction
+  happiness: number;
 }
 
 // Static description of a client (authored in clients.ts).
@@ -13,29 +22,32 @@ export interface ClientProfile {
   age: number;
   occupation: string;
   character: CharacterStyle;
-  summary: string;
+  background: string; // 1-2 sentence blurb
   dialogue: string[];
-  initialCapital: number;
-  horizonYears: number;
-  /** Ideal share of the portfolio in stocks (vs bonds), 0..1. */
+  riskPreference: RiskPreference;
+  /** Recommended share of the portfolio in stocks (vs bonds), 0..1. */
   idealStockPct: number;
-  /** How much high-growth / high-volatility exposure the client can stomach, 0..1. */
-  riskTolerance: number;
+  initialCapital: number;
+  /** Which week this client becomes available. */
+  unlockedWeek: number;
 }
 
 // Runtime state layered on top of a profile.
 export interface RuntimeClient extends ClientProfile {
-  /** stockId -> shares owned. */
-  holdings: Record<string, number>;
+  holdings: Record<string, number>; // stockId -> shares
   happiness: number; // 0..100
-  finalized: boolean; // has a day result been committed?
+  /** Account value; only meaningful after a week has been transitioned. */
+  portfolioValue: number;
+  // Returns are null until the client has completed at least one week.
+  lastWeekReturnDollar: number | null;
+  lastWeekReturnPct: number | null;
+  allTimeReturnDollar: number;
+  allTimeReturnPct: number;
+  performanceHistory: WeekRecord[];
   fired: boolean;
-  lastStars: number | null;
-  lastReturnPct: number | null; // fraction
-  lastGain: number | null; // dollars
 }
 
-export type Phase = 'dayIntro' | 'clientIntro' | 'builder' | 'transition' | 'gameOver';
+export type Phase = 'weekIntro' | 'clientIntro' | 'builder' | 'transition' | 'gameOver';
 
 export const STARTING_HAPPINESS = 75;
 
@@ -43,16 +55,17 @@ export function clampHappiness(n: number): number {
   return Math.max(0, Math.min(100, n));
 }
 
-// Build a fresh runtime client from a profile.
 export function initRuntimeClient(profile: ClientProfile): RuntimeClient {
   return {
     ...profile,
     holdings: {},
     happiness: STARTING_HAPPINESS,
-    finalized: false,
+    portfolioValue: profile.initialCapital,
+    lastWeekReturnDollar: null,
+    lastWeekReturnPct: null,
+    allTimeReturnDollar: 0,
+    allTimeReturnPct: 0,
+    performanceHistory: [],
     fired: false,
-    lastStars: null,
-    lastReturnPct: null,
-    lastGain: null,
   };
 }
