@@ -8,7 +8,7 @@ import ClientIntro from './day/ClientIntro';
 import PortfolioBuilder from './day/PortfolioBuilder';
 import WeekTransition from './day/WeekTransition';
 import WeekSummaryScreen from './WeekSummaryScreen';
-import NewsScreen from './NewsScreen';
+import NewsPopup from './NewsPopup';
 import ClientBook from './ClientBook';
 import PixelCharacter from '../components/PixelCharacter';
 import HappinessMeter from '../components/HappinessMeter';
@@ -20,7 +20,7 @@ const GREEN = '#22c55e';
 const RED = '#ef4444';
 
 export default function WeekScreen() {
-  const { state, activeClient, startGame, setPhase, startNews, transitionWeek, advanceWeek, toggleBook } = useGame();
+  const { state, activeClient, startGame, setPhase, transitionWeek, advanceWeek, toggleBook, toggleNews } = useGame();
   const insets = useSafeAreaInsets();
 
   useEffect(() => {
@@ -30,15 +30,13 @@ export default function WeekScreen() {
 
   if (!state.started) return <View style={styles.screen} />;
 
-  const hasHoldings = Object.values(activeClient.holdings).some((n) => n > 0);
+  const hasHoldings = Object.values(activeClient.holdings).some((h) => h.shares > 0);
 
   let body: React.ReactNode;
   if (state.phase === 'weekIntro') {
     body = <WeekIntro week={state.currentWeek} onContinue={() => setPhase('clientIntro')} />;
   } else if (state.phase === 'clientIntro') {
     body = <ClientIntro onDone={() => setPhase('builder')} />;
-  } else if (state.phase === 'news') {
-    body = <NewsScreen onContinue={transitionWeek} />;
   } else if (state.phase === 'transition') {
     body = <WeekTransition onContinue={() => setPhase('summary')} />;
   } else if (state.phase === 'summary') {
@@ -52,8 +50,9 @@ export default function WeekScreen() {
           <PortfolioBuilder clientId={activeClient.id} />
         </View>
         <View style={[styles.tabBar, { paddingBottom: insets.bottom + 10 }]}>
-          <Button title="📖 Client Book" variant="secondary" onPress={() => toggleBook(true)} style={styles.tabBtn} />
-          <Button title="Next Week  ›" onPress={startNews} disabled={!hasHoldings} style={styles.tabBtn} />
+          <Button title="📖 Clients" variant="secondary" onPress={() => toggleBook(true)} style={styles.tabBtn} />
+          <Button title="📰 News" variant="secondary" onPress={() => toggleNews(true)} style={styles.tabBtn} />
+          <Button title="Next Week  ›" onPress={transitionWeek} disabled={!hasHoldings} style={styles.tabBtn} />
         </View>
       </View>
     );
@@ -63,6 +62,7 @@ export default function WeekScreen() {
     <View style={styles.root}>
       {body}
       <ClientBook />
+      <NewsPopup />
     </View>
   );
 }

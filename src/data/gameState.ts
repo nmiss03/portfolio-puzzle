@@ -27,7 +27,8 @@ export interface ClientProfile {
 
 // Runtime state layered on top of a profile.
 export interface RuntimeClient extends ClientProfile {
-  holdings: Record<string, number>; // stockId -> shares
+  holdings: Record<string, Holding>; // stockId -> position
+  cash: number; // uninvested capital available
   happiness: number; // 0..100
   portfolioValue: number; // only meaningful after a transitioned week
   lastWeekReturnDollar: number | null;
@@ -38,7 +39,13 @@ export interface RuntimeClient extends ClientProfile {
   fired: boolean;
 }
 
-export type Phase = 'weekIntro' | 'clientIntro' | 'builder' | 'news' | 'transition' | 'summary' | 'gameOver';
+export type Phase = 'weekIntro' | 'clientIntro' | 'builder' | 'transition' | 'summary' | 'gameOver';
+
+/** A position: total shares and the total dollars paid for them (cost basis). */
+export interface Holding {
+  shares: number;
+  cost: number;
+}
 
 export const STARTING_HAPPINESS = 75;
 
@@ -57,6 +64,7 @@ export function initRuntimeClient(profile: ClientProfile): RuntimeClient {
   return {
     ...profile,
     holdings: {},
+    cash: profile.initialCapital,
     happiness: STARTING_HAPPINESS,
     portfolioValue: profile.initialCapital,
     lastWeekReturnDollar: null,

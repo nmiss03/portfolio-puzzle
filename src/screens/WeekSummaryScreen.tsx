@@ -33,16 +33,6 @@ export default function WeekSummaryScreen({ onContinue }: { onContinue: () => vo
         <BarChart data={barData} height={180} />
       </View>
 
-      {t.newsCount > 0 && (
-        <View style={styles.accuracyCard}>
-          <Text style={styles.accuracyText}>
-            You predicted {Math.round(t.newsAccuracy * t.newsCount)} of {t.newsCount} headlines correctly (
-            {Math.round(t.newsAccuracy * 100)}% accuracy).
-            {t.newsAccuracy > 0.8 ? '  Bonus: +3 happiness.' : t.newsAccuracy < 0.4 ? '  Penalty: -5 happiness.' : ''}
-          </Text>
-        </View>
-      )}
-
       <View style={styles.table}>
         <View style={styles.tHead}>
           <Text style={[styles.thClient, styles.th]}>Client</Text>

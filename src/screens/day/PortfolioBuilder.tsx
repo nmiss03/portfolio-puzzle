@@ -25,7 +25,7 @@ function Logo({ logo }: { logo: StockLogo }) {
 }
 
 export default function PortfolioBuilder({ clientId }: { clientId: string }) {
-  const { state, buy, sell, availableBalance } = useGame();
+  const { state, buy, sell, availableBalance, priceOf } = useGame();
   const client = state.clients[clientId];
 
   const [filter, setFilter] = useState<Filter>('All');
@@ -40,8 +40,12 @@ export default function PortfolioBuilder({ clientId }: { clientId: string }) {
 
   const balance = availableBalance(client);
   const holdings = client.holdings;
-  const hasHoldings = Object.values(holdings).some((n) => n > 0);
-  const owned = holdings[stock.id] || 0;
+  const invested = Object.values(holdings).reduce((s, h) => s + h.cost, 0);
+  const hasHoldings = Object.values(holdings).some((h) => h.shares > 0);
+  const owned = holdings[stock.id]?.shares || 0;
+
+  const price = priceOf(stock.id);
+  const priceChange = stock.price > 0 ? price / stock.price - 1 : 0;
 
   const chooseFilter = (f: Filter) => {
     setFilter(f);
@@ -58,14 +62,14 @@ export default function PortfolioBuilder({ clientId }: { clientId: string }) {
   const doBuy = (s: Stock) => {
     const shares = parseInt(inputs[s.id] || '', 10);
     if (!shares || shares <= 0) return setErrors((p) => ({ ...p, [s.id]: 'Enter a number of shares' }));
-    if (shares * s.price > balance) return setErrors((p) => ({ ...p, [s.id]: 'Insufficient funds' }));
+    if (shares * priceOf(s.id) > balance) return setErrors((p) => ({ ...p, [s.id]: 'Insufficient funds' }));
     buy(clientId, s.id, shares);
     setInputs((p) => ({ ...p, [s.id]: '' }));
     setErrors((p) => ({ ...p, [s.id]: '' }));
   };
 
   const doSell = (s: Stock) => {
-    const have = holdings[s.id] || 0;
+    const have = holdings[s.id]?.shares || 0;
     if (have <= 0) return setErrors((p) => ({ ...p, [s.id]: "You don't own any shares" }));
     let n = parseInt(inputs[s.id] || '', 10);
     if (!n || n <= 0) n = have;
@@ -75,7 +79,7 @@ export default function PortfolioBuilder({ clientId }: { clientId: string }) {
   };
 
   const goTo = (i: number) => setPage(Math.max(0, Math.min(stocks.length - 1, i)));
-  const ownedStocks = STOCKS.filter((s) => (holdings[s.id] || 0) > 0);
+  const ownedStocks = STOCKS.filter((s) => (holdings[s.id]?.shares || 0) > 0);
 
   return (
     <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
@@ -111,7 +115,7 @@ export default function PortfolioBuilder({ clientId }: { clientId: string }) {
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.ribbon} contentContainerStyle={styles.ribbonContent}>
             {stocks.map((s, i) => {
               const active = i === safePage;
-              const has = (holdings[s.id] || 0) > 0;
+              const has = (holdings[s.id]?.shares || 0) > 0;
               return (
                 <Pressable key={s.id} onPress={() => goTo(i)} style={[styles.tab, { borderColor: s.sectorColor }, active && { backgroundColor: s.sectorColor }]}>
                   <Text style={[styles.tabText, active && { color: '#ffffff' }]}>{s.ticker}</Text>
@@ -138,7 +142,15 @@ export default function PortfolioBuilder({ clientId }: { clientId: string }) {
                 <Text style={styles.cardTicker}>{stock.ticker}</Text>
                 <Text style={styles.cardSector}>{stock.sector}</Text>
               </View>
-              <Text style={styles.cardPrice}>{formatPrice(stock.price)}</Text>
+              <View style={{ alignItems: 'flex-end' }}>
+                <Text style={styles.cardPrice}>{formatPrice(price)}</Text>
+                {Math.abs(priceChange) > 0.0001 && (
+                  <Text style={styles.cardChange}>
+                    {priceChange >= 0 ? '▲ +' : '▼ '}
+                    {(priceChange * 100).toFixed(1)}% on news
+                  </Text>
+                )}
+              </View>
             </View>
 
             <View style={styles.cardBody}>
@@ -185,7 +197,7 @@ export default function PortfolioBuilder({ clientId }: { clientId: string }) {
                 <Pressable onPress={() => doSell(stock)} disabled={owned <= 0} style={({ pressed }) => [styles.sellBtn, owned <= 0 && { opacity: 0.4 }, pressed && owned > 0 && { opacity: 0.85 }]}>
                   <Text style={styles.sellBtnText}>SELL</Text>
                 </Pressable>
-                <Text style={styles.priceInline}>@ {formatPrice(stock.price)}/sh</Text>
+                <Text style={styles.priceInline}>@ {formatPrice(price)}/sh</Text>
               </View>
               <Text style={styles.available}>Available balance: {formatMoney(Math.round(balance))}</Text>
               {owned > 0 && <Text style={styles.ownedTag}>Holding {owned} share(s)</Text>}
@@ -208,13 +220,13 @@ export default function PortfolioBuilder({ clientId }: { clientId: string }) {
             <Text style={styles.colX} />
           </View>
           {ownedStocks.map((s) => {
-            const shares = holdings[s.id] || 0;
+            const h = holdings[s.id];
             return (
               <View key={s.id} style={styles.summaryRow}>
                 <Text style={[styles.colName, styles.cell]} numberOfLines={1}>{s.ticker}</Text>
-                <Text style={[styles.colNum, styles.cell]}>{shares}</Text>
-                <Text style={[styles.colNum, styles.cell]}>{formatMoney(Math.round(shares * s.price))}</Text>
-                <Pressable onPress={() => sell(clientId, s.id, shares)} hitSlop={8} style={styles.colX}>
+                <Text style={[styles.colNum, styles.cell]}>{h.shares}</Text>
+                <Text style={[styles.colNum, styles.cell]}>{formatMoney(Math.round(h.cost))}</Text>
+                <Pressable onPress={() => sell(clientId, s.id, h.shares)} hitSlop={8} style={styles.colX}>
                   <Text style={styles.removeX}>✕</Text>
                 </Pressable>
               </View>
@@ -222,7 +234,7 @@ export default function PortfolioBuilder({ clientId }: { clientId: string }) {
           })}
           <View style={styles.totalRow}>
             <Text style={styles.totalLabel}>Portfolio cost basis</Text>
-            <Text style={styles.totalValue}>{formatMoney(Math.round(client.initialCapital - balance))}</Text>
+            <Text style={styles.totalValue}>{formatMoney(Math.round(invested))}</Text>
           </View>
         </View>
       )}
@@ -269,6 +281,7 @@ const styles = StyleSheet.create({
   cardTicker: { color: '#ffffff', fontSize: 16, fontWeight: '900', letterSpacing: 0.5 },
   cardSector: { color: '#ffffff', fontSize: 12, fontWeight: '600', opacity: 0.9, marginTop: 1 },
   cardPrice: { color: '#ffffff', fontSize: 18, fontWeight: '900' },
+  cardChange: { color: '#ffffff', fontSize: 10, fontWeight: '800', opacity: 0.95, marginTop: 1 },
   cardBody: { flexDirection: 'row', padding: 12 },
   leftCol: { width: 90, alignItems: 'center' },
   companyName: { color: TEXT, fontSize: 12, fontWeight: '800', textAlign: 'center', marginTop: 8 },

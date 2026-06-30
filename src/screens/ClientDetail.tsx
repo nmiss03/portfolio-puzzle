@@ -23,7 +23,7 @@ export default function ClientDetail({ client, onClose }: { client: RuntimeClien
   const [editing, setEditing] = useState(false);
   const hasHistory = client.performanceHistory.length > 0;
   const positive = (client.lastWeekReturnDollar ?? 0) >= 0;
-  const ownedStocks = STOCKS.filter((s) => (client.holdings[s.id] || 0) > 0);
+  const ownedStocks = STOCKS.filter((s) => (client.holdings[s.id]?.shares || 0) > 0);
 
   return (
     <View style={styles.panel}>
@@ -76,12 +76,12 @@ export default function ClientDetail({ client, onClose }: { client: RuntimeClien
             <Text style={styles.empty}>No holdings yet.</Text>
           ) : (
             ownedStocks.map((s) => {
-              const sh = client.holdings[s.id] || 0;
+              const h = client.holdings[s.id];
               return (
                 <View key={s.id} style={styles.tableRow}>
                   <Text style={[styles.thName, styles.td]} numberOfLines={1}>{s.ticker}</Text>
-                  <Text style={[styles.thNum, styles.td]}>{sh}</Text>
-                  <Text style={[styles.thNum, styles.td]}>{formatMoney(Math.round(sh * s.price))}</Text>
+                  <Text style={[styles.thNum, styles.td]}>{h.shares}</Text>
+                  <Text style={[styles.thNum, styles.td]}>{formatMoney(Math.round(h.cost))}</Text>
                 </View>
               );
             })
