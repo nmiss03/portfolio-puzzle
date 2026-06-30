@@ -6,7 +6,7 @@ import React, { createContext, useContext, useMemo, useReducer } from 'react';
 import CLIENTS from '../data/clients';
 import STOCKS, { stocksById } from '../data/stocks';
 import { ClientProfile, Phase, RuntimeClient, initRuntimeClient } from '../data/gameState';
-import { computeWeek, calculateWeeklyHappiness } from '../data/scoring';
+import { marketValue, calculateWeeklyHappiness } from '../data/scoring';
 import { NewsArticle, generateWeeklyNews } from '../data/newsArticles';
 import {
   PriceMap,
@@ -220,11 +220,15 @@ function reducer(state: State, action: Action): State {
       Object.values(state.clients)
         .filter((c) => c.status === 'signed')
         .forEach((client) => {
-          const r = computeWeek(client, finalMult, weekStartPrices);
-          const start = client.portfolioValue;
-          const weekEndValue = client.cash + r.marketValue;
-          const returnDollar = weekEndValue - start;
-          const returnPct = start > 0 ? returnDollar / start : 0;
+          // Persistent brokerage account: holdings and cash carry over. The
+          // week's P/L is the mark-to-market change in portfolio value as
+          // prices move from week-start to week-end — nothing is liquidated.
+          const mvStart = marketValue(client.holdings, {}, weekStartPrices);
+          const mvEnd = marketValue(client.holdings, finalMult, weekStartPrices);
+          const startValue = client.cash + mvStart; // portfolio value entering week-end
+          const endValue = client.cash + mvEnd; // portfolio value after price moves
+          const returnDollar = endValue - startValue; // == mvEnd - mvStart
+          const returnPct = startValue > 0 ? returnDollar / startValue : 0;
 
           // Relationship: does the allocation match the client's tier target?
           const alloc = evaluateAllocationMatch(client, client.holdings, weekStartPrices);
@@ -241,15 +245,16 @@ function reducer(state: State, action: Action): State {
             conc.happinessPenalty
           );
           const fired = newHappiness <= 0;
-          const allTimeDollar = weekEndValue - client.initialCapital;
+          const allTimeDollar = endValue - client.initialCapital;
           const allTimePct = client.initialCapital > 0 ? allTimeDollar / client.initialCapital : 0;
 
           updated[client.id] = {
             ...client,
             status: fired ? 'fired' : client.status,
-            holdings: {},
-            cash: weekEndValue,
-            portfolioValue: weekEndValue,
+            // Holdings and cash PERSIST across the week — only valuation changes.
+            holdings: client.holdings,
+            cash: client.cash,
+            portfolioValue: endValue,
             happiness: newHappiness,
             lastWeekReturnDollar: returnDollar,
             lastWeekReturnPct: returnPct,
@@ -263,7 +268,7 @@ function reducer(state: State, action: Action): State {
 
           results.push({
             clientId: client.id, name: client.name, characterColor: client.characterColor,
-            returnDollar, returnPct, newsContribution: r.weekGain, prevHappiness, newHappiness,
+            returnDollar, returnPct, newsContribution: returnDollar, prevHappiness, newHappiness,
             allTimeDollar, allTimePct, fired,
             concentrationLevel: conc.level, concentrationPenalty: conc.happinessPenalty,
             largestStockPct: conc.largestStockWeight,

@@ -188,8 +188,22 @@ export default function PortfolioBuilder({ clientId }: { clientId: string }) {
                 </Pressable>
                 <Text style={styles.priceInline}>@ {formatPrice(priceOf(stock.id))}/sh</Text>
               </View>
+              {owned > 0 && (
+                <View style={styles.quickRow}>
+                  <Text style={styles.quickLabel}>Quick sell:</Text>
+                  <Pressable onPress={() => sell(clientId, stock.id, Math.max(1, Math.floor(owned * 0.25)))} style={({ pressed }) => [styles.quickBtn, pressed && { opacity: 0.85 }]}>
+                    <Text style={styles.quickBtnText}>25%</Text>
+                  </Pressable>
+                  <Pressable onPress={() => sell(clientId, stock.id, Math.max(1, Math.floor(owned * 0.5)))} style={({ pressed }) => [styles.quickBtn, pressed && { opacity: 0.85 }]}>
+                    <Text style={styles.quickBtnText}>50%</Text>
+                  </Pressable>
+                  <Pressable onPress={() => sell(clientId, stock.id, owned)} style={({ pressed }) => [styles.quickBtn, pressed && { opacity: 0.85 }]}>
+                    <Text style={styles.quickBtnText}>All</Text>
+                  </Pressable>
+                </View>
+              )}
               <Text style={styles.available}>Available balance: {formatMoney(Math.round(balance))}</Text>
-              {owned > 0 && <Text style={styles.ownedTag}>Holding {owned} share(s)</Text>}
+              {owned > 0 && <Text style={styles.ownedTag}>Holding {owned} share(s) · avg cost {formatPrice((holdings[stock.id]?.cost || 0) / owned)}</Text>}
               {errors[stock.id] ? <Text style={styles.error}>{errors[stock.id]}</Text> : null}
             </View>
           </View>
@@ -292,6 +306,10 @@ const styles = StyleSheet.create({
   sellBtn: { backgroundColor: '#ffffff', borderWidth: 1, borderColor: RED, borderRadius: 4, paddingVertical: 9, paddingHorizontal: 12, marginRight: 8 },
   sellBtnText: { color: RED, fontSize: 14, fontWeight: '800', letterSpacing: 0.5 },
   priceInline: { color: '#888888', fontSize: 12, fontWeight: '700' },
+  quickRow: { flexDirection: 'row', alignItems: 'center', marginTop: 10 },
+  quickLabel: { color: '#888888', fontSize: 12, fontWeight: '700', marginRight: 8 },
+  quickBtn: { borderWidth: 1, borderColor: RED, borderRadius: 4, paddingVertical: 5, paddingHorizontal: 10, marginRight: 6 },
+  quickBtnText: { color: RED, fontSize: 12, fontWeight: '800' },
   available: { color: '#888888', fontSize: 12, fontWeight: '700', marginTop: 8 },
   ownedTag: { color: '#2e7d32', fontSize: 13, fontWeight: '700', marginTop: 6 },
   error: { color: RED, fontSize: 13, fontWeight: '700', marginTop: 6 },

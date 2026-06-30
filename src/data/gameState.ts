@@ -67,6 +67,20 @@ export function allocationLabel(a: AllocationTarget): string {
   return `${Math.round(a.stocks * 100)}% stocks, ${Math.round(a.bonds * 100)}% bonds`;
 }
 
+// Weighted-average cost per share for a position.
+export function avgCost(h: Holding): number {
+  return h.shares > 0 ? h.cost / h.shares : 0;
+}
+
+// Qualitative risk-preference label shown to the player. Derived from the
+// (hidden) target allocation so the exact numbers never leak into the UI.
+export function riskPreferenceLabel(a: AllocationTarget): string {
+  if (a.stocks >= 0.68) return 'Growth-focused';
+  if (a.stocks >= 0.62) return 'Growth with some stability';
+  if (a.stocks >= 0.57) return 'Balanced';
+  return 'Capital-preservation leaning';
+}
+
 export function clampHappiness(n: number): number {
   return Math.max(0, Math.min(100, n));
 }

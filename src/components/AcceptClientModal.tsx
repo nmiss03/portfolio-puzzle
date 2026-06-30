@@ -2,8 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 
 import Button from './Button';
-import { RuntimeClient, CONTRACT_WEEKS, allocationLabel } from '../data/gameState';
-import { tierOf } from '../data/clientTiers';
+import { RuntimeClient, CONTRACT_WEEKS, riskPreferenceLabel } from '../data/gameState';
 import { formatMoney } from '../utils/format';
 
 export default function AcceptClientModal({
@@ -23,11 +22,9 @@ export default function AcceptClientModal({
 
         <View style={styles.rows}>
           <Row label="Duration" value={`${CONTRACT_WEEKS} weeks`} />
-          <Row label="Tier" value={`${client.tier} · ${tierOf(client.tier).label}`} />
           <Row label="Initial capital" value={formatMoney(client.initialCapital)} />
-          <Row label="Target allocation" value={allocationLabel(client.recommendedAllocation)} />
-          <Row label="Tolerance" value={`±${Math.round(client.allocationTolerance * 100)}%`} />
-          <Row label="Your goal" value="Match their target allocation and grow capital" />
+          <Row label="Risk preference" value={riskPreferenceLabel(client.recommendedAllocation)} />
+          <Row label="Your goal" value="Grow their capital in line with how they invest" />
         </View>
 
         <Button title="Accept Contract" onPress={onAccept} style={{ marginTop: 12 }} />
