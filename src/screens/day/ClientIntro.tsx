@@ -7,9 +7,10 @@ import PixelCharacter from '../../components/PixelCharacter';
 import { useGame } from '../../state/GameContext';
 
 export default function ClientIntro({ onDone }: { onDone: () => void }) {
-  const { activeClient } = useGame();
+  const { introClient } = useGame();
   const insets = useSafeAreaInsets();
-  const dialogue = activeClient.dialogue;
+  const activeClient = introClient!;
+  const dialogue = activeClient?.dialogue ?? [];
 
   const [index, setIndex] = useState(0);
   const isLast = index === dialogue.length - 1;

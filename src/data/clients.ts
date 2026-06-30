@@ -15,7 +15,7 @@ const CLIENTS: ClientProfile[] = [
     recommendedAllocation: '60% stocks, 40% bonds',
     idealStockPct: 0.6,
     initialCapital: 60000,
-    unlockedWeek: 1,
+    unlockedAtReputation: 20,
     dialogue: [
       "Hi! I just got a promotion and I've got $60k to invest.",
       "I'm pretty conservative — I've got student loans, so I can't afford big losses.",
@@ -35,7 +35,7 @@ const CLIENTS: ClientProfile[] = [
     recommendedAllocation: '70% stocks, 30% bonds/liquid',
     idealStockPct: 0.7,
     initialCapital: 80000,
-    unlockedWeek: 2,
+    unlockedAtReputation: 27,
     dialogue: [
       "Business has been good, and I've got $80k burning in my savings account.",
       "Honestly, I don't have much debt, but my income can be unpredictable — one bad quarter and things get tight.",

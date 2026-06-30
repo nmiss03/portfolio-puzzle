@@ -68,8 +68,32 @@ export default function WeekSummaryScreen({ onContinue }: { onContinue: () => vo
         })}
       </View>
 
+      {/* Reputation changes */}
+      <View style={styles.repCard}>
+        <View style={styles.repHeadRow}>
+          <Text style={styles.repTitle}>Reputation</Text>
+          <Text style={styles.repNow}>{Math.round(t.repBefore)} → {Math.round(t.repAfter)}/100</Text>
+        </View>
+        {t.repChanges.length === 0 ? (
+          <Text style={styles.repNeutral}>No change this week.</Text>
+        ) : (
+          t.repChanges.map((c, i) => (
+            <Text key={i} style={[styles.repChange, { color: c.amount >= 0 ? GREEN : RED }]}>
+              {c.amount >= 0 ? '+' : ''}{c.amount} · {c.reason}
+            </Text>
+          ))
+        )}
+        <Text style={[styles.repTotal, { color: t.repAfter >= t.repBefore ? GREEN : RED }]}>
+          {t.repAfter >= t.repBefore ? '+' : ''}{Math.round(t.repAfter - t.repBefore)} reputation this week
+        </Text>
+        {t.newlyUnlocked.length > 0 && (
+          <Text style={styles.unlock}>⭐ New client available: {t.newlyUnlocked.join(', ')}</Text>
+        )}
+        {t.repAfter <= 0 && <Text style={styles.dead}>Your reputation hit 0 — your career is over.</Text>}
+      </View>
+
       <Button
-        title={t.unlocking ? `Continue to Week ${t.week + 1}  ›` : 'Finish  ›'}
+        title={t.repAfter <= 0 ? 'See Final Result  ›' : `Continue to Week ${t.week + 1}  ›`}
         onPress={onContinue}
         style={{ marginTop: 24 }}
       />
@@ -85,6 +109,15 @@ const styles = StyleSheet.create({
   accuracyCard: { backgroundColor: '#eef4fc', borderWidth: 1, borderColor: '#4a90e2', borderRadius: 8, padding: 12, marginBottom: 16 },
   accuracyText: { color: '#1a1a1a', fontSize: 13, fontWeight: '700', lineHeight: 18 },
   table: { backgroundColor: '#ffffff', borderWidth: 1, borderColor: '#cccccc', borderRadius: 8, padding: 12 },
+  repCard: { backgroundColor: '#ffffff', borderWidth: 1, borderColor: '#cccccc', borderRadius: 8, padding: 14, marginTop: 16 },
+  repHeadRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
+  repTitle: { color: '#1a1a1a', fontSize: 16, fontWeight: '900' },
+  repNow: { color: '#1a1a1a', fontSize: 14, fontWeight: '800' },
+  repNeutral: { color: '#888888', fontSize: 13 },
+  repChange: { fontSize: 13, fontWeight: '700', marginVertical: 2 },
+  repTotal: { fontSize: 14, fontWeight: '900', marginTop: 8 },
+  unlock: { color: '#4a90e2', fontSize: 13, fontWeight: '800', marginTop: 8 },
+  dead: { color: '#ef4444', fontSize: 13, fontWeight: '800', marginTop: 8 },
   tHead: { flexDirection: 'row', alignItems: 'center', paddingBottom: 8, borderBottomWidth: 1, borderBottomColor: '#cccccc' },
   th: { color: '#888888', fontSize: 11, fontWeight: '800', textTransform: 'uppercase' },
   tRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10 },

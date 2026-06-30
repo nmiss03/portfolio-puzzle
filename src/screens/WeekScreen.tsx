@@ -1,40 +1,39 @@
-import React, { useEffect } from 'react';
-import { View, Text, ScrollView, StyleSheet } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
 
 import WeekIntro from './day/WeekIntro';
 import ClientIntro from './day/ClientIntro';
 import PortfolioBuilder from './day/PortfolioBuilder';
 import WeekTransition from './day/WeekTransition';
 import WeekSummaryScreen from './WeekSummaryScreen';
+import GameOverScreen from './GameOverScreen';
 import NewsPopup from './NewsPopup';
 import ClientBook from './ClientBook';
-import PixelCharacter from '../components/PixelCharacter';
-import HappinessMeter from '../components/HappinessMeter';
+import ReputationBar from '../components/ReputationBar';
 import Button from '../components/Button';
 import { useGame } from '../state/GameContext';
-import { formatMoney } from '../utils/format';
-
-const GREEN = '#22c55e';
-const RED = '#ef4444';
 
 export default function WeekScreen() {
-  const { state, activeClient, startGame, setPhase, transitionWeek, advanceWeek, toggleBook, toggleNews } = useGame();
+  const { state, focusClient, activeClients, availableClients, canSign, startGame, setPhase, transitionWeek, advanceWeek, toggleBook, toggleNews } = useGame();
   const insets = useSafeAreaInsets();
+  const [alertSeen, setAlertSeen] = useState(false);
 
   useEffect(() => {
     if (!state.started) startGame();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Reset the alert each new week.
+  useEffect(() => setAlertSeen(false), [state.currentWeek]);
+
   if (!state.started) return <View style={styles.screen} />;
 
-  const hasHoldings = Object.values(activeClient.holdings).some((h) => h.shares > 0);
+  const showAlert = !alertSeen && availableClients.length > 0 && canSign && state.phase === 'builder';
 
   let body: React.ReactNode;
   if (state.phase === 'weekIntro') {
-    body = <WeekIntro week={state.currentWeek} onContinue={() => setPhase('clientIntro')} />;
+    body = <WeekIntro week={state.currentWeek} onContinue={() => setPhase('builder')} />;
   } else if (state.phase === 'clientIntro') {
     body = <ClientIntro onDone={() => setPhase('builder')} />;
   } else if (state.phase === 'transition') {
@@ -42,17 +41,40 @@ export default function WeekScreen() {
   } else if (state.phase === 'summary') {
     body = <WeekSummaryScreen onContinue={advanceWeek} />;
   } else if (state.phase === 'gameOver') {
-    body = <GameOver />;
+    body = <GameOverScreen />;
   } else {
     body = (
       <View style={styles.screen}>
-        <View style={styles.flex}>
-          <PortfolioBuilder clientId={activeClient.id} />
+        <View style={[styles.topBar, { paddingTop: insets.top + 8 }]}>
+          <Text style={styles.weekText}>Week {state.currentWeek}</Text>
+          <ReputationBar reputation={state.reputation} />
         </View>
+
+        {showAlert && (
+          <Pressable style={styles.alert} onPress={() => { setAlertSeen(true); toggleBook(true); }}>
+            <Text style={styles.alertText}>
+              📋 {availableClients.length} Available Client{availableClients.length > 1 ? 's' : ''} — tap to view
+            </Text>
+            <View style={styles.alertDot} />
+          </Pressable>
+        )}
+
+        <View style={styles.flex}>
+          {focusClient ? (
+            <PortfolioBuilder clientId={focusClient.id} />
+          ) : (
+            <View style={styles.empty}>
+              <Text style={styles.emptyTitle}>No active clients yet.</Text>
+              <Text style={styles.emptyText}>Open the Client Book to sign your first contract.</Text>
+              <Button title="Open Client Book" onPress={() => toggleBook(true)} style={{ marginTop: 16 }} />
+            </View>
+          )}
+        </View>
+
         <View style={[styles.tabBar, { paddingBottom: insets.bottom + 10 }]}>
           <Button title="📖 Clients" variant="secondary" onPress={() => toggleBook(true)} style={styles.tabBtn} />
           <Button title="📰 News" variant="secondary" onPress={() => toggleNews(true)} style={styles.tabBtn} />
-          <Button title="Next Week  ›" onPress={transitionWeek} disabled={!hasHoldings} style={styles.tabBtn} />
+          <Button title="Next Week  ›" onPress={transitionWeek} disabled={activeClients.length === 0} style={styles.tabBtn} />
         </View>
       </View>
     );
@@ -67,61 +89,18 @@ export default function WeekScreen() {
   );
 }
 
-function GameOver() {
-  const { state, unlockedClients, startGame } = useGame();
-  const router = useRouter();
-  const combined = unlockedClients.reduce((s, c) => s + c.allTimeReturnDollar, 0);
-  const avgHappiness = Math.round(
-    unlockedClients.reduce((s, c) => s + c.happiness, 0) / Math.max(1, unlockedClients.length)
-  );
-
-  return (
-    <ScrollView contentContainerStyle={styles.overContent}>
-      <Text style={styles.overTitle}>Career Summary</Text>
-      <Text style={styles.overSub}>
-        {state.totalWeeks} weeks · avg happiness {avgHappiness}% · combined all-time{' '}
-        {combined >= 0 ? '+' : '-'}
-        {formatMoney(Math.abs(Math.round(combined)))}
-      </Text>
-
-      {unlockedClients.map((c) => {
-        const positive = c.allTimeReturnDollar >= 0;
-        return (
-          <View key={c.id} style={styles.overCard}>
-            <PixelCharacter seed={c.id} cell={5} />
-            <View style={styles.overInfo}>
-              <Text style={styles.overName}>{c.name}{c.fired ? '  (fired you)' : ''}</Text>
-              <Text style={[styles.overReturn, { color: positive ? GREEN : RED }]}>
-                All-time {positive ? '+' : '-'}
-                {formatMoney(Math.abs(Math.round(c.allTimeReturnDollar)))} ({positive ? '+' : ''}
-                {(c.allTimeReturnPct * 100).toFixed(1)}%)
-              </Text>
-              <View style={{ marginTop: 8 }}>
-                <HappinessMeter value={c.happiness} height={10} />
-              </View>
-            </View>
-          </View>
-        );
-      })}
-
-      <Button title="Play Again" onPress={startGame} style={{ marginTop: 20 }} />
-      <Button title="Back to Start" onPress={() => router.replace('/')} variant="secondary" style={{ marginTop: 10 }} />
-    </ScrollView>
-  );
-}
-
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#f5f5f5' },
   screen: { flex: 1, backgroundColor: '#f5f5f5' },
   flex: { flex: 1 },
+  topBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingBottom: 8, backgroundColor: '#ffffff', borderBottomWidth: 1, borderBottomColor: '#eee' },
+  weekText: { color: '#1a1a1a', fontSize: 18, fontWeight: '900' },
+  alert: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: '#eef4fc', borderBottomWidth: 1, borderBottomColor: '#4a90e2', paddingVertical: 10 },
+  alertText: { color: '#1a1a1a', fontSize: 13, fontWeight: '800' },
+  alertDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#ef4444', marginLeft: 8 },
+  empty: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
+  emptyTitle: { color: '#1a1a1a', fontSize: 17, fontWeight: '800' },
+  emptyText: { color: '#666666', fontSize: 13, marginTop: 6, textAlign: 'center' },
   tabBar: { flexDirection: 'row', paddingTop: 10, paddingHorizontal: 12, backgroundColor: '#ffffff', borderTopWidth: 1, borderTopColor: '#cccccc' },
   tabBtn: { flex: 1, marginHorizontal: 4 },
-
-  overContent: { padding: 20, alignItems: 'center' },
-  overTitle: { color: '#1a1a1a', fontSize: 26, fontWeight: '900', marginTop: 12 },
-  overSub: { color: '#888888', fontSize: 14, fontWeight: '700', marginTop: 4, marginBottom: 18, textAlign: 'center' },
-  overCard: { width: '100%', flexDirection: 'row', backgroundColor: '#ffffff', borderWidth: 1, borderColor: '#cccccc', borderRadius: 8, padding: 16, marginBottom: 14, alignItems: 'center' },
-  overInfo: { flex: 1, marginLeft: 16 },
-  overName: { color: '#1a1a1a', fontSize: 18, fontWeight: '900' },
-  overReturn: { fontSize: 15, fontWeight: '800', marginTop: 4, marginBottom: 4 },
 });

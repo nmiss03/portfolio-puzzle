@@ -20,6 +20,20 @@ export function costBasis(holdings: Holdings): number {
   return Object.values(holdings).reduce((sum, h) => sum + h.cost, 0);
 }
 
+// Share of invested value (at base prices) in stocks vs bonds, 0..1.
+export function stockFraction(holdings: Holdings): number {
+  let stock = 0;
+  let total = 0;
+  Object.entries(holdings).forEach(([id, h]) => {
+    const s = stocksById[id];
+    if (!s) return;
+    const v = h.shares * s.price;
+    total += v;
+    if (s.assetClass === 'stock') stock += v;
+  });
+  return total > 0 ? stock / total : 0;
+}
+
 export function sectorsHeld(holdings: Holdings): number {
   const sectors = new Set<string>();
   Object.keys(holdings).forEach((id) => {

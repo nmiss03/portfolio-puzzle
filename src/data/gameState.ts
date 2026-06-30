@@ -9,6 +9,11 @@ export interface WeekRecord {
   happiness: number;
 }
 
+export type ClientStatus = 'unsigned' | 'signed' | 'expired' | 'dismissed' | 'fired';
+
+export const CONTRACT_WEEKS = 8;
+export const MAX_ACTIVE_CLIENTS = 3;
+
 // Static description of a client (authored in clients.ts).
 export interface ClientProfile {
   id: string;
@@ -22,11 +27,14 @@ export interface ClientProfile {
   recommendedAllocation: string; // human-readable
   idealStockPct: number; // recommended share in stocks, 0..1
   initialCapital: number;
-  unlockedWeek: number;
+  unlockedAtReputation: number; // becomes available at/above this reputation
 }
 
 // Runtime state layered on top of a profile.
 export interface RuntimeClient extends ClientProfile {
+  status: ClientStatus;
+  contractStartWeek: number;
+  contractWeeksRemaining: number;
   holdings: Record<string, Holding>; // stockId -> position
   cash: number; // uninvested capital available
   happiness: number; // 0..100
@@ -47,7 +55,7 @@ export interface Holding {
   cost: number;
 }
 
-export const STARTING_HAPPINESS = 75;
+export const STARTING_HAPPINESS = 50;
 
 export const RISK_LABEL: Record<RiskPreference, string> = {
   conservative: 'Conservative',
@@ -63,6 +71,9 @@ export function clampHappiness(n: number): number {
 export function initRuntimeClient(profile: ClientProfile): RuntimeClient {
   return {
     ...profile,
+    status: 'unsigned',
+    contractStartWeek: 0,
+    contractWeeksRemaining: 0,
     holdings: {},
     cash: profile.initialCapital,
     happiness: STARTING_HAPPINESS,

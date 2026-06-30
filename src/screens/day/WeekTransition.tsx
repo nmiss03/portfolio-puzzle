@@ -86,10 +86,8 @@ export default function WeekTransition({ onContinue }: { onContinue: () => void 
             {formatMoney(Math.abs(Math.round(combinedAllTime)))}
           </Text>
 
-          {t.unlocking && (
-            <Text style={styles.unlocking}>
-              New client unlocking… {t.unlocking.name}, {t.unlocking.age}
-            </Text>
+          {t.firedNames.length > 0 && (
+            <Text style={styles.fired}>{t.firedNames.join(', ')} fired you this week.</Text>
           )}
 
           <Button title="View Week Summary  ›" onPress={onContinue} style={{ marginTop: 24, minWidth: 240 }} />
@@ -123,5 +121,5 @@ const styles = StyleSheet.create({
   rowPct: { fontSize: 13, fontWeight: '800', marginTop: 2 },
   rowNews: { color: '#4a90e2', fontSize: 11, fontWeight: '700', marginTop: 2 },
   allTime: { color: GRAY, fontSize: 14, fontWeight: '800', marginTop: 8 },
-  unlocking: { color: '#4a90e2', fontSize: 15, fontWeight: '800', marginTop: 16, textAlign: 'center' },
+  fired: { color: '#ef4444', fontSize: 14, fontWeight: '800', marginTop: 12, textAlign: 'center' },
 });
