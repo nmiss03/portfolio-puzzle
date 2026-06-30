@@ -38,7 +38,7 @@ export interface RuntimeClient extends ClientProfile {
   fired: boolean;
 }
 
-export type Phase = 'weekIntro' | 'clientIntro' | 'builder' | 'transition' | 'summary' | 'gameOver';
+export type Phase = 'weekIntro' | 'clientIntro' | 'builder' | 'news' | 'transition' | 'summary' | 'gameOver';
 
 export const STARTING_HAPPINESS = 75;
 

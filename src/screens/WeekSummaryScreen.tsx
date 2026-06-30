@@ -9,6 +9,7 @@ import { formatMoney } from '../utils/format';
 
 const GREEN = '#22c55e';
 const RED = '#ef4444';
+const BLUE = '#4a90e2';
 
 export default function WeekSummaryScreen({ onContinue }: { onContinue: () => void }) {
   const { state } = useGame();
@@ -32,22 +33,37 @@ export default function WeekSummaryScreen({ onContinue }: { onContinue: () => vo
         <BarChart data={barData} height={180} />
       </View>
 
+      {t.newsCount > 0 && (
+        <View style={styles.accuracyCard}>
+          <Text style={styles.accuracyText}>
+            You predicted {Math.round(t.newsAccuracy * t.newsCount)} of {t.newsCount} headlines correctly (
+            {Math.round(t.newsAccuracy * 100)}% accuracy).
+            {t.newsAccuracy > 0.8 ? '  Bonus: +3 happiness.' : t.newsAccuracy < 0.4 ? '  Penalty: -5 happiness.' : ''}
+          </Text>
+        </View>
+      )}
+
       <View style={styles.table}>
         <View style={styles.tHead}>
           <Text style={[styles.thClient, styles.th]}>Client</Text>
           <Text style={[styles.thNum, styles.th]}>Week</Text>
+          <Text style={[styles.thNum, styles.th]}>News</Text>
           <Text style={[styles.thNum, styles.th]}>All-time</Text>
-          <Text style={[styles.thHappy, styles.th]}>Happiness</Text>
+          <Text style={[styles.thHappy, styles.th]}>Happy</Text>
         </View>
         {t.results.map((r) => {
           const wPos = r.returnDollar >= 0;
           const aPos = r.allTimeDollar >= 0;
+          const nPos = r.newsContribution >= 0;
           return (
             <View key={r.clientId} style={styles.tRow}>
               <Text style={[styles.thClient, styles.tdName]} numberOfLines={1}>{r.name}</Text>
               <Text style={[styles.thNum, styles.td, { color: wPos ? GREEN : RED }]}>
                 {wPos ? '+' : '-'}{formatMoney(Math.abs(Math.round(r.returnDollar)))}{'\n'}
                 {wPos ? '+' : ''}{(r.returnPct * 100).toFixed(2)}%
+              </Text>
+              <Text style={[styles.thNum, styles.td, { color: BLUE }]}>
+                {nPos ? '+' : '-'}{formatMoney(Math.abs(Math.round(r.newsContribution)))}
               </Text>
               <Text style={[styles.thNum, styles.td, { color: aPos ? GREEN : RED }]}>
                 {aPos ? '+' : '-'}{formatMoney(Math.abs(Math.round(r.allTimeDollar)))}{'\n'}
@@ -76,6 +92,8 @@ const styles = StyleSheet.create({
   content: { padding: 20 },
   title: { color: '#1a1a1a', fontSize: 20, fontWeight: '900', textAlign: 'center', marginVertical: 12 },
   chartCard: { backgroundColor: '#ffffff', borderWidth: 1, borderColor: '#cccccc', borderRadius: 8, padding: 16, marginBottom: 16 },
+  accuracyCard: { backgroundColor: '#eef4fc', borderWidth: 1, borderColor: '#4a90e2', borderRadius: 8, padding: 12, marginBottom: 16 },
+  accuracyText: { color: '#1a1a1a', fontSize: 13, fontWeight: '700', lineHeight: 18 },
   table: { backgroundColor: '#ffffff', borderWidth: 1, borderColor: '#cccccc', borderRadius: 8, padding: 12 },
   tHead: { flexDirection: 'row', alignItems: 'center', paddingBottom: 8, borderBottomWidth: 1, borderBottomColor: '#cccccc' },
   th: { color: '#888888', fontSize: 11, fontWeight: '800', textTransform: 'uppercase' },

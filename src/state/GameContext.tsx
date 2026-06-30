@@ -11,7 +11,8 @@ import {
   clampHappiness,
   initRuntimeClient,
 } from '../data/gameState';
-import { happinessDeltaWeek, scoreWeek } from '../data/scoring';
+import { NewsAnswer, happinessDeltaWeek, newsAccuracy, scoreWeek } from '../data/scoring';
+import { NewsHeadline, pickWeeklyNews } from '../data/newsHeadlines';
 
 export interface PerClientWeekResult {
   clientId: string;
@@ -19,6 +20,7 @@ export interface PerClientWeekResult {
   characterColor: string;
   returnDollar: number;
   returnPct: number;
+  newsContribution: number;
   prevHappiness: number;
   newHappiness: number;
   allTimeDollar: number;
@@ -30,6 +32,8 @@ export interface TransitionInfo {
   week: number;
   results: PerClientWeekResult[];
   unlocking: { name: string; age: number } | null;
+  newsAccuracy: number; // 0..1
+  newsCount: number;
 }
 
 interface State {
@@ -43,6 +47,8 @@ interface State {
   bookOpen: boolean;
   detailClientId: string | null;
   transition: TransitionInfo | null;
+  weeklyNews: NewsHeadline[];
+  newsAnswers: Record<string, NewsAnswer>;
 }
 
 type Action =
@@ -50,6 +56,9 @@ type Action =
   | { type: 'SET_PHASE'; phase: Phase }
   | { type: 'BUY'; clientId: string; stockId: string; shares: number }
   | { type: 'SELL'; clientId: string; stockId: string; shares: number }
+  | { type: 'START_NEWS' }
+  | { type: 'SELECT_NEWS'; headlineId: string; answer: NewsAnswer }
+  | { type: 'SKIP_ALL_NEWS' }
   | { type: 'TRANSITION_WEEK' }
   | { type: 'ADVANCE_WEEK' }
   | { type: 'TOGGLE_BOOK'; open?: boolean }
@@ -71,6 +80,8 @@ function buildInitial(): State {
     bookOpen: false,
     detailClientId: null,
     transition: null,
+    weeklyNews: [],
+    newsAnswers: {},
   };
 }
 
@@ -118,18 +129,33 @@ function reducer(state: State, action: Action): State {
       return { ...state, clients: { ...state.clients, [client.id]: { ...client, holdings } } };
     }
 
+    case 'START_NEWS':
+      return { ...state, phase: 'news', weeklyNews: pickWeeklyNews(5), newsAnswers: {} };
+
+    case 'SELECT_NEWS':
+      return { ...state, newsAnswers: { ...state.newsAnswers, [action.headlineId]: action.answer } };
+
+    case 'SKIP_ALL_NEWS': {
+      const answers: Record<string, NewsAnswer> = { ...state.newsAnswers };
+      state.weeklyNews.forEach((n) => {
+        if (!answers[n.id]) answers[n.id] = 'skipped';
+      });
+      return { ...state, newsAnswers: answers };
+    }
+
     case 'TRANSITION_WEEK': {
       const updatedClients = { ...state.clients };
       const results: PerClientWeekResult[] = [];
+      const accuracy = newsAccuracy(state.weeklyNews, state.newsAnswers);
 
       state.unlocked.forEach((id) => {
         const client = state.clients[id];
-        const r = scoreWeek(client.holdings, client);
+        const r = scoreWeek(client.holdings, client, state.weeklyNews);
         const start = client.portfolioValue;
         const returnDollar = r.weekReturnDollar;
         const returnPct = start > 0 ? returnDollar / start : 0;
         const newValue = start + returnDollar;
-        const delta = happinessDeltaWeek(returnPct, r.diversified);
+        const delta = happinessDeltaWeek(returnPct, r.diversified, accuracy);
         const prevHappiness = client.happiness;
         const newHappiness = clampHappiness(prevHappiness + delta);
         const fired = newHappiness <= 0;
@@ -157,6 +183,7 @@ function reducer(state: State, action: Action): State {
           characterColor: client.characterColor,
           returnDollar,
           returnPct,
+          newsContribution: r.newsContribution,
           prevHappiness,
           newHappiness,
           allTimeDollar,
@@ -177,7 +204,13 @@ function reducer(state: State, action: Action): State {
         ...state,
         clients: updatedClients,
         phase: 'transition',
-        transition: { week: state.currentWeek, results, unlocking },
+        transition: {
+          week: state.currentWeek,
+          results,
+          unlocking,
+          newsAccuracy: accuracy,
+          newsCount: state.weeklyNews.length,
+        },
       };
     }
 
@@ -212,6 +245,9 @@ interface GameContextValue {
   setPhase: (p: Phase) => void;
   buy: (clientId: string, stockId: string, shares: number) => void;
   sell: (clientId: string, stockId: string, shares: number) => void;
+  startNews: () => void;
+  selectNews: (headlineId: string, answer: NewsAnswer) => void;
+  skipAllNews: () => void;
   transitionWeek: () => void;
   advanceWeek: () => void;
   toggleBook: (open?: boolean) => void;
@@ -240,6 +276,9 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       setPhase: (phase: Phase) => dispatch({ type: 'SET_PHASE', phase }),
       buy: (clientId, stockId, shares) => dispatch({ type: 'BUY', clientId, stockId, shares }),
       sell: (clientId, stockId, shares) => dispatch({ type: 'SELL', clientId, stockId, shares }),
+      startNews: () => dispatch({ type: 'START_NEWS' }),
+      selectNews: (headlineId, answer) => dispatch({ type: 'SELECT_NEWS', headlineId, answer }),
+      skipAllNews: () => dispatch({ type: 'SKIP_ALL_NEWS' }),
       transitionWeek: () => dispatch({ type: 'TRANSITION_WEEK' }),
       advanceWeek: () => dispatch({ type: 'ADVANCE_WEEK' }),
       toggleBook: (open?: boolean) => dispatch({ type: 'TOGGLE_BOOK', open }),

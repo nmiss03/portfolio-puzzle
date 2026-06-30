@@ -1,38 +1,53 @@
-import React, { useRef, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { View, Text, TextInput, Pressable, ScrollView, StyleSheet } from 'react-native';
 
-import STOCKS, { Stock, StockLogo } from '../../data/stocks';
+import STOCKS, { Stock, StockLogo, Sector, SECTORS } from '../../data/stocks';
 import { useGame } from '../../state/GameContext';
 import { formatMoney, formatPrice } from '../../utils/format';
 
 type StringMap = Record<string, string>;
+type Filter = 'All' | Sector;
+
+const SECTOR_COUNTS: Record<string, number> = STOCKS.reduce(
+  (acc, s) => {
+    acc[s.sector] = (acc[s.sector] || 0) + 1;
+    return acc;
+  },
+  {} as Record<string, number>
+);
 
 function Logo({ logo }: { logo: StockLogo }) {
   return (
     <View style={[styles.logo, { backgroundColor: logo.bgColor }]}>
-      <Text style={[styles.logoText, { fontSize: logo.type === 'initials' ? 20 : 28 }]}>{logo.value}</Text>
+      <Text style={[styles.logoText, { fontSize: logo.type === 'initials' ? 24 : 30 }]}>{logo.value}</Text>
     </View>
   );
 }
 
-/** Buy/sell research interface for a single client's portfolio. */
 export default function PortfolioBuilder({ clientId }: { clientId: string }) {
   const { state, buy, sell, availableBalance } = useGame();
   const client = state.clients[clientId];
-  const stocks = STOCKS;
 
+  const [filter, setFilter] = useState<Filter>('All');
+  const [dropdownOpen, setDropdownOpen] = useState(false);
   const [page, setPage] = useState(0);
   const [inputs, setInputs] = useState<StringMap>({});
   const [errors, setErrors] = useState<StringMap>({});
-  const tickerRef = useRef<ScrollView>(null);
+
+  const stocks = useMemo(() => (filter === 'All' ? STOCKS : STOCKS.filter((s) => s.sector === filter)), [filter]);
+  const safePage = Math.min(page, stocks.length - 1);
+  const stock = stocks[safePage];
 
   const balance = availableBalance(client);
-  const invested = client.initialCapital - balance;
   const holdings = client.holdings;
   const hasHoldings = Object.values(holdings).some((n) => n > 0);
-
-  const stock = stocks[page];
   const owned = holdings[stock.id] || 0;
+
+  const chooseFilter = (f: Filter) => {
+    setFilter(f);
+    setPage(0);
+    setDropdownOpen(false);
+  };
 
   const setInput = (id: string, text: string) => {
     const digits = text.replace(/[^0-9]/g, '');
@@ -60,7 +75,7 @@ export default function PortfolioBuilder({ clientId }: { clientId: string }) {
   };
 
   const goTo = (i: number) => setPage(Math.max(0, Math.min(stocks.length - 1, i)));
-  const ownedStocks = stocks.filter((s) => (holdings[s.id] || 0) > 0);
+  const ownedStocks = STOCKS.filter((s) => (holdings[s.id] || 0) > 0);
 
   return (
     <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
@@ -71,10 +86,31 @@ export default function PortfolioBuilder({ clientId }: { clientId: string }) {
         </View>
 
         <View style={styles.monitorScreen}>
+          {/* Sector filter dropdown */}
+          <View style={styles.filterRow}>
+            <Text style={styles.filterLabel}>Filter by sector:</Text>
+            <Pressable style={styles.dropdown} onPress={() => setDropdownOpen((o) => !o)}>
+              <Text style={styles.dropdownText}>
+                {filter} {filter === 'All' ? `(${STOCKS.length})` : `(${SECTOR_COUNTS[filter]})`} ▾
+              </Text>
+            </Pressable>
+          </View>
+          {dropdownOpen && (
+            <View style={styles.menu}>
+              {(['All', ...SECTORS] as Filter[]).map((f) => (
+                <Pressable key={f} style={styles.menuItem} onPress={() => chooseFilter(f)}>
+                  <Text style={[styles.menuText, f === filter && styles.menuTextActive]}>
+                    {f} ({f === 'All' ? STOCKS.length : SECTOR_COUNTS[f]})
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+          )}
+
           {/* Ticker ribbon */}
-          <ScrollView ref={tickerRef} horizontal showsHorizontalScrollIndicator={false} style={styles.ribbon} contentContainerStyle={styles.ribbonContent}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.ribbon} contentContainerStyle={styles.ribbonContent}>
             {stocks.map((s, i) => {
-              const active = i === page;
+              const active = i === safePage;
               const has = (holdings[s.id] || 0) > 0;
               return (
                 <Pressable key={s.id} onPress={() => goTo(i)} style={[styles.tab, { borderColor: s.sectorColor }, active && { backgroundColor: s.sectorColor }]}>
@@ -86,16 +122,16 @@ export default function PortfolioBuilder({ clientId }: { clientId: string }) {
           </ScrollView>
 
           <View style={styles.ribbonNav}>
-            <Pressable onPress={() => goTo(page - 1)} disabled={page === 0} style={({ pressed }) => [styles.arrow, page === 0 && styles.arrowDisabled, pressed && { opacity: 0.6 }]}>
+            <Pressable onPress={() => goTo(safePage - 1)} disabled={safePage === 0} style={({ pressed }) => [styles.arrow, safePage === 0 && styles.arrowDisabled, pressed && { opacity: 0.6 }]}>
               <Text style={styles.arrowText}>‹</Text>
             </Pressable>
-            <Text style={styles.ribbonLabel}>{page + 1} / {stocks.length}</Text>
-            <Pressable onPress={() => goTo(page + 1)} disabled={page === stocks.length - 1} style={({ pressed }) => [styles.arrow, page === stocks.length - 1 && styles.arrowDisabled, pressed && { opacity: 0.6 }]}>
+            <Text style={styles.ribbonLabel}>Page {safePage + 1} of {stocks.length}</Text>
+            <Pressable onPress={() => goTo(safePage + 1)} disabled={safePage === stocks.length - 1} style={({ pressed }) => [styles.arrow, safePage === stocks.length - 1 && styles.arrowDisabled, pressed && { opacity: 0.6 }]}>
               <Text style={styles.arrowText}>›</Text>
             </Pressable>
           </View>
 
-          {/* Colorful stock card with full detail */}
+          {/* Stock card */}
           <View style={styles.card}>
             <View style={[styles.cardTop, { backgroundColor: stock.sectorColor }]}>
               <View>
@@ -106,29 +142,34 @@ export default function PortfolioBuilder({ clientId }: { clientId: string }) {
             </View>
 
             <View style={styles.cardBody}>
-              <Text style={styles.cardName}>{stock.name}</Text>
-              <View style={styles.cardCols}>
+              <View style={styles.leftCol}>
                 <Logo logo={stock.logo} />
-                <View style={styles.cardInfo}>
-                  <View style={styles.metaRow}>
-                    <Text style={styles.metaGray}>P/E {stock.pe == null ? 'N/A' : stock.pe}</Text>
-                    <Text style={styles.metaGray}>Beta {stock.beta.toFixed(1)}</Text>
-                    <Text style={[styles.metaGray, { color: stock.dividend > 0 ? '#22c55e' : '#888888' }]}>
-                      Div {stock.dividend.toFixed(1)}%
-                    </Text>
+                <Text style={styles.companyName}>{stock.name}</Text>
+              </View>
+              <View style={styles.rightCol}>
+                <View style={styles.specsRow}>
+                  <View style={styles.specsCol}>
+                    <Text style={styles.spec}>Founded: {stock.yearFounded}</Text>
+                    <Text style={styles.spec}>Employees: {stock.employees.toLocaleString()}</Text>
+                    <Text style={styles.spec}>P/E: {stock.pe == null ? 'N/A' : stock.pe}</Text>
+                    <Text style={styles.spec}>Beta: {stock.beta.toFixed(1)}</Text>
                   </View>
-                  <Text style={styles.metaGray}>
-                    52-wk {formatPrice(stock.week52Low)} – {formatPrice(stock.week52High)}
-                  </Text>
-                  <Text style={styles.metaGray}>Market cap {stock.marketCap}</Text>
-                  <Text style={styles.cardDesc} numberOfLines={3}>{stock.description}</Text>
+                  <View style={styles.specsCol}>
+                    <Text style={styles.spec}>Mkt Cap: {stock.marketCap}</Text>
+                    <Text style={[styles.spec, { color: stock.dividend > 0 ? '#22c55e' : '#888888' }]}>Div: {stock.dividend.toFixed(1)}%</Text>
+                    <Text style={styles.spec}>52wk: {formatPrice(stock.week52Low)}-{formatPrice(stock.week52High)}</Text>
+                    <Text style={styles.spec} numberOfLines={1}>HQ: {stock.headquarters}</Text>
+                  </View>
                 </View>
               </View>
             </View>
 
+            <View style={styles.divider} />
+            <Text style={styles.background} numberOfLines={5}>{stock.background}</Text>
+
             <View style={styles.buySection}>
               <View style={styles.buyRow}>
-                <Text style={styles.buyLabel}>Shares to buy:</Text>
+                <Text style={styles.buyLabel}>Shares:</Text>
                 <TextInput
                   style={styles.input}
                   value={inputs[stock.id] || ''}
@@ -144,8 +185,9 @@ export default function PortfolioBuilder({ clientId }: { clientId: string }) {
                 <Pressable onPress={() => doSell(stock)} disabled={owned <= 0} style={({ pressed }) => [styles.sellBtn, owned <= 0 && { opacity: 0.4 }, pressed && owned > 0 && { opacity: 0.85 }]}>
                   <Text style={styles.sellBtnText}>SELL</Text>
                 </Pressable>
+                <Text style={styles.priceInline}>@ {formatPrice(stock.price)}/sh</Text>
               </View>
-              <Text style={styles.priceInline}>@ {formatPrice(stock.price)}/share</Text>
+              <Text style={styles.available}>Available balance: {formatMoney(Math.round(balance))}</Text>
               {owned > 0 && <Text style={styles.ownedTag}>Holding {owned} share(s)</Text>}
               {errors[stock.id] ? <Text style={styles.error}>{errors[stock.id]}</Text> : null}
             </View>
@@ -180,7 +222,7 @@ export default function PortfolioBuilder({ clientId }: { clientId: string }) {
           })}
           <View style={styles.totalRow}>
             <Text style={styles.totalLabel}>Portfolio cost basis</Text>
-            <Text style={styles.totalValue}>{formatMoney(Math.round(invested))}</Text>
+            <Text style={styles.totalValue}>{formatMoney(Math.round(client.initialCapital - balance))}</Text>
           </View>
         </View>
       )}
@@ -201,6 +243,15 @@ const styles = StyleSheet.create({
   headerText: { color: '#ffffff', fontSize: 13, fontWeight: '800' },
   monitorScreen: { backgroundColor: '#f5f5f5', padding: 12 },
 
+  filterRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
+  filterLabel: { color: '#888888', fontSize: 12, marginRight: 8 },
+  dropdown: { backgroundColor: BLUE, borderRadius: 4, paddingVertical: 8, paddingHorizontal: 12 },
+  dropdownText: { color: '#ffffff', fontSize: 13, fontWeight: '800' },
+  menu: { backgroundColor: '#ffffff', borderWidth: 1, borderColor: BORDER, borderRadius: 4, marginBottom: 10 },
+  menuItem: { paddingVertical: 9, paddingHorizontal: 12, borderBottomWidth: 1, borderBottomColor: '#eee' },
+  menuText: { color: TEXT, fontSize: 13, fontWeight: '600' },
+  menuTextActive: { color: BLUE, fontWeight: '900' },
+
   ribbon: { marginBottom: 10 },
   ribbonContent: { paddingRight: 4 },
   tab: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#ffffff', borderWidth: 1.5, borderRadius: 4, paddingVertical: 6, paddingHorizontal: 10, marginRight: 6 },
@@ -218,26 +269,28 @@ const styles = StyleSheet.create({
   cardTicker: { color: '#ffffff', fontSize: 16, fontWeight: '900', letterSpacing: 0.5 },
   cardSector: { color: '#ffffff', fontSize: 12, fontWeight: '600', opacity: 0.9, marginTop: 1 },
   cardPrice: { color: '#ffffff', fontSize: 18, fontWeight: '900' },
-  cardBody: { padding: 12 },
-  cardName: { color: TEXT, fontSize: 15, fontWeight: '800', marginBottom: 8 },
-  cardCols: { flexDirection: 'row' },
-  logo: { width: 60, height: 60, borderRadius: 4, alignItems: 'center', justifyContent: 'center' },
+  cardBody: { flexDirection: 'row', padding: 12 },
+  leftCol: { width: 90, alignItems: 'center' },
+  companyName: { color: TEXT, fontSize: 12, fontWeight: '800', textAlign: 'center', marginTop: 8 },
+  logo: { width: 70, height: 70, borderRadius: 4, alignItems: 'center', justifyContent: 'center' },
   logoText: { color: '#ffffff', fontWeight: '900' },
-  cardInfo: { flex: 1, marginLeft: 12 },
-  metaRow: { flexDirection: 'row', justifyContent: 'space-between' },
-  metaGray: { color: '#888888', fontSize: 12, marginTop: 2 },
-  cardDesc: { color: '#666666', fontSize: 13, fontStyle: 'italic', lineHeight: 17, marginTop: 6 },
-  vol: { fontSize: 12, fontWeight: '800', marginTop: 6 },
+  rightCol: { flex: 1, paddingLeft: 8 },
+  specsRow: { flexDirection: 'row' },
+  specsCol: { flex: 1 },
+  spec: { color: '#666666', fontSize: 12, marginBottom: 3 },
+  divider: { height: 1, backgroundColor: '#e5e7eb', marginHorizontal: 12 },
+  background: { color: '#666666', fontSize: 13, fontStyle: 'italic', lineHeight: 18, padding: 12, paddingTop: 8 },
 
   buySection: { backgroundColor: '#f9fafb', borderTopWidth: 1, borderTopColor: BORDER, padding: 12 },
-  buyRow: { flexDirection: 'row', alignItems: 'center' },
+  buyRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap' },
   buyLabel: { color: TEXT, fontSize: 13, marginRight: 8 },
   input: { width: 56, borderWidth: 1, borderColor: BORDER, borderRadius: 4, paddingVertical: 8, paddingHorizontal: 8, fontSize: 16, color: TEXT, backgroundColor: '#ffffff', marginRight: 8, textAlign: 'center' },
   buyBtn: { backgroundColor: BLUE, borderRadius: 4, paddingVertical: 10, paddingHorizontal: 16, marginRight: 8 },
   buyBtnText: { color: '#ffffff', fontSize: 14, fontWeight: '800', letterSpacing: 0.5 },
-  sellBtn: { backgroundColor: '#ffffff', borderWidth: 1, borderColor: RED, borderRadius: 4, paddingVertical: 9, paddingHorizontal: 12 },
+  sellBtn: { backgroundColor: '#ffffff', borderWidth: 1, borderColor: RED, borderRadius: 4, paddingVertical: 9, paddingHorizontal: 12, marginRight: 8 },
   sellBtnText: { color: RED, fontSize: 14, fontWeight: '800', letterSpacing: 0.5 },
-  priceInline: { color: '#888888', fontSize: 12, fontWeight: '700', marginTop: 8 },
+  priceInline: { color: '#888888', fontSize: 12, fontWeight: '700' },
+  available: { color: '#888888', fontSize: 12, fontWeight: '700', marginTop: 8 },
   ownedTag: { color: '#2e7d32', fontSize: 13, fontWeight: '700', marginTop: 6 },
   error: { color: RED, fontSize: 13, fontWeight: '700', marginTop: 6 },
 

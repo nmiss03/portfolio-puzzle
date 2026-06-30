@@ -68,6 +68,12 @@ export default function WeekTransition({ onContinue }: { onContinue: () => void 
                 {positive ? '+' : ''}
                 {(r.returnPct * 100).toFixed(2)}%
               </Text>
+              {done && r.newsContribution !== 0 && (
+                <Text style={styles.rowNews}>
+                  news {r.newsContribution >= 0 ? '+' : '-'}
+                  {formatMoney(Math.abs(Math.round(r.newsContribution)))}
+                </Text>
+              )}
             </View>
           </View>
         );
@@ -115,6 +121,7 @@ const styles = StyleSheet.create({
   rowRight: { alignItems: 'flex-end' },
   rowReturn: { fontSize: 18, fontWeight: '900' },
   rowPct: { fontSize: 13, fontWeight: '800', marginTop: 2 },
+  rowNews: { color: '#4a90e2', fontSize: 11, fontWeight: '700', marginTop: 2 },
   allTime: { color: GRAY, fontSize: 14, fontWeight: '800', marginTop: 8 },
   unlocking: { color: '#4a90e2', fontSize: 15, fontWeight: '800', marginTop: 16, textAlign: 'center' },
 });
