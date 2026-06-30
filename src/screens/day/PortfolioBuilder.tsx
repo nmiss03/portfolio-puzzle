@@ -1,16 +1,25 @@
 import React, { useRef, useState } from 'react';
 import { View, Text, TextInput, Pressable, ScrollView, StyleSheet } from 'react-native';
 
-import STOCKS, { Stock, StockLogo } from '../../data/stocks';
+import STOCKS, { Stock, StockLogo, Volatility } from '../../data/stocks';
 import { useGame } from '../../state/GameContext';
 import { formatMoney, formatPrice } from '../../utils/format';
 
 type StringMap = Record<string, string>;
 
+const VOL_COLOR: Record<Volatility, string> = {
+  'Very Low': '#14b8a6',
+  Low: '#22c55e',
+  Medium: '#f59e0b',
+  High: '#f97316',
+  'Very High': '#ef4444',
+};
+const volColor = (v: Volatility) => VOL_COLOR[v];
+
 function Logo({ logo }: { logo: StockLogo }) {
   return (
     <View style={[styles.logo, { backgroundColor: logo.bgColor }]}>
-      <Text style={[styles.logoText, { fontSize: logo.type === 'initials' ? 18 : 26 }]}>{logo.value}</Text>
+      <Text style={[styles.logoText, { fontSize: logo.type === 'initials' ? 20 : 28 }]}>{logo.value}</Text>
     </View>
   );
 }
@@ -95,46 +104,62 @@ export default function PortfolioBuilder({ clientId }: { clientId: string }) {
             </Pressable>
           </View>
 
-          {/* Colorful stock card */}
+          {/* Colorful stock card with full detail */}
           <View style={styles.card}>
             <View style={[styles.cardTop, { backgroundColor: stock.sectorColor }]}>
-              <Text style={styles.cardTicker}>{stock.ticker}</Text>
+              <View>
+                <Text style={styles.cardTicker}>{stock.ticker}</Text>
+                <Text style={styles.cardSector}>{stock.sector}</Text>
+              </View>
               <Text style={styles.cardPrice}>{formatPrice(stock.price)}</Text>
             </View>
+
             <View style={styles.cardBody}>
-              <Logo logo={stock.logo} />
-              <View style={styles.cardInfo}>
-                <Text style={styles.cardName}>{stock.name}</Text>
-                <Text style={styles.cardMeta}>
-                  {stock.sector} · P/E {stock.pe == null ? 'N/A' : stock.pe}
-                </Text>
-                <Text style={styles.cardDesc} numberOfLines={2}>{stock.description}</Text>
-                <Text style={[styles.cardDiv, { color: stock.dividend > 0 ? '#22c55e' : '#888888' }]}>
-                  Dividend {stock.dividend.toFixed(1)}%
-                </Text>
+              <Text style={styles.cardName}>{stock.name}</Text>
+              <View style={styles.cardCols}>
+                <Logo logo={stock.logo} />
+                <View style={styles.cardInfo}>
+                  <View style={styles.metaRow}>
+                    <Text style={styles.metaGray}>P/E {stock.pe == null ? 'N/A' : stock.pe}</Text>
+                    <Text style={[styles.metaGray, { color: stock.dividend > 0 ? '#22c55e' : '#888888' }]}>
+                      Div {stock.dividend.toFixed(1)}%
+                    </Text>
+                  </View>
+                  <Text style={styles.metaGray}>
+                    52-wk {formatPrice(stock.week52Low)} – {formatPrice(stock.week52High)}
+                  </Text>
+                  <Text style={styles.metaGray}>Market cap {stock.marketCap}</Text>
+                  <Text style={styles.cardDesc} numberOfLines={3}>{stock.description}</Text>
+                  <Text style={[styles.vol, { color: volColor(stock.volatility) }]}>
+                    Volatility: {stock.volatility}
+                  </Text>
+                </View>
               </View>
             </View>
 
-            <View style={styles.buyRow}>
-              <Text style={styles.buyLabel}>Shares to buy:</Text>
-              <TextInput
-                style={styles.input}
-                value={inputs[stock.id] || ''}
-                onChangeText={(t) => setInput(stock.id, t)}
-                keyboardType="number-pad"
-                placeholder="0"
-                placeholderTextColor="#999999"
-                maxLength={6}
-              />
-              <Pressable onPress={() => doBuy(stock)} style={({ pressed }) => [styles.buyBtn, pressed && { opacity: 0.85 }]}>
-                <Text style={styles.buyBtnText}>BUY</Text>
-              </Pressable>
-              <Pressable onPress={() => doSell(stock)} disabled={owned <= 0} style={({ pressed }) => [styles.sellBtn, owned <= 0 && { opacity: 0.4 }, pressed && owned > 0 && { opacity: 0.85 }]}>
-                <Text style={styles.sellBtnText}>SELL</Text>
-              </Pressable>
+            <View style={styles.buySection}>
+              <View style={styles.buyRow}>
+                <Text style={styles.buyLabel}>Shares to buy:</Text>
+                <TextInput
+                  style={styles.input}
+                  value={inputs[stock.id] || ''}
+                  onChangeText={(t) => setInput(stock.id, t)}
+                  keyboardType="number-pad"
+                  placeholder="0"
+                  placeholderTextColor="#999999"
+                  maxLength={6}
+                />
+                <Pressable onPress={() => doBuy(stock)} style={({ pressed }) => [styles.buyBtn, pressed && { opacity: 0.85 }]}>
+                  <Text style={styles.buyBtnText}>BUY</Text>
+                </Pressable>
+                <Pressable onPress={() => doSell(stock)} disabled={owned <= 0} style={({ pressed }) => [styles.sellBtn, owned <= 0 && { opacity: 0.4 }, pressed && owned > 0 && { opacity: 0.85 }]}>
+                  <Text style={styles.sellBtnText}>SELL</Text>
+                </Pressable>
+              </View>
+              <Text style={styles.priceInline}>@ {formatPrice(stock.price)}/share</Text>
+              {owned > 0 && <Text style={styles.ownedTag}>Holding {owned} share(s)</Text>}
+              {errors[stock.id] ? <Text style={styles.error}>{errors[stock.id]}</Text> : null}
             </View>
-            {owned > 0 && <Text style={styles.ownedTag}>Holding {owned} share(s)</Text>}
-            {errors[stock.id] ? <Text style={styles.error}>{errors[stock.id]}</Text> : null}
           </View>
         </View>
       </View>
@@ -202,25 +227,30 @@ const styles = StyleSheet.create({
   card: { backgroundColor: '#ffffff', borderWidth: 1, borderColor: BORDER, borderRadius: 6, overflow: 'hidden' },
   cardTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 8, paddingHorizontal: 12 },
   cardTicker: { color: '#ffffff', fontSize: 16, fontWeight: '900', letterSpacing: 0.5 },
+  cardSector: { color: '#ffffff', fontSize: 12, fontWeight: '600', opacity: 0.9, marginTop: 1 },
   cardPrice: { color: '#ffffff', fontSize: 18, fontWeight: '900' },
-  cardBody: { flexDirection: 'row', padding: 12 },
-  logo: { width: 50, height: 50, borderRadius: 4, alignItems: 'center', justifyContent: 'center' },
+  cardBody: { padding: 12 },
+  cardName: { color: TEXT, fontSize: 15, fontWeight: '800', marginBottom: 8 },
+  cardCols: { flexDirection: 'row' },
+  logo: { width: 60, height: 60, borderRadius: 4, alignItems: 'center', justifyContent: 'center' },
   logoText: { color: '#ffffff', fontWeight: '900' },
   cardInfo: { flex: 1, marginLeft: 12 },
-  cardName: { color: TEXT, fontSize: 15, fontWeight: '800' },
-  cardMeta: { color: '#888888', fontSize: 12, marginTop: 2 },
-  cardDesc: { color: '#666666', fontSize: 12, fontStyle: 'italic', lineHeight: 16, marginTop: 4 },
-  cardDiv: { fontSize: 12, fontWeight: '700', marginTop: 4 },
+  metaRow: { flexDirection: 'row', justifyContent: 'space-between' },
+  metaGray: { color: '#888888', fontSize: 12, marginTop: 2 },
+  cardDesc: { color: '#666666', fontSize: 13, fontStyle: 'italic', lineHeight: 17, marginTop: 6 },
+  vol: { fontSize: 12, fontWeight: '800', marginTop: 6 },
 
-  buyRow: { flexDirection: 'row', alignItems: 'center', padding: 12, paddingTop: 0 },
+  buySection: { backgroundColor: '#f9fafb', borderTopWidth: 1, borderTopColor: BORDER, padding: 12 },
+  buyRow: { flexDirection: 'row', alignItems: 'center' },
   buyLabel: { color: TEXT, fontSize: 13, marginRight: 8 },
   input: { width: 56, borderWidth: 1, borderColor: BORDER, borderRadius: 4, paddingVertical: 8, paddingHorizontal: 8, fontSize: 16, color: TEXT, backgroundColor: '#ffffff', marginRight: 8, textAlign: 'center' },
   buyBtn: { backgroundColor: BLUE, borderRadius: 4, paddingVertical: 10, paddingHorizontal: 16, marginRight: 8 },
   buyBtnText: { color: '#ffffff', fontSize: 14, fontWeight: '800', letterSpacing: 0.5 },
   sellBtn: { backgroundColor: '#ffffff', borderWidth: 1, borderColor: RED, borderRadius: 4, paddingVertical: 9, paddingHorizontal: 12 },
   sellBtnText: { color: RED, fontSize: 14, fontWeight: '800', letterSpacing: 0.5 },
-  ownedTag: { color: '#2e7d32', fontSize: 13, fontWeight: '700', paddingHorizontal: 12, paddingBottom: 8 },
-  error: { color: RED, fontSize: 13, fontWeight: '700', paddingHorizontal: 12, paddingBottom: 10 },
+  priceInline: { color: '#888888', fontSize: 12, fontWeight: '700', marginTop: 8 },
+  ownedTag: { color: '#2e7d32', fontSize: 13, fontWeight: '700', marginTop: 6 },
+  error: { color: RED, fontSize: 13, fontWeight: '700', marginTop: 6 },
 
   standNeck: { width: '30%', height: 20, backgroundColor: DARK },
   standBase: { width: '45%', height: 10, borderRadius: 4, backgroundColor: DARK, marginBottom: 16 },

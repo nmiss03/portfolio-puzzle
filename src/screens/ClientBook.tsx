@@ -4,7 +4,7 @@ import { View, Text, Pressable, ScrollView, StyleSheet } from 'react-native';
 import CharacterVisual from '../components/CharacterVisual';
 import Sparkline from '../components/Sparkline';
 import ClientDetail from './ClientDetail';
-import { RISK_LABEL, RuntimeClient } from '../data/gameState';
+import { RISK_LABEL, RiskPreference, RuntimeClient } from '../data/gameState';
 import { useGame } from '../state/GameContext';
 import { formatMoney } from '../utils/format';
 
@@ -12,6 +12,13 @@ const BLUE = '#4a90e2';
 const GREEN = '#22c55e';
 const RED = '#ef4444';
 const GRAY = '#666666';
+
+const RISK_COLOR: Record<RiskPreference, string> = {
+  conservative: '#10b981',
+  moderate: '#4a90e2',
+  aggressive: '#ef4444',
+  'moderate-aggressive': '#ef4444',
+};
 
 function returnText(dollar: number, pct: number) {
   const positive = dollar >= 0;
@@ -58,7 +65,7 @@ function ClientCard({ client, onPress }: { client: RuntimeClient; onPress: () =>
     <Pressable style={({ pressed }) => [styles.card, pressed && styles.cardPressed]} onPress={onPress}>
       <View style={styles.cardRow}>
         <View style={styles.charCol}>
-          <CharacterVisual color={client.characterColor} width={60} height={80} />
+          <CharacterVisual color={client.characterColor} width={70} height={90} />
         </View>
 
         <View style={styles.midCol}>
@@ -68,7 +75,9 @@ function ClientCard({ client, onPress }: { client: RuntimeClient; onPress: () =>
           </Text>
           <Text style={styles.occupation}>{client.occupation}</Text>
           <Text style={styles.background} numberOfLines={2}>{client.background}</Text>
-          <Text style={styles.risk}>{RISK_LABEL[client.riskPreference]}</Text>
+          <Text style={[styles.risk, { color: RISK_COLOR[client.riskPreference] }]}>
+            {RISK_LABEL[client.riskPreference]}
+          </Text>
         </View>
 
         <View style={styles.rightCol}>
@@ -106,7 +115,7 @@ function TeaserCard({ client }: { client: RuntimeClient }) {
     <View style={[styles.card, styles.teaser]}>
       <View style={styles.cardRow}>
         <View style={styles.charCol}>
-          <CharacterVisual color={client.characterColor} width={60} height={80} />
+          <CharacterVisual color={client.characterColor} width={70} height={90} />
         </View>
         <View style={styles.midCol}>
           <Text style={styles.name}>
@@ -132,7 +141,7 @@ const styles = StyleSheet.create({
   cardPressed: { borderColor: BLUE },
   teaser: { opacity: 0.5 },
   cardRow: { flexDirection: 'row' },
-  charCol: { width: 80, alignItems: 'flex-start', justifyContent: 'center' },
+  charCol: { width: 100, alignItems: 'flex-start', justifyContent: 'center' },
   midCol: { flex: 1, paddingHorizontal: 8 },
   name: { color: '#1a1a1a', fontSize: 16, fontWeight: '800' },
   age: { color: '#888888', fontSize: 13, fontWeight: '600' },
@@ -142,10 +151,10 @@ const styles = StyleSheet.create({
   risk: { color: '#888888', fontSize: 12, fontWeight: '700', marginTop: 4 },
   unlockText: { color: '#666666', fontSize: 14, fontWeight: '700', marginTop: 8 },
 
-  rightCol: { width: 120, alignItems: 'flex-end' },
+  rightCol: { width: 140, alignItems: 'flex-end' },
   statLabel: { color: '#888888', fontSize: 10, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.3 },
   wow: { fontSize: 14, fontWeight: '800', marginTop: 1, textAlign: 'right' },
   allTime: { color: GRAY, fontSize: 12, fontWeight: '700', marginTop: 1, textAlign: 'right' },
   pending: { color: '#bbbbbb', fontSize: 13, fontWeight: '700', marginTop: 1 },
-  happyBar: { height: 4, backgroundColor: '#e5e7eb', borderRadius: 2, marginTop: 10, overflow: 'hidden' },
+  happyBar: { height: 3, backgroundColor: '#e5e7eb', borderRadius: 2, marginTop: 10, overflow: 'hidden' },
 });
