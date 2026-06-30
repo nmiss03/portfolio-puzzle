@@ -5,6 +5,8 @@
 
 import { Holding, RuntimeClient } from './gameState';
 import { PriceMap } from './priceUpdates';
+import { stocksById } from './stocks';
+import { tierOf } from './clientTiers';
 import { stockFraction } from './scoring';
 
 export interface AllocationEvaluation {
@@ -44,4 +46,56 @@ export function evaluateAllocationMatch(
     repDelta: within ? 1 : -3,
     happinessMatched: within,
   };
+}
+
+export type ConcentrationLevel = 'safe' | 'moderate' | 'high' | 'extreme';
+
+export interface ConcentrationEvaluation {
+  level: ConcentrationLevel;
+  largestStockWeight: number; // 0..1, share of the whole portfolio in one stock
+  largestStockId: string | null;
+  happinessPenalty: number; // non-positive, scaled by the client's tier
+}
+
+function concentrationLevel(weight: number): ConcentrationLevel {
+  if (weight > 0.75) return 'extreme';
+  if (weight > 0.5) return 'high';
+  if (weight > 0.35) return 'moderate';
+  return 'safe';
+}
+
+// Check whether too much of the client's capital sits in a single stock. Weight
+// is measured against the whole portfolio (stocks + bonds); bonds themselves are
+// never counted as a concentration risk. Penalty severity scales by tier.
+export function evaluateConcentrationRisk(
+  holdings: Record<string, Holding>,
+  client: RuntimeClient,
+  prices: PriceMap
+): ConcentrationEvaluation {
+  let total = 0;
+  let largestStockValue = 0;
+  let largestStockId: string | null = null;
+
+  Object.entries(holdings).forEach(([id, h]) => {
+    const s = stocksById[id];
+    if (!s || h.shares <= 0) return;
+    const value = h.shares * (prices[id] ?? s.price ?? 0);
+    total += value;
+    // Only individual stocks can be a concentration risk — bonds are exempt.
+    if (s.assetClass === 'stock' && value > largestStockValue) {
+      largestStockValue = value;
+      largestStockId = id;
+    }
+  });
+
+  if (total <= 0) {
+    return { level: 'safe', largestStockWeight: 0, largestStockId: null, happinessPenalty: 0 };
+  }
+
+  const largestStockWeight = largestStockValue / total;
+  const level = concentrationLevel(largestStockWeight);
+  const table = tierOf(client.tier).concentrationPenalty;
+  const happinessPenalty = level === 'safe' ? 0 : table[level];
+
+  return { level, largestStockWeight, largestStockId, happinessPenalty };
 }

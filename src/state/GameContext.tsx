@@ -14,9 +14,11 @@ import {
   applyWeekEndPrices,
   calculateWeeklyPriceImpact,
   carryOverPrices,
+  combineWeeklyImpact,
+  generateWeeklyMarketDrift,
   initializeWeekPrices,
 } from '../data/priceUpdates';
-import { evaluateAllocationMatch } from '../data/clientRelationships';
+import { ConcentrationLevel, evaluateAllocationMatch, evaluateConcentrationRisk } from '../data/clientRelationships';
 import {
   ActiveSnapshot,
   MilestoneMap,
@@ -38,6 +40,9 @@ export interface PerClientWeekResult {
   allTimeDollar: number;
   allTimePct: number;
   fired: boolean;
+  concentrationLevel: ConcentrationLevel;
+  concentrationPenalty: number; // non-positive happiness hit applied this week
+  largestStockPct: number; // 0..1
 }
 
 export interface PriceMove {
@@ -46,7 +51,9 @@ export interface PriceMove {
   name: string;
   startPrice: number;
   endPrice: number;
-  pct: number; // fractional change start → end
+  driftPct: number; // natural market drift component
+  newsPct: number; // news impact component
+  pct: number; // total fractional change start → end (drift + news)
 }
 
 export interface TransitionInfo {
@@ -197,9 +204,12 @@ function reducer(state: State, action: Action): State {
     }
 
     case 'TRANSITION_WEEK': {
-      // Week-end resolution: accumulate ALL of this week's news impacts and
-      // apply them to the week's starting prices to get the ending prices.
-      const finalMult = calculateWeeklyPriceImpact(state.weekNews);
+      // Week-end resolution: every stock gets natural market drift, then this
+      // week's accumulated news impact is added on top. The combined move is
+      // applied to the week's starting prices to get the ending prices.
+      const newsImpact = calculateWeeklyPriceImpact(state.weekNews);
+      const marketDrift = generateWeeklyMarketDrift(STOCKS.map((s) => s.id));
+      const finalMult = combineWeeklyImpact(marketDrift, newsImpact);
       const weekStartPrices = state.weekStartPrices;
       const weekEndPrices = applyWeekEndPrices(weekStartPrices, finalMult);
       const updated = { ...state.clients };
@@ -218,13 +228,17 @@ function reducer(state: State, action: Action): State {
 
           // Relationship: does the allocation match the client's tier target?
           const alloc = evaluateAllocationMatch(client, client.holdings, weekStartPrices);
+          // Concentration: too much capital in a single stock hurts trust,
+          // scaled by tier (higher tiers demand diversification).
+          const conc = evaluateConcentrationRisk(client.holdings, client, weekStartPrices);
 
           const prevHappiness = client.happiness;
           const newHappiness = calculateWeeklyHappiness(
             prevHappiness,
             returnPct,
             alloc.happinessMatched,
-            client.negativeReturnHappinessPenalty
+            client.negativeReturnHappinessPenalty,
+            conc.happinessPenalty
           );
           const fired = newHappiness <= 0;
           const allTimeDollar = weekEndValue - client.initialCapital;
@@ -251,6 +265,8 @@ function reducer(state: State, action: Action): State {
             clientId: client.id, name: client.name, characterColor: client.characterColor,
             returnDollar, returnPct, newsContribution: r.weekGain, prevHappiness, newHappiness,
             allTimeDollar, allTimePct, fired,
+            concentrationLevel: conc.level, concentrationPenalty: conc.happinessPenalty,
+            largestStockPct: conc.largestStockWeight,
           });
 
           if (fired) firedNames.push(client.name);
@@ -267,17 +283,18 @@ function reducer(state: State, action: Action): State {
         .filter((c) => c.status === 'unsigned' && c.unlockedAtReputation > state.reputation && c.unlockedAtReputation <= rep.newReputation)
         .map((c) => c.name);
 
-      // Price movements (start → end) for stocks the news actually moved.
-      const priceMoves: PriceMove[] = STOCKS.filter((s) => Math.abs(finalMult[s.id] || 0) > 1e-9)
-        .map((s) => {
-          const startPrice = weekStartPrices[s.id] ?? s.price;
-          const endPrice = weekEndPrices[s.id] ?? startPrice;
-          return {
-            stockId: s.id, ticker: s.ticker, name: s.name, startPrice, endPrice,
-            pct: startPrice > 0 ? (endPrice - startPrice) / startPrice : 0,
-          };
-        })
-        .sort((a, b) => Math.abs(b.pct) - Math.abs(a.pct));
+      // Price movements (start → end) for every stock — all move each week —
+      // with the drift/news breakdown so the player sees why prices moved.
+      const priceMoves: PriceMove[] = STOCKS.map((s) => {
+        const startPrice = weekStartPrices[s.id] ?? s.price;
+        const endPrice = weekEndPrices[s.id] ?? startPrice;
+        return {
+          stockId: s.id, ticker: s.ticker, name: s.name, startPrice, endPrice,
+          driftPct: marketDrift[s.id] || 0,
+          newsPct: newsImpact[s.id] || 0,
+          pct: startPrice > 0 ? (endPrice - startPrice) / startPrice : 0,
+        };
+      }).sort((a, b) => Math.abs(b.pct) - Math.abs(a.pct));
 
       // Record this week's start/end for every stock.
       const stockPriceHistory: Record<string, StockPricePoint[]> = {};

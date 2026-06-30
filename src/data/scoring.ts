@@ -67,12 +67,13 @@ export function computeWeek(client: RuntimeClient, multipliers: Record<string, n
 }
 
 // Per-week happiness change. Base decay, a return-based adjustment whose
-// sharply-negative branch is scaled by the client's tier, plus an allocation
-// match bonus/penalty.
+// sharply-negative branch is scaled by the client's tier, an allocation match
+// bonus/penalty, and a tier-scaled concentration-risk penalty.
 export function weeklyHappinessDelta(
   returnPct: number,
   allocationMatch: boolean,
-  negativeReturnHappinessPenalty: number
+  negativeReturnHappinessPenalty: number,
+  concentrationPenalty = 0
 ): number {
   let d = -3; // base weekly decay
   if (returnPct >= 0.01) d += 8;
@@ -81,6 +82,7 @@ export function weeklyHappinessDelta(
   else if (returnPct >= -0.02) d -= 2;
   else d += negativeReturnHappinessPenalty; // tier-specific (-2 .. -5)
   d += allocationMatch ? 2 : -5;
+  d += concentrationPenalty; // non-positive; over-concentration in one stock
   return d;
 }
 
@@ -89,7 +91,11 @@ export function calculateWeeklyHappiness(
   currentHappiness: number,
   returnPct: number,
   allocationMatch: boolean,
-  negativeReturnHappinessPenalty: number
+  negativeReturnHappinessPenalty: number,
+  concentrationPenalty = 0
 ): number {
-  return clampHappiness(currentHappiness + weeklyHappinessDelta(returnPct, allocationMatch, negativeReturnHappinessPenalty));
+  return clampHappiness(
+    currentHappiness +
+      weeklyHappinessDelta(returnPct, allocationMatch, negativeReturnHappinessPenalty, concentrationPenalty)
+  );
 }

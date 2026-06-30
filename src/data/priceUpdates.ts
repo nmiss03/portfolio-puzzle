@@ -53,6 +53,56 @@ export function applyWeekEndPrices(weekStartPrices: PriceMap, priceImpact: Price
   return end;
 }
 
+// Natural weekly market drift — every stock moves a little every week, news or
+// not, so non-news weeks still feel alive. Small moves are common; large ones
+// are rare. Magnitude is drawn from a weighted distribution; direction is a
+// 50/50 coin flip. Drift alone never exceeds ±3%.
+const DRIFT_DISTRIBUTION: { probability: number; magnitude: number }[] = [
+  { probability: 0.5, magnitude: 0.005 }, // ±0.50%
+  { probability: 0.25, magnitude: 0.01 }, // ±1.00%
+  { probability: 0.15, magnitude: 0.015 }, // ±1.50%
+  { probability: 0.07, magnitude: 0.02 }, // ±2.00%
+  { probability: 0.02, magnitude: 0.025 }, // ±2.50%
+  { probability: 0.01, magnitude: 0.03 }, // ±3.00%
+];
+
+const DRIFT_CAP = 0.03;
+
+function pickDriftMagnitude(): number {
+  const r = Math.random();
+  let cumulative = 0;
+  for (const row of DRIFT_DISTRIBUTION) {
+    cumulative += row.probability;
+    if (r < cumulative) return row.magnitude;
+  }
+  return DRIFT_DISTRIBUTION[0].magnitude; // numerical-edge fallback
+}
+
+function pickStockDrift(): number {
+  const magnitude = pickDriftMagnitude();
+  const direction = Math.random() < 0.5 ? -1 : 1;
+  return Math.max(-DRIFT_CAP, Math.min(DRIFT_CAP, direction * magnitude));
+}
+
+// Generate independent natural drift for every stock for the week.
+export function generateWeeklyMarketDrift(stockIds: string[]): PriceMap {
+  const drift: PriceMap = {};
+  stockIds.forEach((id) => {
+    drift[id] = pickStockDrift();
+  });
+  return drift;
+}
+
+// Combine natural drift with news impact: total move = drift + news. Includes
+// every stock present in either map so all stocks move every week.
+export function combineWeeklyImpact(drift: PriceMap, news: PriceMap): PriceMap {
+  const total: PriceMap = { ...drift };
+  Object.entries(news).forEach(([id, delta]) => {
+    total[id] = (total[id] || 0) + delta;
+  });
+  return total;
+}
+
 // Next week's starting prices are simply this week's ending prices.
 export function carryOverPrices(weekEndPrices: PriceMap): PriceMap {
   return { ...weekEndPrices };

@@ -37,7 +37,7 @@ export default function WeekSummaryScreen({ onContinue }: { onContinue: () => vo
         <View style={styles.tHead}>
           <Text style={[styles.thClient, styles.th]}>Client</Text>
           <Text style={[styles.thNum, styles.th]}>Week</Text>
-          <Text style={[styles.thNum, styles.th]}>News</Text>
+          <Text style={[styles.thNum, styles.th]}>Market</Text>
           <Text style={[styles.thNum, styles.th]}>All-time</Text>
           <Text style={[styles.thHappy, styles.th]}>Happy</Text>
         </View>
@@ -68,15 +68,40 @@ export default function WeekSummaryScreen({ onContinue }: { onContinue: () => vo
         })}
       </View>
 
-      {/* Stock price movements: week-start → week-end, driven by the news. */}
+      {/* Concentration warnings — over-allocating to one stock hurts trust. */}
+      {t.results.some((r) => r.concentrationPenalty < 0) && (
+        <View style={styles.concCard}>
+          <Text style={styles.concTitle}>⚠ Concentration Risk</Text>
+          {t.results
+            .filter((r) => r.concentrationPenalty < 0)
+            .map((r) => (
+              <Text key={r.clientId} style={styles.concRow}>
+                {r.name}: {Math.round(r.largestStockPct * 100)}% in one stock ({r.concentrationLevel}) ·{' '}
+                <Text style={styles.concPenalty}>{r.concentrationPenalty} happiness</Text>
+              </Text>
+            ))}
+          <Text style={styles.concNote}>Spread capital across more stocks to keep clients comfortable.</Text>
+        </View>
+      )}
+
+      {/* Stock price movements: week-start → week-end. Every stock drifts each
+          week; news adds on top. Breakdown shown when news contributed. */}
       {t.priceMoves.length > 0 && (
         <View style={styles.priceCard}>
           <Text style={styles.priceTitle}>Price Movements (week-end)</Text>
           {t.priceMoves.map((m) => {
             const up = m.pct >= 0;
+            const hasNews = Math.abs(m.newsPct) > 1e-9;
             return (
               <View key={m.stockId} style={styles.priceRow}>
-                <Text style={styles.priceName} numberOfLines={1}>{m.name} ({m.ticker})</Text>
+                <View style={styles.priceLeft}>
+                  <Text style={styles.priceName} numberOfLines={1}>{m.name} ({m.ticker})</Text>
+                  {hasNews && (
+                    <Text style={styles.priceBreakdown}>
+                      drift {m.driftPct >= 0 ? '+' : ''}{(m.driftPct * 100).toFixed(2)}% · news {m.newsPct >= 0 ? '+' : ''}{(m.newsPct * 100).toFixed(2)}%
+                    </Text>
+                  )}
+                </View>
                 <Text style={styles.priceMove}>
                   {formatPrice(m.startPrice)} → {formatPrice(m.endPrice)}{'  '}
                   <Text style={{ color: up ? GREEN : RED }}>
@@ -131,10 +156,17 @@ const styles = StyleSheet.create({
   accuracyCard: { backgroundColor: '#eef4fc', borderWidth: 1, borderColor: '#4a90e2', borderRadius: 8, padding: 12, marginBottom: 16 },
   accuracyText: { color: '#1a1a1a', fontSize: 13, fontWeight: '700', lineHeight: 18 },
   table: { backgroundColor: '#ffffff', borderWidth: 1, borderColor: '#cccccc', borderRadius: 8, padding: 12 },
+  concCard: { backgroundColor: '#fdf2f2', borderWidth: 1, borderColor: '#ef4444', borderRadius: 8, padding: 14, marginTop: 16 },
+  concTitle: { color: '#b91c1c', fontSize: 15, fontWeight: '900', marginBottom: 6 },
+  concRow: { color: '#1a1a1a', fontSize: 13, fontWeight: '700', marginVertical: 2 },
+  concPenalty: { color: '#ef4444', fontWeight: '900' },
+  concNote: { color: '#888888', fontSize: 11, fontStyle: 'italic', marginTop: 8 },
   priceCard: { backgroundColor: '#ffffff', borderWidth: 1, borderColor: '#cccccc', borderRadius: 8, padding: 14, marginTop: 16 },
   priceTitle: { color: '#1a1a1a', fontSize: 16, fontWeight: '900', marginBottom: 8 },
   priceRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 5, borderBottomWidth: 1, borderBottomColor: '#f0f0f0' },
-  priceName: { color: '#1a1a1a', fontSize: 13, fontWeight: '700', flex: 1, marginRight: 8 },
+  priceLeft: { flex: 1, marginRight: 8 },
+  priceName: { color: '#1a1a1a', fontSize: 13, fontWeight: '700' },
+  priceBreakdown: { color: '#888888', fontSize: 10, fontWeight: '600', marginTop: 1 },
   priceMove: { color: '#666666', fontSize: 13, fontWeight: '800' },
   priceNote: { color: '#888888', fontSize: 11, fontStyle: 'italic', marginTop: 8 },
   repCard: { backgroundColor: '#ffffff', borderWidth: 1, borderColor: '#cccccc', borderRadius: 8, padding: 14, marginTop: 16 },

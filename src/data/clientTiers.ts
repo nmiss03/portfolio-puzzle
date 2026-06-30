@@ -4,6 +4,14 @@
 
 export type ExpectationLevel = 'casual' | 'moderate' | 'sophisticated' | 'demanding';
 
+// Happiness penalties (non-positive) for over-concentrating capital in one
+// stock, by severity. Higher tiers punish concentration far harder.
+export interface ConcentrationPenalty {
+  moderate: number; // largest stock > 35% .. <= 50%
+  high: number; // largest stock > 50% .. <= 75%
+  extreme: number; // largest stock > 75%
+}
+
 export interface ClientTier {
   tier: number;
   label: string; // short human label, e.g. "Entry-level"
@@ -11,6 +19,7 @@ export interface ClientTier {
   minInitialCapital: number;
   allocationTolerance: number; // ± fraction from the target allocation that is acceptable
   negativeReturnHappinessPenalty: number; // happiness hit when a weekly return is sharply negative (< -2%)
+  concentrationPenalty: ConcentrationPenalty;
   requiresStrictDiversification: boolean;
   expectationLevel: ExpectationLevel;
 }
@@ -23,6 +32,7 @@ export const CLIENT_TIERS: Record<number, ClientTier> = {
     minInitialCapital: 10000,
     allocationTolerance: 0.2,
     negativeReturnHappinessPenalty: -2,
+    concentrationPenalty: { moderate: -1, high: -3, extreme: -6 },
     requiresStrictDiversification: false,
     expectationLevel: 'casual',
   },
@@ -33,6 +43,7 @@ export const CLIENT_TIERS: Record<number, ClientTier> = {
     minInitialCapital: 35000,
     allocationTolerance: 0.2,
     negativeReturnHappinessPenalty: -3,
+    concentrationPenalty: { moderate: -2, high: -4, extreme: -8 },
     requiresStrictDiversification: false,
     expectationLevel: 'moderate',
   },
@@ -43,6 +54,7 @@ export const CLIENT_TIERS: Record<number, ClientTier> = {
     minInitialCapital: 65000,
     allocationTolerance: 0.1,
     negativeReturnHappinessPenalty: -4,
+    concentrationPenalty: { moderate: -3, high: -6, extreme: -10 },
     requiresStrictDiversification: true,
     expectationLevel: 'sophisticated',
   },
@@ -53,6 +65,7 @@ export const CLIENT_TIERS: Record<number, ClientTier> = {
     minInitialCapital: 120000,
     allocationTolerance: 0.05,
     negativeReturnHappinessPenalty: -5,
+    concentrationPenalty: { moderate: -4, high: -8, extreme: -15 },
     requiresStrictDiversification: true,
     expectationLevel: 'demanding',
   },
