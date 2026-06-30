@@ -78,11 +78,16 @@ export function isNewsWeek(week: number): boolean {
   return (week - 1) % 3 === 0;
 }
 
-// Pick 1-2 varied articles for a news week.
+// Pick 1-2 varied articles for a news week. Each picked article's publication
+// date is re-stamped to the CURRENT week (the pool's authored dates are generic
+// templates), so the feed only ever shows "Week <currentWeek>" — never a date
+// from another week. Sorted by day.
 export function generateWeeklyNews(week: number): NewsArticle[] {
   if (!isNewsWeek(week)) return [];
   const count = 1 + Math.floor(Math.random() * 2); // 1 or 2
-  return [...ARTICLES].sort(() => Math.random() - 0.5).slice(0, count);
+  const picked = [...ARTICLES].sort(() => Math.random() - 0.5).slice(0, count);
+  const days = picked.map(() => 1 + Math.floor(Math.random() * 7)).sort((a, b) => a - b);
+  return picked.map((a, i) => ({ ...a, publicationDate: `Week ${week}, Day ${days[i]}` }));
 }
 
 export default ARTICLES;
