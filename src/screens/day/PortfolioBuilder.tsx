@@ -24,9 +24,17 @@ function Logo({ logo }: { logo: StockLogo }) {
   );
 }
 
-export default function PortfolioBuilder({ clientId }: { clientId: string }) {
+export default function PortfolioBuilder({
+  clientId,
+  analysisOnly = false,
+}: {
+  clientId?: string;
+  analysisOnly?: boolean;
+}) {
   const { state, buy, sell, availableBalance, priceOf } = useGame();
-  const client = state.clients[clientId];
+  const client = clientId ? state.clients[clientId] : undefined;
+  // Trading is only allowed from the Client Book (a bound client + not analysis-only).
+  const tradable = !analysisOnly && !!client && !!clientId;
 
   const [filter, setFilter] = useState<Filter>('All');
   const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -38,9 +46,9 @@ export default function PortfolioBuilder({ clientId }: { clientId: string }) {
   const safePage = Math.min(page, stocks.length - 1);
   const stock = stocks[safePage];
 
-  const balance = availableBalance(client);
-  const holdings = client.holdings;
-  const invested = Object.values(holdings).reduce((s, h) => s + h.cost, 0);
+  const balance = client ? availableBalance(client) : 0;
+  const holdings = client?.holdings ?? {};
+  const holdingsValue = Object.entries(holdings).reduce((s, [id, h]) => s + h.shares * priceOf(id), 0);
   const hasHoldings = Object.values(holdings).some((h) => h.shares > 0);
   const owned = holdings[stock.id]?.shares || 0;
 
@@ -57,6 +65,7 @@ export default function PortfolioBuilder({ clientId }: { clientId: string }) {
   };
 
   const doBuy = (s: Stock) => {
+    if (!clientId) return;
     const shares = parseInt(inputs[s.id] || '', 10);
     if (!shares || shares <= 0) return setErrors((p) => ({ ...p, [s.id]: 'Enter a number of shares' }));
     if (shares * priceOf(s.id) > balance) return setErrors((p) => ({ ...p, [s.id]: 'Insufficient funds' }));
@@ -66,6 +75,7 @@ export default function PortfolioBuilder({ clientId }: { clientId: string }) {
   };
 
   const doSell = (s: Stock) => {
+    if (!clientId) return;
     const have = holdings[s.id]?.shares || 0;
     if (have <= 0) return setErrors((p) => ({ ...p, [s.id]: "You don't own any shares" }));
     let n = parseInt(inputs[s.id] || '', 10);
@@ -82,8 +92,17 @@ export default function PortfolioBuilder({ clientId }: { clientId: string }) {
     <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
       <View style={styles.monitor}>
         <View style={styles.headerBar}>
-          <Text style={styles.headerText}>Client: {client.name} | Week {state.currentWeek}</Text>
-          <Text style={styles.headerText}>Available: {formatMoney(Math.round(balance))}</Text>
+          {tradable ? (
+            <>
+              <Text style={styles.headerText}>Client: {client!.name} | Week {state.currentWeek}</Text>
+              <Text style={styles.headerText}>Available: {formatMoney(Math.round(balance))}</Text>
+            </>
+          ) : (
+            <>
+              <Text style={styles.headerText}>Market Analysis</Text>
+              <Text style={styles.headerText}>Week {state.currentWeek}</Text>
+            </>
+          )}
         </View>
 
         <View style={styles.monitorScreen}>
@@ -168,6 +187,11 @@ export default function PortfolioBuilder({ clientId }: { clientId: string }) {
             <View style={styles.divider} />
             <Text style={styles.background} numberOfLines={5}>{stock.background}</Text>
 
+            {!tradable ? (
+              <Text style={styles.analysisNote}>
+                Analysis only — manage this stock for a client from the Client Book.
+              </Text>
+            ) : (
             <View style={styles.buySection}>
               <View style={styles.buyRow}>
                 <Text style={styles.buyLabel}>Shares:</Text>
@@ -191,13 +215,13 @@ export default function PortfolioBuilder({ clientId }: { clientId: string }) {
               {owned > 0 && (
                 <View style={styles.quickRow}>
                   <Text style={styles.quickLabel}>Quick sell:</Text>
-                  <Pressable onPress={() => sell(clientId, stock.id, Math.max(1, Math.floor(owned * 0.25)))} style={({ pressed }) => [styles.quickBtn, pressed && { opacity: 0.85 }]}>
+                  <Pressable onPress={() => clientId && sell(clientId, stock.id, Math.max(1, Math.floor(owned * 0.25)))} style={({ pressed }) => [styles.quickBtn, pressed && { opacity: 0.85 }]}>
                     <Text style={styles.quickBtnText}>25%</Text>
                   </Pressable>
-                  <Pressable onPress={() => sell(clientId, stock.id, Math.max(1, Math.floor(owned * 0.5)))} style={({ pressed }) => [styles.quickBtn, pressed && { opacity: 0.85 }]}>
+                  <Pressable onPress={() => clientId && sell(clientId, stock.id, Math.max(1, Math.floor(owned * 0.5)))} style={({ pressed }) => [styles.quickBtn, pressed && { opacity: 0.85 }]}>
                     <Text style={styles.quickBtnText}>50%</Text>
                   </Pressable>
-                  <Pressable onPress={() => sell(clientId, stock.id, owned)} style={({ pressed }) => [styles.quickBtn, pressed && { opacity: 0.85 }]}>
+                  <Pressable onPress={() => clientId && sell(clientId, stock.id, owned)} style={({ pressed }) => [styles.quickBtn, pressed && { opacity: 0.85 }]}>
                     <Text style={styles.quickBtnText}>All</Text>
                   </Pressable>
                 </View>
@@ -206,6 +230,7 @@ export default function PortfolioBuilder({ clientId }: { clientId: string }) {
               {owned > 0 && <Text style={styles.ownedTag}>Holding {owned} share(s) · avg cost {formatPrice((holdings[stock.id]?.cost || 0) / owned)}</Text>}
               {errors[stock.id] ? <Text style={styles.error}>{errors[stock.id]}</Text> : null}
             </View>
+            )}
           </View>
         </View>
       </View>
@@ -213,31 +238,40 @@ export default function PortfolioBuilder({ clientId }: { clientId: string }) {
       <View style={styles.standNeck} />
       <View style={styles.standBase} />
 
-      {hasHoldings && (
+      {tradable && hasHoldings && (
         <View style={styles.summary}>
-          <Text style={styles.summaryTitle}>{client.name}'s Holdings</Text>
+          <Text style={styles.summaryTitle}>{client!.name}'s Holdings</Text>
           <View style={styles.summaryHeadRow}>
             <Text style={[styles.colName, styles.colHead]}>Stock</Text>
             <Text style={[styles.colNum, styles.colHead]}>Shares</Text>
-            <Text style={[styles.colNum, styles.colHead]}>Cost</Text>
+            <Text style={[styles.colNum, styles.colHead]}>Value</Text>
+            <Text style={[styles.colNum, styles.colHead]}>G/L</Text>
             <Text style={styles.colX} />
           </View>
           {ownedStocks.map((s) => {
             const h = holdings[s.id];
+            const cur = priceOf(s.id);
+            const mv = h.shares * cur;
+            const avg = h.cost / h.shares;
+            const glPct = avg > 0 ? (cur - avg) / avg : 0;
+            const glPos = glPct >= 0;
             return (
               <View key={s.id} style={styles.summaryRow}>
                 <Text style={[styles.colName, styles.cell]} numberOfLines={1}>{s.ticker}</Text>
                 <Text style={[styles.colNum, styles.cell]}>{h.shares}</Text>
-                <Text style={[styles.colNum, styles.cell]}>{formatMoney(Math.round(h.cost))}</Text>
-                <Pressable onPress={() => sell(clientId, s.id, h.shares)} hitSlop={8} style={styles.colX}>
+                <Text style={[styles.colNum, styles.cell]}>{formatMoney(Math.round(mv))}</Text>
+                <Text style={[styles.colNum, styles.cell, { color: glPos ? '#22c55e' : RED }]}>
+                  {glPos ? '+' : ''}{(glPct * 100).toFixed(1)}%
+                </Text>
+                <Pressable onPress={() => clientId && sell(clientId, s.id, h.shares)} hitSlop={8} style={styles.colX}>
                   <Text style={styles.removeX}>✕</Text>
                 </Pressable>
               </View>
             );
           })}
           <View style={styles.totalRow}>
-            <Text style={styles.totalLabel}>Portfolio cost basis</Text>
-            <Text style={styles.totalValue}>{formatMoney(Math.round(invested))}</Text>
+            <Text style={styles.totalLabel}>Holdings market value</Text>
+            <Text style={styles.totalValue}>{formatMoney(Math.round(holdingsValue))}</Text>
           </View>
         </View>
       )}
@@ -296,6 +330,7 @@ const styles = StyleSheet.create({
   spec: { color: '#666666', fontSize: 12, marginBottom: 3 },
   divider: { height: 1, backgroundColor: '#e5e7eb', marginHorizontal: 12 },
   background: { color: '#666666', fontSize: 13, fontStyle: 'italic', lineHeight: 18, padding: 12, paddingTop: 8 },
+  analysisNote: { color: '#888888', fontSize: 12, fontWeight: '700', fontStyle: 'italic', backgroundColor: '#f9fafb', borderTopWidth: 1, borderTopColor: BORDER, padding: 12 },
 
   buySection: { backgroundColor: '#f9fafb', borderTopWidth: 1, borderTopColor: BORDER, padding: 12 },
   buyRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap' },

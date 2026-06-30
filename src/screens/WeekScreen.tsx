@@ -15,7 +15,7 @@ import Button from '../components/Button';
 import { useGame } from '../state/GameContext';
 
 export default function WeekScreen() {
-  const { state, focusClient, activeClients, availableClients, canSign, startGame, setPhase, transitionWeek, advanceWeek, toggleBook, toggleNews } = useGame();
+  const { state, activeClients, availableClients, canSign, startGame, setPhase, transitionWeek, advanceWeek, toggleBook, toggleNews } = useGame();
   const insets = useSafeAreaInsets();
   const [alertSeen, setAlertSeen] = useState(false);
 
@@ -59,16 +59,19 @@ export default function WeekScreen() {
           </Pressable>
         )}
 
+        {activeClients.length === 0 && (
+          <Pressable style={styles.manageHint} onPress={() => toggleBook(true)}>
+            <Text style={styles.manageHintText}>
+              {availableClients.length > 0
+                ? 'Open the Client Book to sign your first client.'
+                : 'No active clients — open the Client Book to manage portfolios.'}
+            </Text>
+          </Pressable>
+        )}
+
         <View style={styles.flex}>
-          {focusClient ? (
-            <PortfolioBuilder clientId={focusClient.id} />
-          ) : (
-            <View style={styles.empty}>
-              <Text style={styles.emptyTitle}>No active clients yet.</Text>
-              <Text style={styles.emptyText}>Open the Client Book to sign your first contract.</Text>
-              <Button title="Open Client Book" onPress={() => toggleBook(true)} style={{ marginTop: 16 }} />
-            </View>
-          )}
+          {/* Weekly screen is analysis-only — trading happens in the Client Book. */}
+          <PortfolioBuilder analysisOnly />
         </View>
 
         <View style={[styles.tabBar, { paddingBottom: insets.bottom + 10 }]}>
@@ -98,9 +101,8 @@ const styles = StyleSheet.create({
   alert: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: '#eef4fc', borderBottomWidth: 1, borderBottomColor: '#4a90e2', paddingVertical: 10 },
   alertText: { color: '#1a1a1a', fontSize: 13, fontWeight: '800' },
   alertDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#ef4444', marginLeft: 8 },
-  empty: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
-  emptyTitle: { color: '#1a1a1a', fontSize: 17, fontWeight: '800' },
-  emptyText: { color: '#666666', fontSize: 13, marginTop: 6, textAlign: 'center' },
+  manageHint: { backgroundColor: '#fff7e6', borderBottomWidth: 1, borderBottomColor: '#f0c060', paddingVertical: 9, paddingHorizontal: 16 },
+  manageHintText: { color: '#7a5a00', fontSize: 12, fontWeight: '700', textAlign: 'center' },
   tabBar: { flexDirection: 'row', paddingTop: 10, paddingHorizontal: 12, backgroundColor: '#ffffff', borderTopWidth: 1, borderTopColor: '#cccccc' },
   tabBtn: { flex: 1, marginHorizontal: 4 },
 });
