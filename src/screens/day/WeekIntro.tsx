@@ -1,6 +1,8 @@
 import React, { useEffect, useRef } from 'react';
 import { Animated, Pressable, StyleSheet, Text } from 'react-native';
 
+import { C, FONT_PIXEL } from '../../theme';
+
 // Dark screen that fades to light while the "Week X" title appears.
 export default function WeekIntro({ week, onContinue }: { week: number; onContinue: () => void }) {
   const overlay = useRef(new Animated.Value(1)).current;
@@ -19,19 +21,19 @@ export default function WeekIntro({ week, onContinue }: { week: number; onContin
 
   return (
     <Pressable style={styles.screen} onPress={onContinue}>
-      <Text style={styles.week}>Week {week}</Text>
-      <Text style={styles.tap}>tap to continue</Text>
+      <Text style={styles.week}>WEEK {week}</Text>
+      <Text style={styles.tap}>▶ tap to continue</Text>
       <Animated.View pointerEvents="none" style={[styles.overlay, { opacity: overlay }]}>
-        <Animated.Text style={[styles.overlayText, { opacity: titleOpacity }]}>Week {week}</Animated.Text>
+        <Animated.Text style={[styles.overlayText, { opacity: titleOpacity }]}>WEEK {week}</Animated.Text>
       </Animated.View>
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: '#f5f5f5', alignItems: 'center', justifyContent: 'center' },
-  week: { color: '#1a1a1a', fontSize: 44, fontWeight: '900' },
-  tap: { color: '#888888', fontSize: 14, marginTop: 12 },
-  overlay: { ...StyleSheet.absoluteFillObject, backgroundColor: '#101418', alignItems: 'center', justifyContent: 'center' },
-  overlayText: { color: '#ffffff', fontSize: 48, fontWeight: '900', letterSpacing: 1 },
+  screen: { flex: 1, backgroundColor: C.bg, alignItems: 'center', justifyContent: 'center' },
+  week: { fontFamily: FONT_PIXEL, color: C.gold, fontSize: 40, fontWeight: '900', letterSpacing: 2 },
+  tap: { fontFamily: FONT_PIXEL, color: C.textDim, fontSize: 13, marginTop: 12, letterSpacing: 1 },
+  overlay: { ...StyleSheet.absoluteFillObject, backgroundColor: C.panelDark, alignItems: 'center', justifyContent: 'center' },
+  overlayText: { fontFamily: FONT_PIXEL, color: C.gold, fontSize: 44, fontWeight: '900', letterSpacing: 2 },
 });

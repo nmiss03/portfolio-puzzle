@@ -1,14 +1,16 @@
 import React, { useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, Animated, Easing } from 'react-native';
 
+import { C, FONT_PIXEL } from '../theme';
+
 export interface BarDatum {
   label: string;
   value: number;
   color?: string;
 }
 
-const GREEN = '#22c55e';
-const RED = '#ef4444';
+const GREEN = C.success;
+const RED = C.danger;
 
 /**
  * Simple animated bar chart drawn with Views (no SVG). Bars grow from 0 to
@@ -38,7 +40,7 @@ export default function BarChart({ data, height = 160 }: { data: BarDatum[]; hei
               <Animated.Text style={[styles.value, { color: barColor }]}>
                 {d.value >= 0 ? '+' : '-'}${Math.abs(Math.round(d.value)).toLocaleString()}
               </Animated.Text>
-              <Animated.View style={{ width: 36, height: barHeight, backgroundColor: barColor, borderRadius: 4 }} />
+              <Animated.View style={{ width: 36, height: barHeight, backgroundColor: barColor, borderWidth: 2, borderColor: C.border }} />
             </View>
           );
         })}
@@ -59,8 +61,8 @@ const styles = StyleSheet.create({
   wrap: { width: '100%' },
   plot: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-around' },
   col: { alignItems: 'center', justifyContent: 'flex-end', flex: 1 },
-  value: { fontSize: 12, fontWeight: '800', marginBottom: 4 },
-  axis: { height: 2, backgroundColor: '#cccccc', marginTop: 0 },
+  value: { fontFamily: FONT_PIXEL, fontSize: 11, fontWeight: '800', marginBottom: 4 },
+  axis: { height: 2, backgroundColor: C.border, marginTop: 0 },
   labels: { flexDirection: 'row', justifyContent: 'space-around', marginTop: 6 },
-  label: { flex: 1, textAlign: 'center', color: '#888888', fontSize: 12, fontWeight: '700' },
+  label: { fontFamily: FONT_PIXEL, flex: 1, textAlign: 'center', color: C.textDim, fontSize: 11, fontWeight: '700' },
 });

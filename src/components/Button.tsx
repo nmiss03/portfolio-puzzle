@@ -9,7 +9,7 @@ import {
   ViewStyle,
 } from 'react-native';
 
-import { colors, radius, spacing, font } from '../theme';
+import { C, FONT_PIXEL, BORDER_W } from '../theme';
 
 type Variant = 'primary' | 'secondary' | 'ghost' | 'danger';
 
@@ -22,6 +22,8 @@ interface ButtonProps {
   style?: StyleProp<ViewStyle>;
 }
 
+// Boxy bronze game button with a faux-3D bevel (light top/left, dark
+// bottom/right). Pressing inverts the bevel for an inset "click".
 export default function Button({
   title,
   onPress,
@@ -48,10 +50,10 @@ export default function Button({
       accessibilityState={{ disabled: isDisabled }}
     >
       <View style={styles.content}>
-        {loading && (
-          <ActivityIndicator size="small" color={v.text.color} style={{ marginRight: spacing.sm }} />
-        )}
-        <Text style={[styles.text, v.text]}>{title}</Text>
+        {loading && <ActivityIndicator size="small" color={v.text.color} style={{ marginRight: 8 }} />}
+        <Text style={[styles.text, v.text]} numberOfLines={1}>
+          {title.toUpperCase()}
+        </Text>
       </View>
     </Pressable>
   );
@@ -61,46 +63,50 @@ const styles = StyleSheet.create({
   base: {
     paddingVertical: 12,
     paddingHorizontal: 16,
-    borderRadius: radius.sm,
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: BORDER_W,
+    borderRadius: 0,
+    // raised bevel
+    borderTopColor: C.borderHi,
+    borderLeftColor: C.borderHi,
+    borderBottomColor: C.borderLo,
+    borderRightColor: C.borderLo,
   },
-  content: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
+  content: { flexDirection: 'row', alignItems: 'center' },
   text: {
-    fontSize: font.md,
+    fontFamily: FONT_PIXEL,
+    fontSize: 13,
     fontWeight: '700',
+    letterSpacing: 1,
+    textTransform: 'uppercase',
   },
+  // Pressed: invert the bevel so the button looks pushed in.
   pressed: {
-    opacity: 0.85,
-    transform: [{ scale: 0.99 }],
+    borderTopColor: C.borderLo,
+    borderLeftColor: C.borderLo,
+    borderBottomColor: C.borderHi,
+    borderRightColor: C.borderHi,
+    transform: [{ translateY: 1 }],
   },
-  disabled: {
-    opacity: 0.45,
-  },
+  disabled: { opacity: 0.45 },
 });
 
 const variantStyles: Record<Variant, { container: ViewStyle; text: { color: string } & object }> = {
   primary: {
-    container: { backgroundColor: colors.primary },
-    text: { color: colors.white },
+    container: { backgroundColor: C.button },
+    text: { color: C.ink },
   },
   secondary: {
-    container: {
-      backgroundColor: colors.surfaceAlt,
-      borderWidth: 1,
-      borderColor: colors.borderStrong,
-    },
-    text: { color: colors.text },
+    container: { backgroundColor: C.panelLite },
+    text: { color: C.text },
   },
   ghost: {
-    container: { backgroundColor: 'transparent' },
-    text: { color: colors.subtext },
+    container: { backgroundColor: 'transparent', borderColor: C.border },
+    text: { color: C.textDim },
   },
   danger: {
-    container: { backgroundColor: colors.danger },
-    text: { color: colors.white },
+    container: { backgroundColor: C.danger },
+    text: { color: '#2A0E0C' },
   },
 };

@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import Button from '../components/Button';
 import { useGame } from '../state/GameContext';
+import { C, FONT_PIXEL, BORDER_W } from '../theme';
 
 export default function LevelSelect() {
   const router = useRouter();
@@ -19,34 +20,43 @@ export default function LevelSelect() {
   return (
     <View style={[styles.screen, { paddingTop: insets.top + 40, paddingBottom: insets.bottom + 24 }]}>
       <View style={styles.hero}>
-        <Text style={styles.kicker}>PORTFOLIO MANAGER</Text>
-        <Text style={styles.title}>Advise. Allocate.{'\n'}Keep them happy.</Text>
+        <Text style={styles.kicker}>◆ PORTFOLIO MANAGER ◆</Text>
+        <Text style={styles.title}>ADVISE.{'\n'}ALLOCATE.{'\n'}KEEP THEM HAPPY.</Text>
         <Text style={styles.subtitle}>
-          A new client walks in each day. Read their situation, build a portfolio that fits, and
+          A new client walks in each week. Read their situation, build a portfolio that fits, and
           watch your returns — and their happiness — play out over time.
         </Text>
       </View>
 
       <View style={styles.card}>
-        <Text style={styles.cardTitle}>Career Mode</Text>
+        <View style={styles.cardTitleBar}>
+          <Text style={styles.cardTitle}>CAREER MODE</Text>
+        </View>
         <Text style={styles.cardText}>
           A new client unlocks each week. Manage everyone's portfolio from your Client Book — but a
           bad call can cost you the account.
         </Text>
       </View>
 
-      <Button title="Start Career  ›" onPress={beginCareer} />
+      <Button title="Start Career  ▶" onPress={beginCareer} />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: '#f5f5f5', paddingHorizontal: 20, justifyContent: 'space-between' },
+  screen: { flex: 1, backgroundColor: C.bg, paddingHorizontal: 20, justifyContent: 'space-between' },
   hero: { marginTop: 16 },
-  kicker: { color: '#4a90e2', fontSize: 13, fontWeight: '800', letterSpacing: 2 },
-  title: { color: '#1a1a1a', fontSize: 32, fontWeight: '900', marginTop: 8, lineHeight: 38 },
-  subtitle: { color: '#4a4a4a', fontSize: 15, lineHeight: 22, marginTop: 12 },
-  card: { backgroundColor: '#ffffff', borderWidth: 1, borderColor: '#cccccc', borderRadius: 12, padding: 20 },
-  cardTitle: { color: '#4a90e2', fontSize: 18, fontWeight: '900' },
-  cardText: { color: '#4a4a4a', fontSize: 15, lineHeight: 21, marginTop: 6 },
+  kicker: { fontFamily: FONT_PIXEL, color: C.gold, fontSize: 13, fontWeight: '800', letterSpacing: 2 },
+  title: { fontFamily: FONT_PIXEL, color: C.text, fontSize: 26, fontWeight: '900', marginTop: 12, lineHeight: 34, letterSpacing: 1 },
+  subtitle: { color: C.textDim, fontSize: 15, lineHeight: 22, marginTop: 16 },
+  card: {
+    backgroundColor: C.panel,
+    borderWidth: BORDER_W,
+    borderColor: C.border,
+    padding: 0,
+    overflow: 'hidden',
+  },
+  cardTitleBar: { backgroundColor: C.panelDark, borderBottomWidth: 2, borderBottomColor: C.border, paddingVertical: 8, paddingHorizontal: 14 },
+  cardTitle: { fontFamily: FONT_PIXEL, color: C.gold, fontSize: 15, fontWeight: '900', letterSpacing: 1 },
+  cardText: { color: C.textDim, fontSize: 15, lineHeight: 21, padding: 14 },
 });

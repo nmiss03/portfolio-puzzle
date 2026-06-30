@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Button from '../../components/Button';
 import PixelCharacter from '../../components/PixelCharacter';
 import { useGame } from '../../state/GameContext';
+import { C, FONT_PIXEL, BORDER_W } from '../../theme';
 
 export default function ClientIntro({ onDone }: { onDone: () => void }) {
   const { introClient } = useGame();
@@ -19,7 +20,7 @@ export default function ClientIntro({ onDone }: { onDone: () => void }) {
   return (
     <View style={[styles.screen, { paddingTop: insets.top + 24, paddingBottom: insets.bottom + 24 }]}>
       <View style={styles.top}>
-        <Text style={styles.title}>Meet the Client</Text>
+        <Text style={styles.title}>MEET THE CLIENT</Text>
         <PixelCharacter seed={activeClient.id} cell={7} />
         <Text style={styles.name}>
           {activeClient.name} · {activeClient.age} · {activeClient.occupation}
@@ -43,14 +44,14 @@ export default function ClientIntro({ onDone }: { onDone: () => void }) {
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: '#f5f5f5', paddingHorizontal: 20, alignItems: 'center', justifyContent: 'space-between' },
+  screen: { flex: 1, backgroundColor: C.bg, paddingHorizontal: 20, alignItems: 'center', justifyContent: 'space-between' },
   top: { alignItems: 'center' },
-  title: { color: '#1a1a1a', fontSize: 22, fontWeight: '900', marginBottom: 16 },
-  name: { color: '#888888', fontSize: 13, fontWeight: '700', marginTop: 12 },
-  risk: { color: '#4a90e2', fontSize: 13, fontWeight: '800', marginTop: 2 },
+  title: { fontFamily: FONT_PIXEL, color: C.gold, fontSize: 20, fontWeight: '900', marginBottom: 16, letterSpacing: 1 },
+  name: { fontFamily: FONT_PIXEL, color: C.textDim, fontSize: 13, fontWeight: '700', marginTop: 12 },
+  risk: { color: C.gold, fontSize: 13, fontWeight: '800', marginTop: 2 },
   bubbleArea: { width: '100%', alignItems: 'center' },
-  bubble: { backgroundColor: '#ffffff', borderWidth: 2, borderColor: '#cccccc', borderRadius: 4, padding: 16, maxWidth: 320 },
-  bubbleText: { color: '#1a1a1a', fontSize: 16, lineHeight: 23 },
-  counter: { color: '#888888', fontSize: 13, fontWeight: '700', marginTop: 12 },
+  bubble: { backgroundColor: C.panel, borderWidth: BORDER_W, borderColor: C.border, padding: 16, maxWidth: 320 },
+  bubbleText: { color: C.text, fontSize: 16, lineHeight: 23 },
+  counter: { fontFamily: FONT_PIXEL, color: C.muted, fontSize: 13, fontWeight: '700', marginTop: 12 },
   actions: { width: '100%', maxWidth: 320 },
 });

@@ -2,15 +2,16 @@ import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 
 import { repColor } from '../data/reputationSystem';
+import { C, FONT_PIXEL } from '../theme';
 
 export default function ReputationBar({ reputation }: { reputation: number }) {
   const pct = Math.max(0, Math.min(100, reputation));
   const color = repColor(reputation);
   return (
     <View style={styles.wrap}>
-      <Text style={styles.label}>Reputation: {Math.round(reputation)}/100</Text>
+      <Text style={styles.label}>REP {Math.round(reputation)}/100</Text>
       <View style={styles.track}>
-        <View style={{ width: `${pct}%`, height: '100%', backgroundColor: color, borderRadius: 3 }} />
+        <View style={{ width: `${pct}%`, height: '100%', backgroundColor: color }} />
       </View>
     </View>
   );
@@ -18,6 +19,14 @@ export default function ReputationBar({ reputation }: { reputation: number }) {
 
 const styles = StyleSheet.create({
   wrap: { width: 150 },
-  label: { color: '#1a1a1a', fontSize: 13, fontWeight: '800', textAlign: 'right' },
-  track: { width: '100%', height: 6, borderRadius: 3, backgroundColor: '#e5e7eb', overflow: 'hidden', marginTop: 3 },
+  label: { fontFamily: FONT_PIXEL, color: C.gold, fontSize: 11, fontWeight: '800', letterSpacing: 1, textAlign: 'right' },
+  track: {
+    width: '100%',
+    height: 10,
+    backgroundColor: C.panelDark,
+    borderWidth: 2,
+    borderColor: C.border,
+    overflow: 'hidden',
+    marginTop: 3,
+  },
 });

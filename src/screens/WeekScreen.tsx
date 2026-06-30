@@ -13,6 +13,7 @@ import ClientBook from './ClientBook';
 import ReputationBar from '../components/ReputationBar';
 import Button from '../components/Button';
 import { useGame } from '../state/GameContext';
+import { C, FONT_PIXEL, BORDER_W } from '../theme';
 
 export default function WeekScreen() {
   const { state, activeClients, availableClients, canSign, startGame, setPhase, transitionWeek, advanceWeek, toggleBook, toggleNews } = useGame();
@@ -46,7 +47,12 @@ export default function WeekScreen() {
     body = (
       <View style={styles.screen}>
         <View style={[styles.topBar, { paddingTop: insets.top + 8 }]}>
-          <Text style={styles.weekText}>Week {state.currentWeek}</Text>
+          <View style={styles.hudLeft}>
+            <Text style={styles.weekText}>WEEK {state.currentWeek}</Text>
+            <View style={styles.clientChip}>
+              <Text style={styles.clientChipText}>♟ {activeClients.length}/3</Text>
+            </View>
+          </View>
           <ReputationBar reputation={state.reputation} />
         </View>
 
@@ -93,16 +99,19 @@ export default function WeekScreen() {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#f5f5f5' },
-  screen: { flex: 1, backgroundColor: '#f5f5f5' },
+  root: { flex: 1, backgroundColor: C.bg },
+  screen: { flex: 1, backgroundColor: C.bg },
   flex: { flex: 1 },
-  topBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingBottom: 8, backgroundColor: '#ffffff', borderBottomWidth: 1, borderBottomColor: '#eee' },
-  weekText: { color: '#1a1a1a', fontSize: 18, fontWeight: '900' },
-  alert: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: '#eef4fc', borderBottomWidth: 1, borderBottomColor: '#4a90e2', paddingVertical: 10 },
-  alertText: { color: '#1a1a1a', fontSize: 13, fontWeight: '800' },
-  alertDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#ef4444', marginLeft: 8 },
-  manageHint: { backgroundColor: '#fff7e6', borderBottomWidth: 1, borderBottomColor: '#f0c060', paddingVertical: 9, paddingHorizontal: 16 },
-  manageHintText: { color: '#7a5a00', fontSize: 12, fontWeight: '700', textAlign: 'center' },
-  tabBar: { flexDirection: 'row', paddingTop: 10, paddingHorizontal: 12, backgroundColor: '#ffffff', borderTopWidth: 1, borderTopColor: '#cccccc' },
+  topBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingBottom: 10, backgroundColor: C.panelDark, borderBottomWidth: BORDER_W, borderBottomColor: C.border },
+  hudLeft: { flexDirection: 'row', alignItems: 'center' },
+  weekText: { fontFamily: FONT_PIXEL, color: C.gold, fontSize: 18, fontWeight: '900', letterSpacing: 1 },
+  clientChip: { backgroundColor: C.panel, borderWidth: 2, borderColor: C.border, paddingHorizontal: 7, paddingVertical: 3, marginLeft: 10 },
+  clientChipText: { fontFamily: FONT_PIXEL, color: C.text, fontSize: 11, fontWeight: '800' },
+  alert: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: C.panel, borderBottomWidth: 2, borderBottomColor: C.gold, paddingVertical: 10 },
+  alertText: { fontFamily: FONT_PIXEL, color: C.gold, fontSize: 12, fontWeight: '800', letterSpacing: 0.5 },
+  alertDot: { width: 8, height: 8, backgroundColor: C.danger, marginLeft: 8 },
+  manageHint: { backgroundColor: C.panel, borderBottomWidth: 2, borderBottomColor: C.gold, paddingVertical: 9, paddingHorizontal: 16 },
+  manageHintText: { color: C.gold, fontSize: 12, fontWeight: '700', textAlign: 'center' },
+  tabBar: { flexDirection: 'row', paddingTop: 10, paddingHorizontal: 10, backgroundColor: C.panelDark, borderTopWidth: BORDER_W, borderTopColor: C.border },
   tabBtn: { flex: 1, marginHorizontal: 4 },
 });

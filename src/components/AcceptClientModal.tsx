@@ -4,6 +4,7 @@ import { View, Text, StyleSheet } from 'react-native';
 import Button from './Button';
 import { RuntimeClient, CONTRACT_WEEKS, riskPreferenceLabel } from '../data/gameState';
 import { formatMoney } from '../utils/format';
+import { C, FONT_PIXEL, BORDER_W } from '../theme';
 
 export default function AcceptClientModal({
   client,
@@ -44,12 +45,12 @@ function Row({ label, value }: { label: string; value: string }) {
 }
 
 const styles = StyleSheet.create({
-  backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(20,24,30,0.55)', alignItems: 'center', justifyContent: 'center', padding: 24, zIndex: 50 },
-  card: { width: '100%', maxWidth: 360, backgroundColor: '#ffffff', borderRadius: 12, padding: 20 },
-  title: { color: '#1a1a1a', fontSize: 18, fontWeight: '900' },
-  name: { color: '#666666', fontSize: 14, fontWeight: '700', marginTop: 4 },
+  backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(10,16,16,0.7)', alignItems: 'center', justifyContent: 'center', padding: 24, zIndex: 50 },
+  card: { width: '100%', maxWidth: 360, backgroundColor: C.panel, borderWidth: BORDER_W, borderColor: C.border, padding: 20 },
+  title: { fontFamily: FONT_PIXEL, color: C.gold, fontSize: 16, fontWeight: '900', letterSpacing: 0.5, textTransform: 'uppercase' },
+  name: { color: C.textDim, fontSize: 14, fontWeight: '700', marginTop: 4 },
   rows: { marginTop: 14 },
-  row: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: '#eee' },
-  rowLabel: { color: '#888888', fontSize: 13, fontWeight: '700' },
-  rowValue: { color: '#1a1a1a', fontSize: 13, fontWeight: '700', flex: 1, textAlign: 'right', marginLeft: 12 },
+  row: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: C.divider },
+  rowLabel: { fontFamily: FONT_PIXEL, color: C.muted, fontSize: 12, fontWeight: '700' },
+  rowValue: { fontFamily: FONT_PIXEL, color: C.text, fontSize: 12, fontWeight: '700', flex: 1, textAlign: 'right', marginLeft: 12 },
 });

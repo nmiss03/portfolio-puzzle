@@ -123,9 +123,9 @@ export function calculateWeeklyReputation(
 }
 
 export function repColor(rep: number): string {
-  if (rep <= 0) return '#999999';
-  if (rep < 25) return '#ef4444';
-  if (rep < 50) return '#f59e0b';
-  if (rep < 75) return '#4a90e2';
-  return '#22c55e';
+  if (rep <= 0) return '#9FB0AE';
+  if (rep < 25) return '#D9534F';
+  if (rep < 50) return '#E8B23A';
+  if (rep < 75) return '#5DA9B5';
+  return '#5DBB63';
 }

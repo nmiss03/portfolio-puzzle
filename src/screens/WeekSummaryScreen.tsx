@@ -6,10 +6,11 @@ import BarChart from '../components/BarChart';
 import HappinessMeter from '../components/HappinessMeter';
 import { useGame } from '../state/GameContext';
 import { formatMoney, formatPrice } from '../utils/format';
+import { C, FONT_PIXEL, BORDER_W } from '../theme';
 
-const GREEN = '#22c55e';
-const RED = '#ef4444';
-const BLUE = '#4a90e2';
+const GREEN = C.success;
+const RED = C.danger;
+const BLUE = C.gold;
 
 export default function WeekSummaryScreen({ onContinue }: { onContinue: () => void }) {
   const { state } = useGame();
@@ -149,42 +150,42 @@ export default function WeekSummaryScreen({ onContinue }: { onContinue: () => vo
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: '#f5f5f5', alignItems: 'center', justifyContent: 'center' },
+  screen: { flex: 1, backgroundColor: C.bg, alignItems: 'center', justifyContent: 'center' },
   content: { padding: 20 },
-  title: { color: '#1a1a1a', fontSize: 20, fontWeight: '900', textAlign: 'center', marginVertical: 12 },
-  chartCard: { backgroundColor: '#ffffff', borderWidth: 1, borderColor: '#cccccc', borderRadius: 8, padding: 16, marginBottom: 16 },
-  accuracyCard: { backgroundColor: '#eef4fc', borderWidth: 1, borderColor: '#4a90e2', borderRadius: 8, padding: 12, marginBottom: 16 },
-  accuracyText: { color: '#1a1a1a', fontSize: 13, fontWeight: '700', lineHeight: 18 },
-  table: { backgroundColor: '#ffffff', borderWidth: 1, borderColor: '#cccccc', borderRadius: 8, padding: 12 },
-  concCard: { backgroundColor: '#fdf2f2', borderWidth: 1, borderColor: '#ef4444', borderRadius: 8, padding: 14, marginTop: 16 },
-  concTitle: { color: '#b91c1c', fontSize: 15, fontWeight: '900', marginBottom: 6 },
-  concRow: { color: '#1a1a1a', fontSize: 13, fontWeight: '700', marginVertical: 2 },
-  concPenalty: { color: '#ef4444', fontWeight: '900' },
-  concNote: { color: '#888888', fontSize: 11, fontStyle: 'italic', marginTop: 8 },
-  priceCard: { backgroundColor: '#ffffff', borderWidth: 1, borderColor: '#cccccc', borderRadius: 8, padding: 14, marginTop: 16 },
-  priceTitle: { color: '#1a1a1a', fontSize: 16, fontWeight: '900', marginBottom: 8 },
-  priceRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 5, borderBottomWidth: 1, borderBottomColor: '#f0f0f0' },
+  title: { fontFamily: FONT_PIXEL, color: C.gold, fontSize: 20, fontWeight: '900', textAlign: 'center', marginVertical: 12, letterSpacing: 1, textTransform: 'uppercase' },
+  chartCard: { backgroundColor: C.panel, borderWidth: BORDER_W, borderColor: C.border, padding: 16, marginBottom: 16 },
+  accuracyCard: { backgroundColor: C.panelDark, borderWidth: BORDER_W, borderColor: C.gold, padding: 12, marginBottom: 16 },
+  accuracyText: { color: C.text, fontSize: 13, fontWeight: '700', lineHeight: 18 },
+  table: { backgroundColor: C.panel, borderWidth: BORDER_W, borderColor: C.border, padding: 12 },
+  concCard: { backgroundColor: C.panelDark, borderWidth: BORDER_W, borderColor: C.danger, padding: 14, marginTop: 16 },
+  concTitle: { fontFamily: FONT_PIXEL, color: C.danger, fontSize: 14, fontWeight: '900', marginBottom: 6, letterSpacing: 0.5, textTransform: 'uppercase' },
+  concRow: { color: C.text, fontSize: 13, fontWeight: '700', marginVertical: 2 },
+  concPenalty: { color: C.danger, fontWeight: '900' },
+  concNote: { color: C.muted, fontSize: 11, fontStyle: 'italic', marginTop: 8 },
+  priceCard: { backgroundColor: C.panel, borderWidth: BORDER_W, borderColor: C.border, padding: 14, marginTop: 16 },
+  priceTitle: { fontFamily: FONT_PIXEL, color: C.gold, fontSize: 15, fontWeight: '900', marginBottom: 8, letterSpacing: 0.5, textTransform: 'uppercase' },
+  priceRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 5, borderBottomWidth: 1, borderBottomColor: C.divider },
   priceLeft: { flex: 1, marginRight: 8 },
-  priceName: { color: '#1a1a1a', fontSize: 13, fontWeight: '700' },
-  priceBreakdown: { color: '#888888', fontSize: 10, fontWeight: '600', marginTop: 1 },
-  priceMove: { color: '#666666', fontSize: 13, fontWeight: '800' },
-  priceNote: { color: '#888888', fontSize: 11, fontStyle: 'italic', marginTop: 8 },
-  repCard: { backgroundColor: '#ffffff', borderWidth: 1, borderColor: '#cccccc', borderRadius: 8, padding: 14, marginTop: 16 },
+  priceName: { color: C.text, fontSize: 13, fontWeight: '700' },
+  priceBreakdown: { color: C.muted, fontSize: 10, fontWeight: '600', marginTop: 1 },
+  priceMove: { fontFamily: FONT_PIXEL, color: C.textDim, fontSize: 13, fontWeight: '800' },
+  priceNote: { color: C.muted, fontSize: 11, fontStyle: 'italic', marginTop: 8 },
+  repCard: { backgroundColor: C.panel, borderWidth: BORDER_W, borderColor: C.border, padding: 14, marginTop: 16 },
   repHeadRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
-  repTitle: { color: '#1a1a1a', fontSize: 16, fontWeight: '900' },
-  repNow: { color: '#1a1a1a', fontSize: 14, fontWeight: '800' },
-  repNeutral: { color: '#888888', fontSize: 13 },
+  repTitle: { fontFamily: FONT_PIXEL, color: C.gold, fontSize: 15, fontWeight: '900', letterSpacing: 0.5, textTransform: 'uppercase' },
+  repNow: { fontFamily: FONT_PIXEL, color: C.text, fontSize: 14, fontWeight: '800' },
+  repNeutral: { color: C.muted, fontSize: 13 },
   repChange: { fontSize: 13, fontWeight: '700', marginVertical: 2 },
-  repTotal: { fontSize: 14, fontWeight: '900', marginTop: 8 },
-  unlock: { color: '#4a90e2', fontSize: 13, fontWeight: '800', marginTop: 8 },
-  dead: { color: '#ef4444', fontSize: 13, fontWeight: '800', marginTop: 8 },
-  tHead: { flexDirection: 'row', alignItems: 'center', paddingBottom: 8, borderBottomWidth: 1, borderBottomColor: '#cccccc' },
-  th: { color: '#888888', fontSize: 11, fontWeight: '800', textTransform: 'uppercase' },
-  tRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10 },
+  repTotal: { fontFamily: FONT_PIXEL, fontSize: 14, fontWeight: '900', marginTop: 8 },
+  unlock: { color: C.gold, fontSize: 13, fontWeight: '800', marginTop: 8 },
+  dead: { color: C.danger, fontSize: 13, fontWeight: '800', marginTop: 8 },
+  tHead: { flexDirection: 'row', alignItems: 'center', paddingBottom: 8, borderBottomWidth: 2, borderBottomColor: C.border },
+  th: { fontFamily: FONT_PIXEL, color: C.textDim, fontSize: 11, fontWeight: '800', textTransform: 'uppercase' },
+  tRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: C.divider },
   thClient: { flex: 1.2 },
   thNum: { flex: 1.2, textAlign: 'right' },
   thHappy: { flex: 1.3, paddingLeft: 10 },
-  tdName: { color: '#1a1a1a', fontSize: 14, fontWeight: '800' },
-  td: { fontSize: 12, fontWeight: '800' },
-  happyPct: { color: '#888888', fontSize: 11, fontWeight: '700', marginTop: 2, textAlign: 'right' },
+  tdName: { fontFamily: FONT_PIXEL, color: C.text, fontSize: 14, fontWeight: '800' },
+  td: { fontFamily: FONT_PIXEL, fontSize: 12, fontWeight: '800' },
+  happyPct: { fontFamily: FONT_PIXEL, color: C.muted, fontSize: 11, fontWeight: '700', marginTop: 2, textAlign: 'right' },
 });

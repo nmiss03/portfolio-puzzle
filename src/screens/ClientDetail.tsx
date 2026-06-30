@@ -9,10 +9,11 @@ import STOCKS from '../data/stocks';
 import { RuntimeClient, avgCost, riskPreferenceLabel } from '../data/gameState';
 import { useGame } from '../state/GameContext';
 import { formatMoney, formatPrice } from '../utils/format';
+import { C, FONT_PIXEL, BORDER_W } from '../theme';
 
-const GREEN = '#22c55e';
-const RED = '#ef4444';
-const BLUE = '#4a90e2';
+const GREEN = C.success;
+const RED = C.danger;
+const BLUE = C.gold;
 
 function signedMoney(n: number) {
   return `${n >= 0 ? '+' : '-'}${formatMoney(Math.abs(Math.round(n)))}`;
@@ -135,33 +136,33 @@ export default function ClientDetail({ client, onClose }: { client: RuntimeClien
 }
 
 const styles = StyleSheet.create({
-  panel: { height: '88%', backgroundColor: '#f5f5f5', borderTopLeftRadius: 16, borderTopRightRadius: 16, overflow: 'hidden' },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16, borderBottomWidth: 1, borderBottomColor: '#cccccc', backgroundColor: '#ffffff' },
-  title: { color: '#1a1a1a', fontSize: 20, fontWeight: '900' },
-  close: { color: BLUE, fontSize: 18, fontWeight: '800' },
+  panel: { height: '88%', backgroundColor: C.bg, borderTopWidth: BORDER_W * 2, borderColor: C.border, overflow: 'hidden' },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16, borderBottomWidth: BORDER_W, borderBottomColor: C.border, backgroundColor: C.panelDark },
+  title: { fontFamily: FONT_PIXEL, color: C.gold, fontSize: 18, fontWeight: '900', letterSpacing: 1, textTransform: 'uppercase' },
+  close: { fontFamily: FONT_PIXEL, color: C.gold, fontSize: 18, fontWeight: '800' },
   detailTop: { flexDirection: 'row', alignItems: 'center' },
   detailInfo: { flex: 1, marginLeft: 16 },
-  detailName: { color: '#1a1a1a', fontSize: 22, fontWeight: '900' },
-  detailMeta: { color: '#888888', fontSize: 13, fontWeight: '700', marginTop: 2 },
+  detailName: { fontFamily: FONT_PIXEL, color: C.text, fontSize: 20, fontWeight: '900', letterSpacing: 0.5 },
+  detailMeta: { color: C.muted, fontSize: 13, fontWeight: '700', marginTop: 2 },
   detailRisk: { color: BLUE, fontSize: 13, fontWeight: '800', marginTop: 4 },
-  contract: { color: '#888888', fontSize: 12, fontWeight: '700', marginTop: 3 },
-  detailBg: { color: '#666666', fontSize: 14, fontStyle: 'italic', lineHeight: 20, marginTop: 14 },
+  contract: { fontFamily: FONT_PIXEL, color: C.muted, fontSize: 12, fontWeight: '700', marginTop: 3 },
+  detailBg: { color: C.textDim, fontSize: 14, fontStyle: 'italic', lineHeight: 20, marginTop: 14 },
 
-  portCard: { backgroundColor: '#ffffff', borderWidth: 1, borderColor: '#cccccc', borderRadius: 8, padding: 16, marginTop: 16 },
-  portValueLabel: { color: '#888888', fontSize: 11, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.3 },
-  portValue: { color: '#1a1a1a', fontSize: 26, fontWeight: '900', marginTop: 2 },
+  portCard: { backgroundColor: C.panel, borderWidth: BORDER_W, borderColor: C.border, padding: 16, marginTop: 16 },
+  portValueLabel: { fontFamily: FONT_PIXEL, color: C.textDim, fontSize: 10, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.5 },
+  portValue: { fontFamily: FONT_PIXEL, color: C.gold, fontSize: 26, fontWeight: '900', marginTop: 2 },
   portGrid: { flexDirection: 'row', marginTop: 12 },
   portCell: { flex: 1 },
-  portCellLabel: { color: '#888888', fontSize: 10, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.3 },
-  portCellVal: { color: '#1a1a1a', fontSize: 15, fontWeight: '800', marginTop: 2 },
+  portCellLabel: { fontFamily: FONT_PIXEL, color: C.muted, fontSize: 9, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5 },
+  portCellVal: { fontFamily: FONT_PIXEL, color: C.text, fontSize: 14, fontWeight: '800', marginTop: 2 },
 
-  happyBox: { backgroundColor: '#ffffff', borderWidth: 1, borderColor: '#cccccc', borderRadius: 8, padding: 16, marginTop: 16 },
-  sectionLabel: { color: '#888888', fontSize: 13, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.5, marginTop: 18, marginBottom: 8 },
-  tableHead: { flexDirection: 'row', paddingBottom: 6, borderBottomWidth: 1, borderBottomColor: '#cccccc' },
-  th: { color: '#888888', fontSize: 11, fontWeight: '800', textTransform: 'uppercase' },
-  td: { color: '#1a1a1a', fontSize: 12, fontWeight: '600' },
+  happyBox: { backgroundColor: C.panel, borderWidth: BORDER_W, borderColor: C.border, padding: 16, marginTop: 16 },
+  sectionLabel: { fontFamily: FONT_PIXEL, color: C.gold, fontSize: 13, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.5, marginTop: 18, marginBottom: 8 },
+  tableHead: { flexDirection: 'row', paddingBottom: 6, borderBottomWidth: 2, borderBottomColor: C.border },
+  th: { fontFamily: FONT_PIXEL, color: C.textDim, fontSize: 11, fontWeight: '800', textTransform: 'uppercase' },
+  td: { fontFamily: FONT_PIXEL, color: C.text, fontSize: 12, fontWeight: '600' },
   cStock: { flex: 1.1 },
   cNum: { flex: 1, textAlign: 'right' },
-  tableRow: { flexDirection: 'row', paddingVertical: 7, borderBottomWidth: 1, borderBottomColor: '#f0f0f0' },
-  empty: { color: '#888888', fontSize: 14, paddingVertical: 8 },
+  tableRow: { flexDirection: 'row', paddingVertical: 7, borderBottomWidth: 1, borderBottomColor: C.divider },
+  empty: { color: C.muted, fontSize: 14, paddingVertical: 8 },
 });

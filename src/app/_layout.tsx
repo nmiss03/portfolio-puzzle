@@ -15,8 +15,8 @@ export default function RootLayout() {
   return (
     <SafeAreaProvider>
       <GameProvider>
-        {/* Dark status-bar icons read well on the light background. */}
-        <StatusBar style="dark" />
+        {/* Light status-bar icons read well on the dark retro background. */}
+        <StatusBar style="light" />
         <Stack
           screenOptions={{
             headerStyle: { backgroundColor: colors.bg },

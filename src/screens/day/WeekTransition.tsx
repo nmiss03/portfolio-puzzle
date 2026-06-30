@@ -5,10 +5,11 @@ import Button from '../../components/Button';
 import PixelCharacter from '../../components/PixelCharacter';
 import { useGame } from '../../state/GameContext';
 import { formatMoney } from '../../utils/format';
+import { C, FONT_PIXEL, BORDER_W } from '../../theme';
 
-const GREEN = '#22c55e';
-const RED = '#ef4444';
-const GRAY = '#666666';
+const GREEN = C.success;
+const RED = C.danger;
+const GRAY = C.textDim;
 
 export default function WeekTransition({ onContinue }: { onContinue: () => void }) {
   const { state } = useGame();
@@ -98,28 +99,27 @@ export default function WeekTransition({ onContinue }: { onContinue: () => void 
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: '#f5f5f5', alignItems: 'center', justifyContent: 'center' },
+  screen: { flex: 1, backgroundColor: C.bg, alignItems: 'center', justifyContent: 'center' },
   content: { padding: 24, alignItems: 'center', flexGrow: 1, justifyContent: 'center' },
-  weekDone: { color: '#1a1a1a', fontSize: 26, fontWeight: '900', marginBottom: 24 },
+  weekDone: { fontFamily: FONT_PIXEL, color: C.gold, fontSize: 24, fontWeight: '900', marginBottom: 24, letterSpacing: 1, textTransform: 'uppercase' },
   row: {
     width: '100%',
     maxWidth: 420,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#ffffff',
-    borderWidth: 1,
-    borderColor: '#cccccc',
-    borderRadius: 8,
+    backgroundColor: C.panel,
+    borderWidth: BORDER_W,
+    borderColor: C.border,
     padding: 14,
     marginBottom: 12,
   },
   rowMid: { flex: 1, marginLeft: 14 },
-  rowName: { color: '#1a1a1a', fontSize: 17, fontWeight: '900' },
-  rowHappy: { color: '#666666', fontSize: 13, fontWeight: '700', marginTop: 4 },
+  rowName: { fontFamily: FONT_PIXEL, color: C.text, fontSize: 16, fontWeight: '900' },
+  rowHappy: { color: C.textDim, fontSize: 13, fontWeight: '700', marginTop: 4 },
   rowRight: { alignItems: 'flex-end' },
-  rowReturn: { fontSize: 18, fontWeight: '900' },
-  rowPct: { fontSize: 13, fontWeight: '800', marginTop: 2 },
-  rowNews: { color: '#4a90e2', fontSize: 11, fontWeight: '700', marginTop: 2 },
-  allTime: { color: GRAY, fontSize: 14, fontWeight: '800', marginTop: 8 },
-  fired: { color: '#ef4444', fontSize: 14, fontWeight: '800', marginTop: 12, textAlign: 'center' },
+  rowReturn: { fontFamily: FONT_PIXEL, fontSize: 17, fontWeight: '900' },
+  rowPct: { fontFamily: FONT_PIXEL, fontSize: 13, fontWeight: '800', marginTop: 2 },
+  rowNews: { color: C.gold, fontSize: 11, fontWeight: '700', marginTop: 2 },
+  allTime: { fontFamily: FONT_PIXEL, color: GRAY, fontSize: 14, fontWeight: '800', marginTop: 8 },
+  fired: { color: C.danger, fontSize: 14, fontWeight: '800', marginTop: 12, textAlign: 'center' },
 });

@@ -3,8 +3,9 @@ import { View, Text, Pressable, ScrollView, StyleSheet } from 'react-native';
 
 import { stocksById } from '../data/stocks';
 import { useGame } from '../state/GameContext';
+import { C, FONT_PIXEL, BORDER_W } from '../theme';
 
-const BLUE = '#4a90e2';
+const BLUE = C.gold;
 
 type FilterMode = 'All' | 'Industry' | 'Specific Stock';
 
@@ -77,26 +78,26 @@ export default function NewsPopup() {
 }
 
 const styles = StyleSheet.create({
-  backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(20,24,30,0.45)', justifyContent: 'flex-end' },
-  panel: { height: '90%', backgroundColor: '#f5f5f5', borderTopLeftRadius: 16, borderTopRightRadius: 16, overflow: 'hidden' },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16, borderBottomWidth: 1, borderBottomColor: '#cccccc', backgroundColor: '#ffffff' },
-  title: { color: '#1a1a1a', fontSize: 20, fontWeight: '900' },
-  close: { color: BLUE, fontSize: 18, fontWeight: '800' },
-  controls: { flexDirection: 'row', alignItems: 'center', padding: 10, backgroundColor: '#ffffff', borderBottomWidth: 1, borderBottomColor: '#eee' },
-  chip: { borderWidth: 1, borderColor: '#cccccc', borderRadius: 14, paddingHorizontal: 10, paddingVertical: 5, marginRight: 6 },
-  chipActive: { backgroundColor: BLUE, borderColor: BLUE },
-  chipText: { color: '#666666', fontSize: 12, fontWeight: '700' },
-  chipTextActive: { color: '#ffffff' },
-  hint: { color: '#666666', fontSize: 12, fontStyle: 'italic', padding: 12, paddingBottom: 0 },
+  backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(10,16,16,0.6)', justifyContent: 'flex-end' },
+  panel: { height: '90%', backgroundColor: C.bg, borderTopWidth: BORDER_W * 2, borderColor: C.border, overflow: 'hidden' },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16, borderBottomWidth: BORDER_W, borderBottomColor: C.border, backgroundColor: C.panelDark },
+  title: { fontFamily: FONT_PIXEL, color: C.gold, fontSize: 18, fontWeight: '900', letterSpacing: 1, textTransform: 'uppercase' },
+  close: { fontFamily: FONT_PIXEL, color: C.gold, fontSize: 18, fontWeight: '800' },
+  controls: { flexDirection: 'row', alignItems: 'center', padding: 10, backgroundColor: C.panelDark, borderBottomWidth: 2, borderBottomColor: C.border },
+  chip: { borderWidth: 2, borderColor: C.border, paddingHorizontal: 10, paddingVertical: 5, marginRight: 6, backgroundColor: C.panel },
+  chipActive: { backgroundColor: C.button, borderColor: C.border },
+  chipText: { fontFamily: FONT_PIXEL, color: C.textDim, fontSize: 11, fontWeight: '700' },
+  chipTextActive: { color: C.ink },
+  hint: { color: C.textDim, fontSize: 12, fontStyle: 'italic', padding: 12, paddingBottom: 0 },
   list: { padding: 12 },
-  card: { backgroundColor: '#ffffff', borderWidth: 1, borderColor: '#cccccc', borderRadius: 6, padding: 14, marginBottom: 10 },
-  headline: { color: '#1a1a1a', fontSize: 15, fontWeight: '800', lineHeight: 20 },
+  card: { backgroundColor: C.panel, borderWidth: BORDER_W, borderColor: C.border, padding: 14, marginBottom: 10 },
+  headline: { fontFamily: FONT_PIXEL, color: C.text, fontSize: 14, fontWeight: '800', lineHeight: 20 },
   metaRow: { flexDirection: 'row', alignItems: 'center', marginTop: 6 },
-  badge: { backgroundColor: '#e5e7eb', borderRadius: 4, paddingHorizontal: 6, paddingVertical: 2, marginRight: 8 },
-  badgeText: { color: '#666666', fontSize: 11, fontWeight: '800' },
-  metaText: { color: '#888888', fontSize: 11 },
-  body: { color: '#333333', fontSize: 13, lineHeight: 19, marginTop: 8 },
+  badge: { backgroundColor: C.panelDark, borderWidth: 1, borderColor: C.border, paddingHorizontal: 6, paddingVertical: 2, marginRight: 8 },
+  badgeText: { fontFamily: FONT_PIXEL, color: C.gold, fontSize: 10, fontWeight: '800' },
+  metaText: { color: C.muted, fontSize: 11 },
+  body: { color: C.textDim, fontSize: 13, lineHeight: 19, marginTop: 8 },
   empty: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 30 },
-  emptyTitle: { color: '#1a1a1a', fontSize: 17, fontWeight: '800' },
-  emptyText: { color: '#666666', fontSize: 13, marginTop: 6, textAlign: 'center' },
+  emptyTitle: { fontFamily: FONT_PIXEL, color: C.gold, fontSize: 16, fontWeight: '800' },
+  emptyText: { color: C.textDim, fontSize: 13, marginTop: 6, textAlign: 'center' },
 });
