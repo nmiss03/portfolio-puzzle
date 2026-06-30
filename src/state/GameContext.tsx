@@ -8,7 +8,7 @@ import STOCKS, { stocksById } from '../data/stocks';
 import { ClientProfile, Phase, RuntimeClient, clampHappiness, initRuntimeClient } from '../data/gameState';
 import { computeWeek, happinessDeltaWeek } from '../data/scoring';
 import { NewsArticle, generateWeeklyNews } from '../data/newsArticles';
-import { computeMultipliers } from '../data/priceUpdates';
+import { resolvedMultipliers } from '../data/priceUpdates';
 
 export interface PerClientWeekResult {
   clientId: string;
@@ -43,7 +43,6 @@ interface State {
   detailClientId: string | null;
   transition: TransitionInfo | null;
   weekNews: NewsArticle[];
-  readNewsIds: string[];
 }
 
 type Action =
@@ -51,7 +50,6 @@ type Action =
   | { type: 'SET_PHASE'; phase: Phase }
   | { type: 'BUY'; clientId: string; stockId: string; shares: number }
   | { type: 'SELL'; clientId: string; stockId: string; shares: number }
-  | { type: 'READ_NEWS'; id: string }
   | { type: 'TRANSITION_WEEK' }
   | { type: 'ADVANCE_WEEK' }
   | { type: 'TOGGLE_BOOK'; open?: boolean }
@@ -76,24 +74,18 @@ function buildInitial(): State {
     detailClientId: null,
     transition: null,
     weekNews: [],
-    readNewsIds: [],
   };
 }
 
-function ownedIdsAcross(state: State): string[] {
-  const ids = new Set<string>();
-  state.unlocked.forEach((cid) => Object.keys(state.clients[cid].holdings).forEach((id) => ids.add(id)));
-  return [...ids];
-}
-
 function reducer(state: State, action: Action): State {
-  const multipliers = computeMultipliers(state.weekNews, state.readNewsIds);
-  const priceOf = (id: string) => (stocksById[id]?.price ?? 0) * (1 + (multipliers[id] || 0));
+  // Prices stay at their base value during the week — the news impact is hidden
+  // until it resolves at the end of the week.
+  const priceOf = (id: string) => stocksById[id]?.price ?? 0;
 
   switch (action.type) {
     case 'START_GAME': {
       const fresh = buildInitial();
-      return { ...fresh, started: true, weekNews: generateWeeklyNews([]) };
+      return { ...fresh, started: true, weekNews: generateWeeklyNews(1) };
     }
     case 'SET_PHASE':
       return { ...state, phase: action.phase };
@@ -132,17 +124,15 @@ function reducer(state: State, action: Action): State {
       return { ...state, clients: { ...state.clients, [client.id]: { ...client, holdings, cash: client.cash + refund } } };
     }
 
-    case 'READ_NEWS':
-      if (state.readNewsIds.includes(action.id)) return state;
-      return { ...state, readNewsIds: [...state.readNewsIds, action.id] };
-
     case 'TRANSITION_WEEK': {
       const updatedClients = { ...state.clients };
       const results: PerClientWeekResult[] = [];
+      // Resolve the week's news now — apply every published article's impact.
+      const finalMultipliers = resolvedMultipliers(state.weekNews);
 
       state.unlocked.forEach((id) => {
         const client = state.clients[id];
-        const r = computeWeek(client, multipliers);
+        const r = computeWeek(client, finalMultipliers);
         const start = client.portfolioValue;
         const weekEndValue = client.cash + r.marketValue;
         const returnDollar = weekEndValue - start;
@@ -208,13 +198,13 @@ function reducer(state: State, action: Action): State {
       }
       const newId = state.order[nextWeek - 1];
       const unlocked = newId && !state.unlocked.includes(newId) ? [...state.unlocked, newId] : state.unlocked;
-      const nextState = { ...state, currentWeek: nextWeek, unlocked };
       return {
-        ...nextState,
+        ...state,
+        currentWeek: nextWeek,
+        unlocked,
         phase: 'weekIntro',
         transition: null,
-        weekNews: generateWeeklyNews(ownedIdsAcross(nextState)),
-        readNewsIds: [],
+        weekNews: generateWeeklyNews(nextWeek),
       };
     }
 
@@ -236,14 +226,11 @@ interface GameContextValue {
   activeClient: RuntimeClient;
   unlockedClients: RuntimeClient[];
   teaserClient: RuntimeClient | null;
-  multipliers: Record<string, number>;
-  priceOf: (stockId: string) => number;
   availableBalance: (client: RuntimeClient) => number;
   startGame: () => void;
   setPhase: (p: Phase) => void;
   buy: (clientId: string, stockId: string, shares: number) => void;
   sell: (clientId: string, stockId: string, shares: number) => void;
-  readNews: (id: string) => void;
   transitionWeek: () => void;
   advanceWeek: () => void;
   toggleBook: (open?: boolean) => void;
@@ -263,21 +250,16 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     const unlockedClients = state.unlocked.map((id) => state.clients[id]);
     const teaserId = state.order[state.currentWeek];
     const teaserClient = teaserId && !state.unlocked.includes(teaserId) ? state.clients[teaserId] : null;
-    const multipliers = computeMultipliers(state.weekNews, state.readNewsIds);
-    const priceOf = (stockId: string) => (stocksById[stockId]?.price ?? 0) * (1 + (multipliers[stockId] || 0));
     return {
       state,
       activeClient,
       unlockedClients,
       teaserClient,
-      multipliers,
-      priceOf,
       availableBalance: (client: RuntimeClient) => client.cash,
       startGame: () => dispatch({ type: 'START_GAME' }),
       setPhase: (phase: Phase) => dispatch({ type: 'SET_PHASE', phase }),
       buy: (clientId, stockId, shares) => dispatch({ type: 'BUY', clientId, stockId, shares }),
       sell: (clientId, stockId, shares) => dispatch({ type: 'SELL', clientId, stockId, shares }),
-      readNews: (id) => dispatch({ type: 'READ_NEWS', id }),
       transitionWeek: () => dispatch({ type: 'TRANSITION_WEEK' }),
       advanceWeek: () => dispatch({ type: 'ADVANCE_WEEK' }),
       toggleBook: (open?: boolean) => dispatch({ type: 'TOGGLE_BOOK', open }),

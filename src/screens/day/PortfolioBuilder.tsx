@@ -25,7 +25,7 @@ function Logo({ logo }: { logo: StockLogo }) {
 }
 
 export default function PortfolioBuilder({ clientId }: { clientId: string }) {
-  const { state, buy, sell, availableBalance, priceOf } = useGame();
+  const { state, buy, sell, availableBalance } = useGame();
   const client = state.clients[clientId];
 
   const [filter, setFilter] = useState<Filter>('All');
@@ -44,9 +44,6 @@ export default function PortfolioBuilder({ clientId }: { clientId: string }) {
   const hasHoldings = Object.values(holdings).some((h) => h.shares > 0);
   const owned = holdings[stock.id]?.shares || 0;
 
-  const price = priceOf(stock.id);
-  const priceChange = stock.price > 0 ? price / stock.price - 1 : 0;
-
   const chooseFilter = (f: Filter) => {
     setFilter(f);
     setPage(0);
@@ -62,7 +59,7 @@ export default function PortfolioBuilder({ clientId }: { clientId: string }) {
   const doBuy = (s: Stock) => {
     const shares = parseInt(inputs[s.id] || '', 10);
     if (!shares || shares <= 0) return setErrors((p) => ({ ...p, [s.id]: 'Enter a number of shares' }));
-    if (shares * priceOf(s.id) > balance) return setErrors((p) => ({ ...p, [s.id]: 'Insufficient funds' }));
+    if (shares * s.price > balance) return setErrors((p) => ({ ...p, [s.id]: 'Insufficient funds' }));
     buy(clientId, s.id, shares);
     setInputs((p) => ({ ...p, [s.id]: '' }));
     setErrors((p) => ({ ...p, [s.id]: '' }));
@@ -142,15 +139,7 @@ export default function PortfolioBuilder({ clientId }: { clientId: string }) {
                 <Text style={styles.cardTicker}>{stock.ticker}</Text>
                 <Text style={styles.cardSector}>{stock.sector}</Text>
               </View>
-              <View style={{ alignItems: 'flex-end' }}>
-                <Text style={styles.cardPrice}>{formatPrice(price)}</Text>
-                {Math.abs(priceChange) > 0.0001 && (
-                  <Text style={styles.cardChange}>
-                    {priceChange >= 0 ? '▲ +' : '▼ '}
-                    {(priceChange * 100).toFixed(1)}% on news
-                  </Text>
-                )}
-              </View>
+              <Text style={styles.cardPrice}>{formatPrice(stock.price)}</Text>
             </View>
 
             <View style={styles.cardBody}>
@@ -197,7 +186,7 @@ export default function PortfolioBuilder({ clientId }: { clientId: string }) {
                 <Pressable onPress={() => doSell(stock)} disabled={owned <= 0} style={({ pressed }) => [styles.sellBtn, owned <= 0 && { opacity: 0.4 }, pressed && owned > 0 && { opacity: 0.85 }]}>
                   <Text style={styles.sellBtnText}>SELL</Text>
                 </Pressable>
-                <Text style={styles.priceInline}>@ {formatPrice(price)}/sh</Text>
+                <Text style={styles.priceInline}>@ {formatPrice(stock.price)}/sh</Text>
               </View>
               <Text style={styles.available}>Available balance: {formatMoney(Math.round(balance))}</Text>
               {owned > 0 && <Text style={styles.ownedTag}>Holding {owned} share(s)</Text>}

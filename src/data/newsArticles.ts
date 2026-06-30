@@ -73,21 +73,16 @@ export const articlesById: Record<string, NewsArticle> = ARTICLES.reduce(
   {} as Record<string, NewsArticle>
 );
 
-// Pick 8-12 varied articles for a week, prioritizing stocks the client holds.
-export function generateWeeklyNews(ownedIds: string[] = []): NewsArticle[] {
-  const owned = new Set(ownedIds);
-  const shuffled = [...ARTICLES].sort(() => Math.random() - 0.5);
-  // Sort so articles touching held stocks come first, then shuffle within.
-  shuffled.sort((a, b) => {
-    const relA = a.affects.some((id) => owned.has(id)) ? 0 : 1;
-    const relB = b.affects.some((id) => owned.has(id)) ? 0 : 1;
-    return relA - relB;
-  });
-  const industry = shuffled.filter((a) => a.category === 'Industry');
-  const stock = shuffled.filter((a) => a.category === 'Specific Stock');
-  const chosen = [...industry.slice(0, 4), ...stock.slice(0, 6)];
-  // Re-sort chosen by publication date for a feed feel.
-  return chosen.sort((a, b) => a.publicationDate.localeCompare(b.publicationDate));
+// News only breaks every third week (weeks 1, 4, 7, ...). Other weeks are calm.
+export function isNewsWeek(week: number): boolean {
+  return (week - 1) % 3 === 0;
+}
+
+// Pick 1-2 varied articles for a news week.
+export function generateWeeklyNews(week: number): NewsArticle[] {
+  if (!isNewsWeek(week)) return [];
+  const count = 1 + Math.floor(Math.random() * 2); // 1 or 2
+  return [...ARTICLES].sort(() => Math.random() - 0.5).slice(0, count);
 }
 
 export default ARTICLES;
