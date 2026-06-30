@@ -5,10 +5,18 @@ import React, { createContext, useContext, useMemo, useReducer } from 'react';
 
 import CLIENTS from '../data/clients';
 import STOCKS, { stocksById } from '../data/stocks';
-import { ClientProfile, Phase, RuntimeClient, clampHappiness, initRuntimeClient } from '../data/gameState';
-import { computeWeek, happinessDeltaWeek, stockFraction } from '../data/scoring';
+import { ClientProfile, Phase, RuntimeClient, initRuntimeClient } from '../data/gameState';
+import { computeWeek, calculateWeeklyHappiness } from '../data/scoring';
 import { NewsArticle, generateWeeklyNews } from '../data/newsArticles';
-import { resolvedMultipliers } from '../data/priceUpdates';
+import {
+  PriceMap,
+  StockPricePoint,
+  applyWeekEndPrices,
+  calculateWeeklyPriceImpact,
+  carryOverPrices,
+  initializeWeekPrices,
+} from '../data/priceUpdates';
+import { evaluateAllocationMatch } from '../data/clientRelationships';
 import {
   ActiveSnapshot,
   MilestoneMap,
@@ -32,6 +40,15 @@ export interface PerClientWeekResult {
   fired: boolean;
 }
 
+export interface PriceMove {
+  stockId: string;
+  ticker: string;
+  name: string;
+  startPrice: number;
+  endPrice: number;
+  pct: number; // fractional change start → end
+}
+
 export interface TransitionInfo {
   week: number;
   results: PerClientWeekResult[];
@@ -40,6 +57,7 @@ export interface TransitionInfo {
   repAfter: number;
   firedNames: string[];
   newlyUnlocked: string[];
+  priceMoves: PriceMove[];
 }
 
 interface State {
@@ -56,6 +74,12 @@ interface State {
   detailClientId: string | null;
   transition: TransitionInfo | null;
   weekNews: NewsArticle[];
+  // Stock prices persist week-to-week. weekStartPrices are what the player
+  // trades at all week; weekEndPrices are computed at week-end and carried
+  // over to become next week's start prices.
+  weekStartPrices: PriceMap;
+  weekEndPrices: PriceMap;
+  stockPriceHistory: Record<string, StockPricePoint[]>;
 }
 
 type Action =
@@ -90,6 +114,9 @@ function buildInitial(): State {
     detailClientId: null,
     transition: null,
     weekNews: [],
+    weekStartPrices: initializeWeekPrices(null, 1),
+    weekEndPrices: {},
+    stockPriceHistory: {},
   };
 }
 
@@ -99,7 +126,8 @@ function firstActiveId(clients: Record<string, RuntimeClient>): string | null {
 }
 
 function reducer(state: State, action: Action): State {
-  const priceOf = (id: string) => stocksById[id]?.price ?? 0;
+  // Trades use the current week's starting prices (carried over week-to-week).
+  const priceOf = (id: string) => state.weekStartPrices[id] ?? stocksById[id]?.price ?? 0;
 
   switch (action.type) {
     case 'START_GAME': {
@@ -169,7 +197,11 @@ function reducer(state: State, action: Action): State {
     }
 
     case 'TRANSITION_WEEK': {
-      const finalMult = resolvedMultipliers(state.weekNews);
+      // Week-end resolution: accumulate ALL of this week's news impacts and
+      // apply them to the week's starting prices to get the ending prices.
+      const finalMult = calculateWeeklyPriceImpact(state.weekNews);
+      const weekStartPrices = state.weekStartPrices;
+      const weekEndPrices = applyWeekEndPrices(weekStartPrices, finalMult);
       const updated = { ...state.clients };
       const results: PerClientWeekResult[] = [];
       const firedNames: string[] = [];
@@ -178,20 +210,22 @@ function reducer(state: State, action: Action): State {
       Object.values(state.clients)
         .filter((c) => c.status === 'signed')
         .forEach((client) => {
-          const r = computeWeek(client, finalMult);
+          const r = computeWeek(client, finalMult, weekStartPrices);
           const start = client.portfolioValue;
           const weekEndValue = client.cash + r.marketValue;
           const returnDollar = weekEndValue - start;
           const returnPct = start > 0 ? returnDollar / start : 0;
 
-          // Relationship: does the allocation match the client's risk profile?
-          const sf = stockFraction(client.holdings);
-          const diff = Math.abs(sf - client.idealStockPct);
-          const relDelta = r.invested > 0 ? (diff <= 0.1 ? 2 : diff > 0.2 ? -3 : 0) : 0;
+          // Relationship: does the allocation match the client's tier target?
+          const alloc = evaluateAllocationMatch(client, client.holdings, weekStartPrices);
 
-          const delta = happinessDeltaWeek(returnPct, r.diversified) + relDelta;
           const prevHappiness = client.happiness;
-          const newHappiness = clampHappiness(prevHappiness + delta);
+          const newHappiness = calculateWeeklyHappiness(
+            prevHappiness,
+            returnPct,
+            alloc.happinessMatched,
+            client.negativeReturnHappinessPenalty
+          );
           const fired = newHappiness <= 0;
           const allTimeDollar = weekEndValue - client.initialCapital;
           const allTimePct = client.initialCapital > 0 ? allTimeDollar / client.initialCapital : 0;
@@ -220,7 +254,10 @@ function reducer(state: State, action: Action): State {
           });
 
           if (fired) firedNames.push(client.name);
-          else snapshots.push({ clientId: client.id, name: client.name, happiness: newHappiness, returnPct });
+          else snapshots.push({
+            clientId: client.id, name: client.name, happiness: newHappiness, returnPct,
+            invested: alloc.invested, allocationMatch: alloc.match,
+          });
         });
 
       const rep = calculateWeeklyReputation(state.reputation, state.milestones, snapshots, firedNames);
@@ -230,12 +267,37 @@ function reducer(state: State, action: Action): State {
         .filter((c) => c.status === 'unsigned' && c.unlockedAtReputation > state.reputation && c.unlockedAtReputation <= rep.newReputation)
         .map((c) => c.name);
 
+      // Price movements (start → end) for stocks the news actually moved.
+      const priceMoves: PriceMove[] = STOCKS.filter((s) => Math.abs(finalMult[s.id] || 0) > 1e-9)
+        .map((s) => {
+          const startPrice = weekStartPrices[s.id] ?? s.price;
+          const endPrice = weekEndPrices[s.id] ?? startPrice;
+          return {
+            stockId: s.id, ticker: s.ticker, name: s.name, startPrice, endPrice,
+            pct: startPrice > 0 ? (endPrice - startPrice) / startPrice : 0,
+          };
+        })
+        .sort((a, b) => Math.abs(b.pct) - Math.abs(a.pct));
+
+      // Record this week's start/end for every stock.
+      const stockPriceHistory: Record<string, StockPricePoint[]> = {};
+      STOCKS.forEach((s) => {
+        const startPrice = weekStartPrices[s.id] ?? s.price;
+        const endPrice = weekEndPrices[s.id] ?? startPrice;
+        stockPriceHistory[s.id] = [
+          ...(state.stockPriceHistory[s.id] || []),
+          { week: state.currentWeek, startPrice, endPrice },
+        ];
+      });
+
       return {
         ...state,
         clients: updated,
         reputation: rep.newReputation,
         milestones: rep.milestones,
         phase: 'transition',
+        weekEndPrices,
+        stockPriceHistory,
         transition: {
           week: state.currentWeek,
           results,
@@ -244,6 +306,7 @@ function reducer(state: State, action: Action): State {
           repAfter: rep.newReputation,
           firedNames,
           newlyUnlocked,
+          priceMoves,
         },
       };
     }
@@ -253,6 +316,8 @@ function reducer(state: State, action: Action): State {
       const nextWeek = state.currentWeek + 1;
       const ticked: Record<string, RuntimeClient> = {};
       Object.values(state.clients).forEach((c) => (ticked[c.id] = tickContract(c)));
+      // Carry this week's ending prices over to become next week's start prices.
+      const nextStartPrices = initializeWeekPrices(carryOverPrices(state.weekEndPrices), nextWeek);
       return {
         ...state,
         currentWeek: nextWeek,
@@ -261,6 +326,8 @@ function reducer(state: State, action: Action): State {
         phase: 'weekIntro',
         transition: null,
         weekNews: generateWeeklyNews(nextWeek),
+        weekStartPrices: nextStartPrices,
+        weekEndPrices: {},
       };
     }
 
@@ -288,6 +355,7 @@ interface GameContextValue {
   advisorAllTimeDollar: number;
   canSign: boolean;
   availableBalance: (client: RuntimeClient) => number;
+  priceOf: (stockId: string) => number; // current week's starting price
   startGame: () => void;
   setPhase: (p: Phase) => void;
   buy: (clientId: string, stockId: string, shares: number) => void;
@@ -326,6 +394,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       advisorAllTimeDollar,
       canSign: canSignMore(state.clients),
       availableBalance: (client: RuntimeClient) => client.cash,
+      priceOf: (stockId: string) => state.weekStartPrices[stockId] ?? stocksById[stockId]?.price ?? 0,
       startGame: () => dispatch({ type: 'START_GAME' }),
       setPhase: (phase: Phase) => dispatch({ type: 'SET_PHASE', phase }),
       buy: (clientId, stockId, shares) => dispatch({ type: 'BUY', clientId, stockId, shares }),

@@ -3,6 +3,15 @@
 
 export const STARTING_REPUTATION = 22;
 
+// Reputation at which each client tier becomes available. Data-driven on the
+// client profiles (unlockedAtReputation); mirrored here for reference.
+export const CLIENT_UNLOCK_THRESHOLDS: Record<string, number> = {
+  alex: 20, // Tier 1
+  jamie: 27, // Tier 2
+  sarah: 34, // Tier 3
+  marcus: 40, // Tier 4
+};
+
 export interface RepChange {
   amount: number;
   reason: string;
@@ -27,6 +36,8 @@ export interface ActiveSnapshot {
   name: string;
   happiness: number;
   returnPct: number;
+  invested: boolean; // held a portfolio this week (allocation can be judged)
+  allocationMatch: boolean; // allocation within the client's tier tolerance
 }
 
 export interface ReputationResult {
@@ -87,7 +98,21 @@ export function calculateWeeklyReputation(
     next[a.clientId] = m;
   });
 
-  // 3) Fired clients
+  // 3) Allocation discipline — tier-aware. Matching a client's recommended
+  // split builds the relationship; missing it by more than their tolerance
+  // erodes reputation. Only judged when the client actually invested.
+  active.forEach((a) => {
+    if (!a.invested) return;
+    if (a.allocationMatch) {
+      delta += 1;
+      changes.push({ amount: 1, reason: `${a.name}'s allocation matched their target` });
+    } else {
+      delta -= 3;
+      changes.push({ amount: -3, reason: `${a.name}'s allocation drifted from their target` });
+    }
+  });
+
+  // 4) Fired clients
   firedNames.forEach((name) => {
     delta -= 10;
     changes.push({ amount: -10, reason: `${name} fired you (happiness hit 0)` });

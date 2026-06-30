@@ -1,6 +1,10 @@
 // Core types + constants for the week-by-week portfolio-manager game.
 
-export type RiskPreference = 'conservative' | 'moderate' | 'aggressive' | 'moderate-aggressive';
+// A client's target split between stocks and bonds (fractions summing to 1).
+export interface AllocationTarget {
+  stocks: number;
+  bonds: number;
+}
 
 export interface WeekRecord {
   week: number;
@@ -23,9 +27,10 @@ export interface ClientProfile {
   characterColor: string; // simple colored-rectangle character
   background: string; // 1-2 sentence blurb
   dialogue: string[];
-  riskPreference: RiskPreference;
-  recommendedAllocation: string; // human-readable
-  idealStockPct: number; // recommended share in stocks, 0..1
+  tier: number; // 1..4 — drives capital, tolerance and penalties (see clientTiers.ts)
+  recommendedAllocation: AllocationTarget; // target stock/bond split, fractions
+  allocationTolerance: number; // ± fraction from target that still counts as a match
+  negativeReturnHappinessPenalty: number; // happiness hit on a sharply negative week (< -2%)
   initialCapital: number;
   unlockedAtReputation: number; // becomes available at/above this reputation
 }
@@ -57,12 +62,10 @@ export interface Holding {
 
 export const STARTING_HAPPINESS = 50;
 
-export const RISK_LABEL: Record<RiskPreference, string> = {
-  conservative: 'Conservative',
-  moderate: 'Moderate',
-  aggressive: 'Aggressive',
-  'moderate-aggressive': 'Moderate-Aggressive',
-};
+// Human-readable target allocation, e.g. "60% stocks, 40% bonds".
+export function allocationLabel(a: AllocationTarget): string {
+  return `${Math.round(a.stocks * 100)}% stocks, ${Math.round(a.bonds * 100)}% bonds`;
+}
 
 export function clampHappiness(n: number): number {
   return Math.max(0, Math.min(100, n));

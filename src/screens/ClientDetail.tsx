@@ -6,7 +6,8 @@ import HappinessMeter from '../components/HappinessMeter';
 import Button from '../components/Button';
 import PortfolioBuilder from './day/PortfolioBuilder';
 import STOCKS from '../data/stocks';
-import { RuntimeClient } from '../data/gameState';
+import { RuntimeClient, allocationLabel } from '../data/gameState';
+import { tierOf, expectationBlurb } from '../data/clientTiers';
 import { useGame } from '../state/GameContext';
 import { formatMoney } from '../utils/format';
 
@@ -43,9 +44,20 @@ export default function ClientDetail({ client, onClose }: { client: RuntimeClien
             <View style={styles.detailInfo}>
               <Text style={styles.detailName}>{client.name}</Text>
               <Text style={styles.detailMeta}>{client.age} · {client.occupation}</Text>
+              <Text style={styles.detailTier}>Tier {client.tier} · {tierOf(client.tier).label}</Text>
             </View>
           </View>
           <Text style={styles.detailBg}>{client.background}</Text>
+
+          <View style={styles.tierCard}>
+            <Text style={styles.tierRow}>
+              Target allocation: <Text style={styles.tierStrong}>{allocationLabel(client.recommendedAllocation)}</Text>
+            </Text>
+            <Text style={styles.tierRow}>
+              Tolerance: <Text style={styles.tierStrong}>±{Math.round(client.allocationTolerance * 100)}%</Text>
+            </Text>
+            <Text style={styles.tierNote}>{expectationBlurb(tierOf(client.tier).expectationLevel)}</Text>
+          </View>
 
           <View style={styles.returnsRow}>
             <View style={styles.returnsBox}>
@@ -107,6 +119,11 @@ const styles = StyleSheet.create({
   detailInfo: { flex: 1, marginLeft: 16 },
   detailName: { color: '#1a1a1a', fontSize: 22, fontWeight: '900' },
   detailMeta: { color: '#888888', fontSize: 13, fontWeight: '700', marginTop: 2 },
+  detailTier: { color: '#888888', fontSize: 11, fontWeight: '800', marginTop: 3 },
+  tierCard: { backgroundColor: '#ffffff', borderWidth: 1, borderColor: '#cccccc', borderRadius: 8, padding: 12, marginTop: 14 },
+  tierRow: { color: '#666666', fontSize: 13, fontWeight: '600', marginBottom: 4 },
+  tierStrong: { color: '#1a1a1a', fontWeight: '800' },
+  tierNote: { color: '#888888', fontSize: 12, fontStyle: 'italic', marginTop: 2 },
   detailRisk: { color: BLUE, fontSize: 13, fontWeight: '800', marginTop: 4 },
   detailBg: { color: '#666666', fontSize: 14, fontStyle: 'italic', lineHeight: 20, marginTop: 14 },
   returnsRow: { flexDirection: 'row', marginTop: 16 },

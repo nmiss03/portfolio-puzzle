@@ -7,8 +7,13 @@ import Button from '../components/Button';
 import AcceptClientModal from '../components/AcceptClientModal';
 import ClientDetail from './ClientDetail';
 import { MAX_ACTIVE_CLIENTS, RuntimeClient } from '../data/gameState';
+import { tierOf } from '../data/clientTiers';
 import { useGame } from '../state/GameContext';
 import { formatMoney } from '../utils/format';
+
+function TierBadge({ tier }: { tier: number }) {
+  return <Text style={styles.tierBadge}>Tier {tier} · {tierOf(tier).label}</Text>;
+}
 
 const BLUE = '#4a90e2';
 const GREEN = '#22c55e';
@@ -112,6 +117,7 @@ function ActiveCard({ client, onPress }: { client: RuntimeClient; onPress: () =>
         <View style={styles.midCol}>
           <Text style={styles.name}>{client.name} <Text style={styles.age}>· {client.age}</Text></Text>
           <Text style={styles.occupation}>{client.occupation}</Text>
+          <TierBadge tier={client.tier} />
           <Text style={styles.background} numberOfLines={2}>{client.background}</Text>
         </View>
         <View style={styles.rightCol}>
@@ -135,6 +141,7 @@ function AvailableCard({ client, canSign, onAccept }: { client: RuntimeClient; c
         <View style={styles.midCol}>
           <Text style={styles.name}>{client.name} <Text style={styles.age}>· {client.age}</Text></Text>
           <Text style={styles.occupation}>{client.occupation}</Text>
+          <TierBadge tier={client.tier} />
           <Text style={styles.background} numberOfLines={2}>{client.background}</Text>
         </View>
       </View>
@@ -184,6 +191,7 @@ const styles = StyleSheet.create({
   name: { color: '#1a1a1a', fontSize: 16, fontWeight: '800' },
   age: { color: '#888888', fontSize: 13, fontWeight: '600' },
   occupation: { color: '#888888', fontSize: 12, marginTop: 1 },
+  tierBadge: { color: '#888888', fontSize: 11, fontWeight: '800', marginTop: 3 },
   background: { color: '#666666', fontSize: 13, fontStyle: 'italic', lineHeight: 18, marginTop: 4 },
   firedNote: { color: RED, fontSize: 12, fontWeight: '700', marginTop: 4 },
   rightCol: { width: 140, alignItems: 'flex-end' },

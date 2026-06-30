@@ -5,7 +5,7 @@ import Button from '../components/Button';
 import BarChart from '../components/BarChart';
 import HappinessMeter from '../components/HappinessMeter';
 import { useGame } from '../state/GameContext';
-import { formatMoney } from '../utils/format';
+import { formatMoney, formatPrice } from '../utils/format';
 
 const GREEN = '#22c55e';
 const RED = '#ef4444';
@@ -68,6 +68,28 @@ export default function WeekSummaryScreen({ onContinue }: { onContinue: () => vo
         })}
       </View>
 
+      {/* Stock price movements: week-start → week-end, driven by the news. */}
+      {t.priceMoves.length > 0 && (
+        <View style={styles.priceCard}>
+          <Text style={styles.priceTitle}>Price Movements (week-end)</Text>
+          {t.priceMoves.map((m) => {
+            const up = m.pct >= 0;
+            return (
+              <View key={m.stockId} style={styles.priceRow}>
+                <Text style={styles.priceName} numberOfLines={1}>{m.name} ({m.ticker})</Text>
+                <Text style={styles.priceMove}>
+                  {formatPrice(m.startPrice)} → {formatPrice(m.endPrice)}{'  '}
+                  <Text style={{ color: up ? GREEN : RED }}>
+                    ({up ? '+' : ''}{(m.pct * 100).toFixed(1)}%)
+                  </Text>
+                </Text>
+              </View>
+            );
+          })}
+          <Text style={styles.priceNote}>These ending prices carry over as next week's starting prices.</Text>
+        </View>
+      )}
+
       {/* Reputation changes */}
       <View style={styles.repCard}>
         <View style={styles.repHeadRow}>
@@ -109,6 +131,12 @@ const styles = StyleSheet.create({
   accuracyCard: { backgroundColor: '#eef4fc', borderWidth: 1, borderColor: '#4a90e2', borderRadius: 8, padding: 12, marginBottom: 16 },
   accuracyText: { color: '#1a1a1a', fontSize: 13, fontWeight: '700', lineHeight: 18 },
   table: { backgroundColor: '#ffffff', borderWidth: 1, borderColor: '#cccccc', borderRadius: 8, padding: 12 },
+  priceCard: { backgroundColor: '#ffffff', borderWidth: 1, borderColor: '#cccccc', borderRadius: 8, padding: 14, marginTop: 16 },
+  priceTitle: { color: '#1a1a1a', fontSize: 16, fontWeight: '900', marginBottom: 8 },
+  priceRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 5, borderBottomWidth: 1, borderBottomColor: '#f0f0f0' },
+  priceName: { color: '#1a1a1a', fontSize: 13, fontWeight: '700', flex: 1, marginRight: 8 },
+  priceMove: { color: '#666666', fontSize: 13, fontWeight: '800' },
+  priceNote: { color: '#888888', fontSize: 11, fontStyle: 'italic', marginTop: 8 },
   repCard: { backgroundColor: '#ffffff', borderWidth: 1, borderColor: '#cccccc', borderRadius: 8, padding: 14, marginTop: 16 },
   repHeadRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
   repTitle: { color: '#1a1a1a', fontSize: 16, fontWeight: '900' },
