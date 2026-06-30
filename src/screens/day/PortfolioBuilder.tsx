@@ -1,20 +1,11 @@
 import React, { useRef, useState } from 'react';
 import { View, Text, TextInput, Pressable, ScrollView, StyleSheet } from 'react-native';
 
-import STOCKS, { Stock, StockLogo, Volatility } from '../../data/stocks';
+import STOCKS, { Stock, StockLogo } from '../../data/stocks';
 import { useGame } from '../../state/GameContext';
 import { formatMoney, formatPrice } from '../../utils/format';
 
 type StringMap = Record<string, string>;
-
-const VOL_COLOR: Record<Volatility, string> = {
-  'Very Low': '#14b8a6',
-  Low: '#22c55e',
-  Medium: '#f59e0b',
-  High: '#f97316',
-  'Very High': '#ef4444',
-};
-const volColor = (v: Volatility) => VOL_COLOR[v];
 
 function Logo({ logo }: { logo: StockLogo }) {
   return (
@@ -121,6 +112,7 @@ export default function PortfolioBuilder({ clientId }: { clientId: string }) {
                 <View style={styles.cardInfo}>
                   <View style={styles.metaRow}>
                     <Text style={styles.metaGray}>P/E {stock.pe == null ? 'N/A' : stock.pe}</Text>
+                    <Text style={styles.metaGray}>Beta {stock.beta.toFixed(1)}</Text>
                     <Text style={[styles.metaGray, { color: stock.dividend > 0 ? '#22c55e' : '#888888' }]}>
                       Div {stock.dividend.toFixed(1)}%
                     </Text>
@@ -130,9 +122,6 @@ export default function PortfolioBuilder({ clientId }: { clientId: string }) {
                   </Text>
                   <Text style={styles.metaGray}>Market cap {stock.marketCap}</Text>
                   <Text style={styles.cardDesc} numberOfLines={3}>{stock.description}</Text>
-                  <Text style={[styles.vol, { color: volColor(stock.volatility) }]}>
-                    Volatility: {stock.volatility}
-                  </Text>
                 </View>
               </View>
             </View>

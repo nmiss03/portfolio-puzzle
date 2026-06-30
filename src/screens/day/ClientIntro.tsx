@@ -3,8 +3,7 @@ import { View, Text, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import Button from '../../components/Button';
-import CharacterVisual from '../../components/CharacterVisual';
-import { RISK_LABEL } from '../../data/gameState';
+import PixelCharacter from '../../components/PixelCharacter';
 import { useGame } from '../../state/GameContext';
 
 export default function ClientIntro({ onDone }: { onDone: () => void }) {
@@ -20,11 +19,10 @@ export default function ClientIntro({ onDone }: { onDone: () => void }) {
     <View style={[styles.screen, { paddingTop: insets.top + 24, paddingBottom: insets.bottom + 24 }]}>
       <View style={styles.top}>
         <Text style={styles.title}>Meet the Client</Text>
-        <CharacterVisual color={activeClient.characterColor} width={70} height={95} />
+        <PixelCharacter seed={activeClient.id} cell={7} />
         <Text style={styles.name}>
           {activeClient.name} · {activeClient.age} · {activeClient.occupation}
         </Text>
-        <Text style={styles.risk}>{RISK_LABEL[activeClient.riskPreference]}</Text>
       </View>
 
       <View style={styles.bubbleArea}>

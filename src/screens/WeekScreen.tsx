@@ -9,7 +9,7 @@ import PortfolioBuilder from './day/PortfolioBuilder';
 import WeekTransition from './day/WeekTransition';
 import WeekSummaryScreen from './WeekSummaryScreen';
 import ClientBook from './ClientBook';
-import CharacterVisual from '../components/CharacterVisual';
+import PixelCharacter from '../components/PixelCharacter';
 import HappinessMeter from '../components/HappinessMeter';
 import Button from '../components/Button';
 import { useGame } from '../state/GameContext';
@@ -85,7 +85,7 @@ function GameOver() {
         const positive = c.allTimeReturnDollar >= 0;
         return (
           <View key={c.id} style={styles.overCard}>
-            <CharacterVisual color={c.characterColor} width={50} height={68} />
+            <PixelCharacter seed={c.id} cell={5} />
             <View style={styles.overInfo}>
               <Text style={styles.overName}>{c.name}{c.fired ? '  (fired you)' : ''}</Text>
               <Text style={[styles.overReturn, { color: positive ? GREEN : RED }]}>

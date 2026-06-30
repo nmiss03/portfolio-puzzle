@@ -10,7 +10,7 @@ const CLIENTS: ClientProfile[] = [
     occupation: 'Software Engineer',
     characterColor: '#D4A574',
     background:
-      'Recently promoted with solid income. Has student loans but a stable job. Seeks steady, responsible growth.',
+      'Recently promoted with solid income. Has student loans but stable job. Seeks steady growth without major risk.',
     riskPreference: 'conservative',
     recommendedAllocation: '60% stocks, 40% bonds',
     idealStockPct: 0.6,
@@ -30,7 +30,7 @@ const CLIENTS: ClientProfile[] = [
     occupation: 'Small Business Owner',
     characterColor: '#8B6F47',
     background:
-      'Successful but variable income. No debt, but needs flexibility for business opportunities. Wants balanced exposure with liquidity.',
+      'Successful but variable income. No debt, but needs flexibility for business expansion. Comfortable with balanced approach.',
     riskPreference: 'moderate-aggressive',
     recommendedAllocation: '70% stocks, 30% bonds/liquid',
     idealStockPct: 0.7,

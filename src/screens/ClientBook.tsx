@@ -1,10 +1,10 @@
 import React from 'react';
 import { View, Text, Pressable, ScrollView, StyleSheet } from 'react-native';
 
-import CharacterVisual from '../components/CharacterVisual';
+import PixelCharacter from '../components/PixelCharacter';
 import Sparkline from '../components/Sparkline';
 import ClientDetail from './ClientDetail';
-import { RISK_LABEL, RiskPreference, RuntimeClient } from '../data/gameState';
+import { RuntimeClient } from '../data/gameState';
 import { useGame } from '../state/GameContext';
 import { formatMoney } from '../utils/format';
 
@@ -12,13 +12,6 @@ const BLUE = '#4a90e2';
 const GREEN = '#22c55e';
 const RED = '#ef4444';
 const GRAY = '#666666';
-
-const RISK_COLOR: Record<RiskPreference, string> = {
-  conservative: '#10b981',
-  moderate: '#4a90e2',
-  aggressive: '#ef4444',
-  'moderate-aggressive': '#ef4444',
-};
 
 function returnText(dollar: number, pct: number) {
   const positive = dollar >= 0;
@@ -65,7 +58,7 @@ function ClientCard({ client, onPress }: { client: RuntimeClient; onPress: () =>
     <Pressable style={({ pressed }) => [styles.card, pressed && styles.cardPressed]} onPress={onPress}>
       <View style={styles.cardRow}>
         <View style={styles.charCol}>
-          <CharacterVisual color={client.characterColor} width={70} height={90} />
+          <PixelCharacter seed={client.id} cell={7} />
         </View>
 
         <View style={styles.midCol}>
@@ -75,9 +68,6 @@ function ClientCard({ client, onPress }: { client: RuntimeClient; onPress: () =>
           </Text>
           <Text style={styles.occupation}>{client.occupation}</Text>
           <Text style={styles.background} numberOfLines={2}>{client.background}</Text>
-          <Text style={[styles.risk, { color: RISK_COLOR[client.riskPreference] }]}>
-            {RISK_LABEL[client.riskPreference]}
-          </Text>
         </View>
 
         <View style={styles.rightCol}>
@@ -115,7 +105,7 @@ function TeaserCard({ client }: { client: RuntimeClient }) {
     <View style={[styles.card, styles.teaser]}>
       <View style={styles.cardRow}>
         <View style={styles.charCol}>
-          <CharacterVisual color={client.characterColor} width={70} height={90} />
+          <PixelCharacter seed={client.id} cell={7} />
         </View>
         <View style={styles.midCol}>
           <Text style={styles.name}>

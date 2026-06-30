@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
 import { View, Text, Pressable, ScrollView, StyleSheet } from 'react-native';
 
-import CharacterVisual from '../components/CharacterVisual';
+import PixelCharacter from '../components/PixelCharacter';
 import HappinessMeter from '../components/HappinessMeter';
 import Button from '../components/Button';
 import PortfolioBuilder from './day/PortfolioBuilder';
 import STOCKS from '../data/stocks';
-import { RISK_LABEL, RuntimeClient } from '../data/gameState';
+import { RuntimeClient } from '../data/gameState';
 import { useGame } from '../state/GameContext';
 import { formatMoney } from '../utils/format';
 
@@ -39,11 +39,10 @@ export default function ClientDetail({ client, onClose }: { client: RuntimeClien
       ) : (
         <ScrollView contentContainerStyle={{ padding: 16 }}>
           <View style={styles.detailTop}>
-            <CharacterVisual color={client.characterColor} width={56} height={76} />
+            <PixelCharacter seed={client.id} cell={6} />
             <View style={styles.detailInfo}>
               <Text style={styles.detailName}>{client.name}</Text>
               <Text style={styles.detailMeta}>{client.age} · {client.occupation}</Text>
-              <Text style={styles.detailRisk}>{RISK_LABEL[client.riskPreference]} · {client.recommendedAllocation}</Text>
             </View>
           </View>
           <Text style={styles.detailBg}>{client.background}</Text>
