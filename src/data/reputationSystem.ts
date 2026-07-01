@@ -36,8 +36,6 @@ export interface ActiveSnapshot {
   name: string;
   happiness: number;
   returnPct: number;
-  invested: boolean; // held a portfolio this week (allocation can be judged)
-  allocationMatch: boolean; // allocation within the client's tier tolerance
 }
 
 export interface ReputationResult {
@@ -98,21 +96,12 @@ export function calculateWeeklyReputation(
     next[a.clientId] = m;
   });
 
-  // 3) Allocation discipline — tier-aware. Matching a client's recommended
-  // split builds the relationship; missing it by more than their tolerance
-  // erodes reputation. Only judged when the client actually invested.
-  active.forEach((a) => {
-    if (!a.invested) return;
-    if (a.allocationMatch) {
-      delta += 1;
-      changes.push({ amount: 1, reason: `${a.name}'s allocation matched their target` });
-    } else {
-      delta -= 3;
-      changes.push({ amount: -3, reason: `${a.name}'s allocation drifted from their target` });
-    }
-  });
+  // NOTE: Allocation / risk-profile discipline does NOT affect reputation
+  // directly — it only moves the client relationship (happiness, via the -5
+  // mismatch penalty in scoring.ts). Reputation then follows the relationship
+  // through the happiness milestones above.
 
-  // 4) Fired clients
+  // 3) Fired clients
   firedNames.forEach((name) => {
     delta -= 10;
     changes.push({ amount: -10, reason: `${name} fired you (happiness hit 0)` });

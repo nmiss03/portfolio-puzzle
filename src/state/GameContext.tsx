@@ -307,7 +307,6 @@ function reducer(state: State, action: Action): State {
           if (fired) firedNames.push(client.name);
           else snapshots.push({
             clientId: client.id, name: client.name, happiness: newHappiness, returnPct,
-            invested: alloc.invested, allocationMatch: alloc.match,
           });
         });
 
