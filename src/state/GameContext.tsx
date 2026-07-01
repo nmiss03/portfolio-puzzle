@@ -1,7 +1,7 @@
 // Global game state: a reputation-driven advisory career with 8-week client
 // contracts (max 3 active), reputation milestones, and a game-over at rep 0.
 
-import React, { createContext, useContext, useMemo, useReducer } from 'react';
+import React, { createContext, useContext, useEffect, useMemo, useReducer } from 'react';
 
 import CLIENTS from '../data/clients';
 import STOCKS, { stocksById } from '../data/stocks';
@@ -34,6 +34,11 @@ import {
   generateClientMessages,
   isMessageFulfilled,
 } from '../data/clientMessages';
+import { loadJSON, saveJSON } from '../data/persist';
+import { BlackSwanEvent, generateBlackSwanImpact, pickBlackSwan, rollBlackSwanGap } from '../data/blackSwan';
+
+const SAVE_KEY = 'portfolio-puzzle:save';
+const SAVE_VERSION = 1;
 
 export interface PerClientWeekResult {
   clientId: string;
@@ -72,10 +77,13 @@ export interface TransitionInfo {
   firedNames: string[];
   newlyUnlocked: string[];
   priceMoves: PriceMove[];
+  blackSwan: BlackSwanEvent | null;
 }
 
 interface State {
   started: boolean;
+  advisorName: string;
+  firmName: string;
   phase: Phase;
   currentWeek: number;
   clients: Record<string, RuntimeClient>;
@@ -98,6 +106,8 @@ interface State {
   weekStartPrices: PriceMap;
   weekEndPrices: PriceMap;
   stockPriceHistory: Record<string, StockPricePoint[]>;
+  // The week a black swan crash next strikes (rescheduled after each one).
+  nextBlackSwanWeek: number;
 }
 
 type Action =
@@ -113,14 +123,17 @@ type Action =
   | { type: 'TOGGLE_BOOK'; open?: boolean }
   | { type: 'TOGGLE_NEWS'; open?: boolean }
   | { type: 'TOGGLE_PHONE'; open?: boolean }
+  | { type: 'NEW_GAME'; advisorName: string; firmName: string }
   | { type: 'OPEN_DETAIL'; clientId: string }
   | { type: 'CLOSE_DETAIL' };
 
-function buildInitial(): State {
+function buildInitial(identity?: { advisorName: string; firmName: string }): State {
   const clients: Record<string, RuntimeClient> = {};
   CLIENTS.forEach((c: ClientProfile) => (clients[c.id] = initRuntimeClient(c)));
   return {
     started: false,
+    advisorName: identity?.advisorName ?? '',
+    firmName: identity?.firmName ?? '',
     phase: 'weekIntro',
     currentWeek: 1,
     clients,
@@ -139,7 +152,20 @@ function buildInitial(): State {
     weekStartPrices: initializeWeekPrices(null, 1),
     weekEndPrices: {},
     stockPriceHistory: {},
+    nextBlackSwanWeek: rollBlackSwanGap(),
   };
+}
+
+// Hydrate the last autosaved game (if any) so the title screen can "Continue".
+// Transient UI fields are reset so a reload never reopens a modal mid-view.
+function loadSavedState(): State | null {
+  const saved = loadJSON<{ version: number; state: State }>(SAVE_KEY);
+  if (!saved || saved.version !== SAVE_VERSION || !saved.state) return null;
+  return { ...saved.state, bookOpen: false, newsOpen: false, phoneOpen: false, detailClientId: null };
+}
+
+function initialState(): State {
+  return loadSavedState() ?? buildInitial();
 }
 
 function firstActiveId(clients: Record<string, RuntimeClient>): string | null {
@@ -153,7 +179,12 @@ function reducer(state: State, action: Action): State {
 
   switch (action.type) {
     case 'START_GAME': {
-      const fresh = buildInitial();
+      // Restart fresh, keeping the current advisor/firm identity.
+      const fresh = buildInitial({ advisorName: state.advisorName, firmName: state.firmName });
+      return { ...fresh, started: true, weekNews: generateWeeklyNews(1) };
+    }
+    case 'NEW_GAME': {
+      const fresh = buildInitial({ advisorName: action.advisorName, firmName: action.firmName });
       return { ...fresh, started: true, weekNews: generateWeeklyNews(1) };
     }
     case 'SET_PHASE':
@@ -220,10 +251,14 @@ function reducer(state: State, action: Action): State {
 
     case 'TRANSITION_WEEK': {
       // Week-end resolution: every stock gets natural market drift, then this
-      // week's accumulated news impact is added on top. The combined move is
-      // applied to the week's starting prices to get the ending prices.
+      // week's accumulated news impact is added on top. On a rare black-swan
+      // week a crash replaces the normal drift and dominates the market move.
       const newsImpact = calculateWeeklyPriceImpact(state.weekNews);
-      const marketDrift = generateWeeklyMarketDrift(STOCKS.map((s) => s.id));
+      const isBlackSwan = state.currentWeek >= state.nextBlackSwanWeek;
+      const blackSwan = isBlackSwan ? pickBlackSwan() : null;
+      const marketDrift = isBlackSwan
+        ? generateBlackSwanImpact()
+        : generateWeeklyMarketDrift(STOCKS.map((s) => s.id));
       const finalMult = combineWeeklyImpact(marketDrift, newsImpact);
       const weekStartPrices = state.weekStartPrices;
       const weekEndPrices = applyWeekEndPrices(weekStartPrices, finalMult);
@@ -357,6 +392,8 @@ function reducer(state: State, action: Action): State {
         weekEndPrices,
         stockPriceHistory,
         messages: resolvedMessages,
+        // Schedule the next crash 15-20 weeks out once one has struck.
+        nextBlackSwanWeek: isBlackSwan ? state.currentWeek + rollBlackSwanGap() : state.nextBlackSwanWeek,
         transition: {
           week: state.currentWeek,
           results,
@@ -366,6 +403,7 @@ function reducer(state: State, action: Action): State {
           firedNames,
           newlyUnlocked,
           priceMoves,
+          blackSwan,
         },
       };
     }
@@ -426,9 +464,13 @@ interface GameContextValue {
   firedClients: RuntimeClient[];
   advisorAllTimeDollar: number;
   canSign: boolean;
+  advisorName: string;
+  firmName: string;
+  canContinue: boolean; // a saved in-progress game exists
   availableBalance: (client: RuntimeClient) => number;
   priceOf: (stockId: string) => number; // current week's starting price
   startGame: () => void;
+  newGame: (advisorName: string, firmName: string) => void;
   setPhase: (p: Phase) => void;
   buy: (clientId: string, stockId: string, shares: number) => void;
   sell: (clientId: string, stockId: string, shares: number) => void;
@@ -447,7 +489,12 @@ interface GameContextValue {
 const GameContext = createContext<GameContextValue | undefined>(undefined);
 
 export function GameProvider({ children }: { children: React.ReactNode }) {
-  const [state, dispatch] = useReducer(reducer, undefined, buildInitial);
+  const [state, dispatch] = useReducer(reducer, undefined, initialState);
+
+  // Autosave every change once a game is under way, so "Continue" can resume it.
+  useEffect(() => {
+    if (state.started) saveJSON(SAVE_KEY, { version: SAVE_VERSION, state });
+  }, [state]);
 
   const value = useMemo<GameContextValue>(() => {
     const all = Object.values(state.clients);
@@ -466,9 +513,13 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       firedClients,
       advisorAllTimeDollar,
       canSign: canSignMore(state.clients),
+      advisorName: state.advisorName,
+      firmName: state.firmName,
+      canContinue: state.started && state.phase !== 'gameOver',
       availableBalance: (client: RuntimeClient) => client.cash,
       priceOf: (stockId: string) => state.weekStartPrices[stockId] ?? stocksById[stockId]?.price ?? 0,
       startGame: () => dispatch({ type: 'START_GAME' }),
+      newGame: (advisorName: string, firmName: string) => dispatch({ type: 'NEW_GAME', advisorName, firmName }),
       setPhase: (phase: Phase) => dispatch({ type: 'SET_PHASE', phase }),
       buy: (clientId, stockId, shares) => dispatch({ type: 'BUY', clientId, stockId, shares }),
       sell: (clientId, stockId, shares) => dispatch({ type: 'SELL', clientId, stockId, shares }),

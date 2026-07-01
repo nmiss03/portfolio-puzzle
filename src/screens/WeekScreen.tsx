@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
+import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import WeekIntro from './day/WeekIntro';
@@ -18,15 +19,19 @@ import { useGame } from '../state/GameContext';
 import { C, FONT_PIXEL, BORDER_W } from '../theme';
 
 export default function WeekScreen() {
-  const { state, activeClients, availableClients, canSign, startGame, setPhase, transitionWeek, advanceWeek, toggleBook, toggleNews, togglePhone } = useGame();
+  const { state, activeClients, availableClients, canSign, setPhase, transitionWeek, advanceWeek, toggleBook, toggleNews, togglePhone } = useGame();
+  const router = useRouter();
   const insets = useSafeAreaInsets();
   const [alertSeen, setAlertSeen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
 
+  // The title screen starts/continues the game. If we somehow land here without
+  // a game in progress, go back to the title rather than auto-starting a
+  // nameless one.
   useEffect(() => {
-    if (!state.started) startGame();
+    if (!state.started) router.replace('/');
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [state.started]);
 
   // Reset the alert each new week.
   useEffect(() => setAlertSeen(false), [state.currentWeek]);

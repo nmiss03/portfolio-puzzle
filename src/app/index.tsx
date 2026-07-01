@@ -1,5 +1,5 @@
-import LevelSelect from '@/screens/LevelSelect';
+import TitleScreen from '@/screens/TitleScreen';
 
 export default function HomeScreen() {
-  return <LevelSelect />;
+  return <TitleScreen />;
 }

@@ -30,6 +30,14 @@ export default function WeekSummaryScreen({ onContinue }: { onContinue: () => vo
     <ScrollView contentContainerStyle={styles.content}>
       <Text style={styles.title}>Week {t.week} Summary</Text>
 
+      {t.blackSwan && (
+        <View style={styles.swanCard}>
+          <Text style={styles.swanTitle}>⚠ BLACK SWAN — {t.blackSwan.name.toUpperCase()}</Text>
+          <Text style={styles.swanBlurb}>{t.blackSwan.blurb}</Text>
+          <Text style={styles.swanNote}>Low-beta defensives and bonds held up best. High-beta names took the brunt.</Text>
+        </View>
+      )}
+
       <View style={styles.chartCard}>
         <BarChart data={barData} height={180} />
       </View>
@@ -153,6 +161,10 @@ const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: C.bg, alignItems: 'center', justifyContent: 'center' },
   content: { padding: 20 },
   title: { fontFamily: FONT_PIXEL, color: C.gold, fontSize: 20, fontWeight: '900', textAlign: 'center', marginVertical: 12, letterSpacing: 1, textTransform: 'uppercase' },
+  swanCard: { backgroundColor: C.panelDark, borderWidth: BORDER_W, borderColor: C.danger, padding: 14, marginBottom: 16 },
+  swanTitle: { fontFamily: FONT_PIXEL, color: C.danger, fontSize: 14, fontWeight: '900', letterSpacing: 0.5 },
+  swanBlurb: { color: C.text, fontSize: 13, lineHeight: 19, marginTop: 8 },
+  swanNote: { color: C.textDim, fontSize: 11, fontStyle: 'italic', marginTop: 8 },
   chartCard: { backgroundColor: C.panel, borderWidth: BORDER_W, borderColor: C.border, padding: 16, marginBottom: 16 },
   accuracyCard: { backgroundColor: C.panelDark, borderWidth: BORDER_W, borderColor: C.gold, padding: 12, marginBottom: 16 },
   accuracyText: { color: C.text, fontSize: 13, fontWeight: '700', lineHeight: 18 },
