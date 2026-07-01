@@ -28,9 +28,11 @@ function Logo({ logo }: { logo: StockLogo }) {
 export default function PortfolioBuilder({
   clientId,
   analysisOnly = false,
+  embedded = false,
 }: {
   clientId?: string;
   analysisOnly?: boolean;
+  embedded?: boolean; // render bare (no monitor bezel/stand) inside the PC screen
 }) {
   const { state, buy, sell, availableBalance, priceOf } = useGame();
   const client = clientId ? state.clients[clientId] : undefined;
@@ -90,21 +92,23 @@ export default function PortfolioBuilder({
   const ownedStocks = STOCKS.filter((s) => (holdings[s.id]?.shares || 0) > 0);
 
   return (
-    <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-      <View style={styles.monitor}>
-        <View style={styles.headerBar}>
-          {tradable ? (
-            <>
-              <Text style={styles.headerText}>Client: {client!.name} | Week {state.currentWeek}</Text>
-              <Text style={styles.headerText}>Available: {formatMoney(Math.round(balance))}</Text>
-            </>
-          ) : (
-            <>
-              <Text style={styles.headerText}>Market Analysis</Text>
-              <Text style={styles.headerText}>Week {state.currentWeek}</Text>
-            </>
-          )}
-        </View>
+    <ScrollView contentContainerStyle={embedded ? styles.embeddedContent : styles.content} keyboardShouldPersistTaps="handled">
+      <View style={embedded ? styles.embeddedMonitor : styles.monitor}>
+        {!embedded && (
+          <View style={styles.headerBar}>
+            {tradable ? (
+              <>
+                <Text style={styles.headerText}>Client: {client!.name} | Week {state.currentWeek}</Text>
+                <Text style={styles.headerText}>Available: {formatMoney(Math.round(balance))}</Text>
+              </>
+            ) : (
+              <>
+                <Text style={styles.headerText}>Market Analysis</Text>
+                <Text style={styles.headerText}>Week {state.currentWeek}</Text>
+              </>
+            )}
+          </View>
+        )}
 
         <View style={styles.monitorScreen}>
           {/* Sector filter dropdown */}
@@ -236,8 +240,8 @@ export default function PortfolioBuilder({
         </View>
       </View>
 
-      <View style={styles.standNeck} />
-      <View style={styles.standBase} />
+      {!embedded && <View style={styles.standNeck} />}
+      {!embedded && <View style={styles.standBase} />}
 
       {tradable && hasHoldings && (
         <View style={styles.summary}>
@@ -282,6 +286,8 @@ export default function PortfolioBuilder({
 
 const styles = StyleSheet.create({
   content: { padding: 16, alignItems: 'center' },
+  embeddedContent: { padding: 0 },
+  embeddedMonitor: { width: '100%', backgroundColor: C.panel },
   monitor: { width: '100%', borderWidth: 6, borderColor: C.border, backgroundColor: C.panel, overflow: 'hidden' },
   headerBar: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: C.panelDark, borderBottomWidth: BORDER_W, borderBottomColor: C.border, paddingVertical: 10, paddingHorizontal: 12 },
   headerText: { fontFamily: FONT_PIXEL, color: C.gold, fontSize: 12, fontWeight: '800', letterSpacing: 0.5 },
