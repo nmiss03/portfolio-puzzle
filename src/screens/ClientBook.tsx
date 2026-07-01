@@ -6,7 +6,7 @@ import Sparkline from '../components/Sparkline';
 import Button from '../components/Button';
 import AcceptClientModal from '../components/AcceptClientModal';
 import ClientDetail from './ClientDetail';
-import { MAX_ACTIVE_CLIENTS, RuntimeClient, riskPreferenceLabel } from '../data/gameState';
+import { RuntimeClient, riskPreferenceLabel } from '../data/gameState';
 import { useGame } from '../state/GameContext';
 import { formatMoney } from '../utils/format';
 import { C, FONT_PIXEL, BORDER_W } from '../theme';
@@ -22,7 +22,7 @@ function returnText(dollar: number, pct: number) {
 }
 
 export default function ClientBook() {
-  const { state, activeClients, availableClients, expiredClients, firedClients, canSign, signClient, renewClient, dismissExpired, openDetail, closeDetail, toggleBook } = useGame();
+  const { state, activeClients, availableClients, expiredClients, firedClients, canSign, maxClients, signClient, renewClient, dismissExpired, openDetail, closeDetail, toggleBook } = useGame();
   const [pendingSign, setPendingSign] = useState<RuntimeClient | null>(null);
 
   if (!state.bookOpen) return null;
@@ -47,7 +47,7 @@ export default function ClientBook() {
         </View>
 
         <ScrollView contentContainerStyle={styles.list}>
-          <Text style={styles.section}>Current Clients ({activeClients.length}/{MAX_ACTIVE_CLIENTS})</Text>
+          <Text style={styles.section}>Current Clients ({activeClients.length}/{maxClients})</Text>
           {activeClients.length === 0 && <Text style={styles.emptyNote}>No active clients. Sign one below.</Text>}
           {activeClients.map((c) => (
             <ActiveCard key={c.id} client={c} onPress={() => openDetail(c.id)} />
@@ -147,7 +147,7 @@ function AvailableCard({ client, canSign, onAccept }: { client: RuntimeClient; c
       {canSign ? (
         <Button title="Accept 8-Week Contract" onPress={onAccept} style={{ marginTop: 10 }} />
       ) : (
-        <Text style={styles.capNote}>You have {MAX_ACTIVE_CLIENTS} clients — finish a contract to take on more.</Text>
+        <Text style={styles.capNote}>Your client roster is full — finish a contract (or hire an assistant) to take on more.</Text>
       )}
     </View>
   );

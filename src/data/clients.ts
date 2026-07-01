@@ -19,6 +19,8 @@ const CLIENTS: ClientProfile[] = [
     negativeReturnHappinessPenalty: -2,
     initialCapital: 10000,
     unlockedAtReputation: 20,
+    signingFee: 250, // small mix: modest signing + modest cut
+    returnsFeePct: 0.1,
     dialogue: [
       'Hey! I just graduated and landed a solid entry-level job.',
       'I managed to save up about $10k, and I want to actually make it grow.',
@@ -40,6 +42,8 @@ const CLIENTS: ClientProfile[] = [
     negativeReturnHappinessPenalty: -3,
     initialCapital: 35000,
     unlockedAtReputation: 27,
+    signingFee: 0, // percentage-only client
+    returnsFeePct: 0.18,
     dialogue: [
       "I'm a freelancer, so income can be unpredictable—but I've had great years.",
       "I've saved up about $35k that I want to put to work.",
@@ -61,6 +65,8 @@ const CLIENTS: ClientProfile[] = [
     negativeReturnHappinessPenalty: -4,
     initialCapital: 65000,
     unlockedAtReputation: 34,
+    signingFee: 2000, // fee-heavy client: large upfront, small cut
+    returnsFeePct: 0.05,
     dialogue: [
       "I'm a senior engineer at a major tech company with solid income.",
       "I've got $65k I want to invest strategically.",
@@ -82,6 +88,8 @@ const CLIENTS: ClientProfile[] = [
     negativeReturnHappinessPenalty: -5,
     initialCapital: 120000,
     unlockedAtReputation: 40,
+    signingFee: 4000, // executive mix: big signing fee AND a big cut
+    returnsFeePct: 0.15,
     dialogue: [
       "I've built multiple successful businesses over 20 years.",
       "I've got $120k to deploy, and I have very specific expectations.",

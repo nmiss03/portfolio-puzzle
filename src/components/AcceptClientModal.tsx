@@ -3,6 +3,7 @@ import { View, Text, StyleSheet } from 'react-native';
 
 import Button from './Button';
 import { RuntimeClient, CONTRACT_WEEKS, riskPreferenceLabel } from '../data/gameState';
+import { feeLabel } from '../data/advisorEconomy';
 import { formatMoney } from '../utils/format';
 import { C, FONT_PIXEL, BORDER_W } from '../theme';
 
@@ -25,6 +26,7 @@ export default function AcceptClientModal({
           <Row label="Duration" value={`${CONTRACT_WEEKS} weeks`} />
           <Row label="Initial capital" value={formatMoney(client.initialCapital)} />
           <Row label="Risk preference" value={riskPreferenceLabel(client.recommendedAllocation)} />
+          <Row label="Your fee" value={feeLabel(client)} />
           <Row label="Your goal" value="Grow their capital in line with how they invest" />
         </View>
 

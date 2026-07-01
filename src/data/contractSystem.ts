@@ -6,8 +6,9 @@ export function activeCount(clients: Record<string, RuntimeClient>): number {
   return Object.values(clients).filter((c) => c.status === 'signed').length;
 }
 
-export function canSignMore(clients: Record<string, RuntimeClient>): boolean {
-  return activeCount(clients) < MAX_ACTIVE_CLIENTS;
+// The cap defaults to MAX_ACTIVE_CLIENTS but rises with the Assistant upgrade.
+export function canSignMore(clients: Record<string, RuntimeClient>, maxActive: number = MAX_ACTIVE_CLIENTS): boolean {
+  return activeCount(clients) < maxActive;
 }
 
 // Sign a fresh contract (start the 8-week countdown).

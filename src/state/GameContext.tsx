@@ -36,9 +36,21 @@ import {
 } from '../data/clientMessages';
 import { loadJSON, saveJSON } from '../data/persist';
 import { BlackSwanEvent, generateBlackSwanImpact, pickBlackSwan, rollBlackSwanGap } from '../data/blackSwan';
+import { Regime, RegimeState, initialRegime, nextRegime, regimeTilt } from '../data/economicCycles';
+import {
+  AdvisorTransaction,
+  ASSISTANT_WEEKLY_CUT,
+  NO_UPGRADES,
+  UpgradeId,
+  Upgrades,
+  billWelcomeMessage,
+  maxClientsFor,
+  maybeInsiderTip,
+  shopItemById,
+} from '../data/advisorEconomy';
 
 const SAVE_KEY = 'portfolio-puzzle:save';
-const SAVE_VERSION = 1;
+const SAVE_VERSION = 2; // v2: advisor economy, regimes, pre-generated news
 
 export interface PerClientWeekResult {
   clientId: string;
@@ -63,9 +75,10 @@ export interface PriceMove {
   name: string;
   startPrice: number;
   endPrice: number;
-  driftPct: number; // natural market drift component
+  driftPct: number; // natural market drift + regime tilt component
   newsPct: number; // news impact component
   pct: number; // total fractional change start → end (drift + news)
+  notes: string[]; // attribution for exclusive scoops / insider activity
 }
 
 export interface TransitionInfo {
@@ -78,6 +91,8 @@ export interface TransitionInfo {
   newlyUnlocked: string[];
   priceMoves: PriceMove[];
   blackSwan: BlackSwanEvent | null;
+  regime: Regime;
+  feeIncome: number; // advisor fees earned this week (returns fees)
 }
 
 interface State {
@@ -108,6 +123,16 @@ interface State {
   stockPriceHistory: Record<string, StockPricePoint[]>;
   // The week a black swan crash next strikes (rescheduled after each one).
   nextBlackSwanWeek: number;
+  // Next week's news, pre-generated so the News Terminal can preview it.
+  nextWeekNews: NewsArticle[];
+  // Economic cycle: the active market regime and how long it has left.
+  regime: Regime;
+  regimeWeeksLeft: number;
+  // Advisor economy.
+  advisorBalance: number;
+  advisorTransactions: AdvisorTransaction[];
+  upgrades: Upgrades;
+  shopOpen: boolean;
 }
 
 type Action =
@@ -123,6 +148,8 @@ type Action =
   | { type: 'TOGGLE_BOOK'; open?: boolean }
   | { type: 'TOGGLE_NEWS'; open?: boolean }
   | { type: 'TOGGLE_PHONE'; open?: boolean }
+  | { type: 'TOGGLE_SHOP'; open?: boolean }
+  | { type: 'BUY_UPGRADE'; id: UpgradeId }
   | { type: 'NEW_GAME'; advisorName: string; firmName: string }
   | { type: 'OPEN_DETAIL'; clientId: string }
   | { type: 'CLOSE_DETAIL' };
@@ -130,6 +157,7 @@ type Action =
 function buildInitial(identity?: { advisorName: string; firmName: string }): State {
   const clients: Record<string, RuntimeClient> = {};
   CLIENTS.forEach((c: ClientProfile) => (clients[c.id] = initRuntimeClient(c)));
+  const startRegime = initialRegime();
   return {
     started: false,
     advisorName: identity?.advisorName ?? '',
@@ -153,6 +181,13 @@ function buildInitial(identity?: { advisorName: string; firmName: string }): Sta
     weekEndPrices: {},
     stockPriceHistory: {},
     nextBlackSwanWeek: rollBlackSwanGap(),
+    nextWeekNews: [],
+    regime: startRegime.regime,
+    regimeWeeksLeft: startRegime.weeksRemaining,
+    advisorBalance: 0,
+    advisorTransactions: [],
+    upgrades: { ...NO_UPGRADES },
+    shopOpen: false,
   };
 }
 
@@ -161,7 +196,7 @@ function buildInitial(identity?: { advisorName: string; firmName: string }): Sta
 function loadSavedState(): State | null {
   const saved = loadJSON<{ version: number; state: State }>(SAVE_KEY);
   if (!saved || saved.version !== SAVE_VERSION || !saved.state) return null;
-  return { ...saved.state, bookOpen: false, newsOpen: false, phoneOpen: false, detailClientId: null };
+  return { ...saved.state, bookOpen: false, newsOpen: false, phoneOpen: false, shopOpen: false, detailClientId: null };
 }
 
 function initialState(): State {
@@ -181,11 +216,11 @@ function reducer(state: State, action: Action): State {
     case 'START_GAME': {
       // Restart fresh, keeping the current advisor/firm identity.
       const fresh = buildInitial({ advisorName: state.advisorName, firmName: state.firmName });
-      return { ...fresh, started: true, weekNews: generateWeeklyNews(1) };
+      return { ...fresh, started: true, weekNews: generateWeeklyNews(1), nextWeekNews: generateWeeklyNews(2) };
     }
     case 'NEW_GAME': {
       const fresh = buildInitial({ advisorName: action.advisorName, firmName: action.firmName });
-      return { ...fresh, started: true, weekNews: generateWeeklyNews(1) };
+      return { ...fresh, started: true, weekNews: generateWeeklyNews(1), nextWeekNews: generateWeeklyNews(2) };
     }
     case 'SET_PHASE':
       return { ...state, phase: action.phase };
@@ -221,11 +256,19 @@ function reducer(state: State, action: Action): State {
 
     case 'SIGN_CLIENT': {
       const client = state.clients[action.clientId];
-      if (!client || client.status === 'signed' || !canSignMore(state.clients)) return state;
+      if (!client || client.status === 'signed' || !canSignMore(state.clients, maxClientsFor(state.upgrades))) return state;
       const signed = signContract(client, state.currentWeek);
+      // Collect the client's one-time signing fee.
+      const fee = client.signingFee;
+      const advisorTransactions =
+        fee > 0
+          ? [...state.advisorTransactions, { week: state.currentWeek, label: `${client.name} signing fee`, amount: fee }]
+          : state.advisorTransactions;
       return {
         ...state,
         clients: { ...state.clients, [client.id]: signed },
+        advisorBalance: state.advisorBalance + fee,
+        advisorTransactions,
         focusClientId: client.id,
         introClientId: client.id,
         bookOpen: false,
@@ -235,10 +278,17 @@ function reducer(state: State, action: Action): State {
 
     case 'RENEW_CLIENT': {
       const client = state.clients[action.clientId];
-      if (!client || client.status !== 'expired' || !canSignMore(state.clients)) return state;
+      if (!client || client.status !== 'expired' || !canSignMore(state.clients, maxClientsFor(state.upgrades))) return state;
+      const fee = client.signingFee;
+      const advisorTransactions =
+        fee > 0
+          ? [...state.advisorTransactions, { week: state.currentWeek, label: `${client.name} renewal fee`, amount: fee }]
+          : state.advisorTransactions;
       return {
         ...state,
         clients: { ...state.clients, [client.id]: signContract(client, state.currentWeek) },
+        advisorBalance: state.advisorBalance + fee,
+        advisorTransactions,
         focusClientId: client.id,
       };
     }
@@ -250,15 +300,16 @@ function reducer(state: State, action: Action): State {
     }
 
     case 'TRANSITION_WEEK': {
-      // Week-end resolution: every stock gets natural market drift, then this
-      // week's accumulated news impact is added on top. On a rare black-swan
-      // week a crash replaces the normal drift and dominates the market move.
+      // Week-end resolution: every stock gets natural market drift plus the
+      // economic-cycle regime tilt, then this week's accumulated news impact is
+      // added on top. On a rare black-swan week a crash replaces both drift and
+      // regime and dominates the market move.
       const newsImpact = calculateWeeklyPriceImpact(state.weekNews);
       const isBlackSwan = state.currentWeek >= state.nextBlackSwanWeek;
       const blackSwan = isBlackSwan ? pickBlackSwan() : null;
       const marketDrift = isBlackSwan
         ? generateBlackSwanImpact()
-        : generateWeeklyMarketDrift(STOCKS.map((s) => s.id));
+        : combineWeeklyImpact(generateWeeklyMarketDrift(STOCKS.map((s) => s.id)), regimeTilt(state.regime));
       const finalMult = combineWeeklyImpact(marketDrift, newsImpact);
       const weekStartPrices = state.weekStartPrices;
       const weekEndPrices = applyWeekEndPrices(weekStartPrices, finalMult);
@@ -270,6 +321,11 @@ function reducer(state: State, action: Action): State {
       // Phone requests issued this week are graded now (deadline = week-end).
       const pendingMsgs = state.messages.filter((m) => !m.resolved && m.weekIssued === state.currentWeek);
       const msgResolutions: Record<string, boolean> = {};
+
+      // Advisor fee collection: a cut of each client's POSITIVE weekly return.
+      let returnsFeeIncome = 0;
+      let totalPositiveGains = 0;
+      const feeTxs: AdvisorTransaction[] = [];
 
       Object.values(state.clients)
         .filter((c) => c.status === 'signed')
@@ -283,6 +339,15 @@ function reducer(state: State, action: Action): State {
           const endValue = client.cash + mvEnd; // portfolio value after price moves
           const returnDollar = endValue - startValue; // == mvEnd - mvStart
           const returnPct = startValue > 0 ? returnDollar / startValue : 0;
+
+          if (returnDollar > 0) {
+            totalPositiveGains += returnDollar;
+            if (client.returnsFeePct > 0) {
+              const fee = Math.round(returnDollar * client.returnsFeePct * 100) / 100;
+              returnsFeeIncome += fee;
+              feeTxs.push({ week: state.currentWeek, label: `${client.name} returns fee`, amount: fee });
+            }
+          }
 
           // Relationship: does the allocation match the client's tier target?
           const alloc = evaluateAllocationMatch(client, client.holdings, weekStartPrices);
@@ -354,6 +419,18 @@ function reducer(state: State, action: Action): State {
 
       // Price movements (start → end) for every stock — all move each week —
       // with the drift/news breakdown so the player sees why prices moved.
+      // Exclusive scoops and insider activity get called out by name so even
+      // non-terminal players learn after the fact why a stock moved hard.
+      const attribution: Record<string, string[]> = {};
+      state.weekNews.forEach((a) => {
+        if (!a.exclusive && !a.insider) return;
+        const label = a.insider ? `INSIDER ACTIVITY: ${a.headline}` : `EXCLUSIVE NEWS: ${a.headline}`;
+        Object.keys(a.priceImpact).forEach((id) => {
+          if (Math.abs(a.priceImpact[id]) < 1e-9) return;
+          (attribution[id] = attribution[id] || []).push(label);
+        });
+      });
+
       const priceMoves: PriceMove[] = STOCKS.map((s) => {
         const startPrice = weekStartPrices[s.id] ?? s.price;
         const endPrice = weekEndPrices[s.id] ?? startPrice;
@@ -362,6 +439,7 @@ function reducer(state: State, action: Action): State {
           driftPct: marketDrift[s.id] || 0,
           newsPct: newsImpact[s.id] || 0,
           pct: startPrice > 0 ? (endPrice - startPrice) / startPrice : 0,
+          notes: attribution[s.id] || [],
         };
       }).sort((a, b) => Math.abs(b.pct) - Math.abs(a.pct));
 
@@ -383,6 +461,14 @@ function reducer(state: State, action: Action): State {
           : m
       );
 
+      // Assistant salary comes out of the advisor's balance each week.
+      const assistantCut = state.upgrades.assistant
+        ? Math.round(totalPositiveGains * ASSISTANT_WEEKLY_CUT * 100) / 100
+        : 0;
+      const weekTxs = [...feeTxs];
+      if (assistantCut > 0) weekTxs.push({ week: state.currentWeek, label: 'Assistant salary', amount: -assistantCut });
+      const advisorBalance = Math.max(0, state.advisorBalance + returnsFeeIncome - assistantCut);
+
       return {
         ...state,
         clients: updated,
@@ -392,6 +478,11 @@ function reducer(state: State, action: Action): State {
         weekEndPrices,
         stockPriceHistory,
         messages: resolvedMessages,
+        advisorBalance,
+        advisorTransactions: [...state.advisorTransactions, ...weekTxs],
+        // A black swan shocks the economy into a fresh downturn.
+        regime: isBlackSwan ? 'downturn' : state.regime,
+        regimeWeeksLeft: isBlackSwan ? 5 : state.regimeWeeksLeft,
         // Schedule the next crash 15-20 weeks out once one has struck.
         nextBlackSwanWeek: isBlackSwan ? state.currentWeek + rollBlackSwanGap() : state.nextBlackSwanWeek,
         transition: {
@@ -404,6 +495,8 @@ function reducer(state: State, action: Action): State {
           newlyUnlocked,
           priceMoves,
           blackSwan,
+          regime: state.regime,
+          feeIncome: returnsFeeIncome,
         },
       };
     }
@@ -420,6 +513,28 @@ function reducer(state: State, action: Action): State {
         nextWeek,
         Object.values(ticked).filter((c) => c.status === 'signed')
       );
+
+      // The incoming week's news was pre-generated last week (so the News
+      // Terminal could preview it); generate the following week's now.
+      const incomingNews = [...(state.nextWeekNews.length > 0 ? state.nextWeekNews : generateWeeklyNews(nextWeek))];
+      const nextWeekNews = generateWeeklyNews(nextWeek + 1);
+
+      // Politician Bill occasionally tips off funded advisors: a big scheduled
+      // move injected into this week's news, announced only on your phone.
+      if (state.upgrades.politicalFunding) {
+        const tip = maybeInsiderTip(nextWeek);
+        if (tip) {
+          incomingNews.push(tip.article);
+          newMessages.unshift(tip.message);
+        }
+      }
+
+      // Economic cycle ticks over; roll a fresh regime when this one ends.
+      const regimeState: RegimeState =
+        state.regimeWeeksLeft - 1 <= 0
+          ? nextRegime(state.regime)
+          : { regime: state.regime, weeksRemaining: state.regimeWeeksLeft - 1 };
+
       return {
         ...state,
         currentWeek: nextWeek,
@@ -427,7 +542,10 @@ function reducer(state: State, action: Action): State {
         focusClientId: firstActiveId(ticked),
         phase: 'weekIntro',
         transition: null,
-        weekNews: generateWeeklyNews(nextWeek),
+        weekNews: incomingNews,
+        nextWeekNews,
+        regime: regimeState.regime,
+        regimeWeeksLeft: regimeState.weeksRemaining,
         weekStartPrices: nextStartPrices,
         weekEndPrices: {},
         messages: [...newMessages, ...state.messages],
@@ -436,14 +554,36 @@ function reducer(state: State, action: Action): State {
     }
 
     case 'TOGGLE_BOOK':
-      return { ...state, bookOpen: action.open ?? !state.bookOpen, newsOpen: false, phoneOpen: false, detailClientId: null };
+      return { ...state, bookOpen: action.open ?? !state.bookOpen, newsOpen: false, phoneOpen: false, shopOpen: false, detailClientId: null };
     case 'TOGGLE_NEWS':
-      return { ...state, newsOpen: action.open ?? !state.newsOpen, bookOpen: false, phoneOpen: false };
+      return { ...state, newsOpen: action.open ?? !state.newsOpen, bookOpen: false, phoneOpen: false, shopOpen: false };
     case 'TOGGLE_PHONE': {
       const open = action.open ?? !state.phoneOpen;
       // Opening the phone marks everything read and clears the badge.
       const messages = open ? state.messages.map((m) => (m.read ? m : { ...m, read: true })) : state.messages;
-      return { ...state, phoneOpen: open, bookOpen: false, newsOpen: false, messages, unreadMessageCount: open ? 0 : state.unreadMessageCount };
+      return { ...state, phoneOpen: open, bookOpen: false, newsOpen: false, shopOpen: false, messages, unreadMessageCount: open ? 0 : state.unreadMessageCount };
+    }
+    case 'TOGGLE_SHOP':
+      return { ...state, shopOpen: action.open ?? !state.shopOpen, bookOpen: false, newsOpen: false, phoneOpen: false };
+
+    case 'BUY_UPGRADE': {
+      const item = shopItemById[action.id];
+      if (!item || state.upgrades[action.id] || state.advisorBalance < item.cost) return state;
+      const upgrades = { ...state.upgrades, [action.id]: true };
+      const advisorTransactions = [
+        ...state.advisorTransactions,
+        { week: state.currentWeek, label: item.name, amount: -item.cost },
+      ];
+      // Political funding: Bill introduces himself right away.
+      const welcome = action.id === 'politicalFunding' ? billWelcomeMessage(state.currentWeek) : null;
+      return {
+        ...state,
+        upgrades,
+        advisorBalance: state.advisorBalance - item.cost,
+        advisorTransactions,
+        messages: welcome ? [welcome, ...state.messages] : state.messages,
+        unreadMessageCount: welcome ? state.unreadMessageCount + 1 : state.unreadMessageCount,
+      };
     }
     case 'OPEN_DETAIL':
       return { ...state, detailClientId: action.clientId };
@@ -467,6 +607,9 @@ interface GameContextValue {
   advisorName: string;
   firmName: string;
   canContinue: boolean; // a saved in-progress game exists
+  advisorBalance: number;
+  upgrades: Upgrades;
+  maxClients: number;
   availableBalance: (client: RuntimeClient) => number;
   priceOf: (stockId: string) => number; // current week's starting price
   startGame: () => void;
@@ -482,6 +625,8 @@ interface GameContextValue {
   toggleBook: (open?: boolean) => void;
   toggleNews: (open?: boolean) => void;
   togglePhone: (open?: boolean) => void;
+  toggleShop: (open?: boolean) => void;
+  buyUpgrade: (id: UpgradeId) => void;
   openDetail: (clientId: string) => void;
   closeDetail: () => void;
 }
@@ -512,10 +657,13 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       expiredClients,
       firedClients,
       advisorAllTimeDollar,
-      canSign: canSignMore(state.clients),
+      canSign: canSignMore(state.clients, maxClientsFor(state.upgrades)),
       advisorName: state.advisorName,
       firmName: state.firmName,
       canContinue: state.started && state.phase !== 'gameOver',
+      advisorBalance: state.advisorBalance,
+      upgrades: state.upgrades,
+      maxClients: maxClientsFor(state.upgrades),
       availableBalance: (client: RuntimeClient) => client.cash,
       priceOf: (stockId: string) => state.weekStartPrices[stockId] ?? stocksById[stockId]?.price ?? 0,
       startGame: () => dispatch({ type: 'START_GAME' }),
@@ -531,6 +679,8 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       toggleBook: (open?: boolean) => dispatch({ type: 'TOGGLE_BOOK', open }),
       toggleNews: (open?: boolean) => dispatch({ type: 'TOGGLE_NEWS', open }),
       togglePhone: (open?: boolean) => dispatch({ type: 'TOGGLE_PHONE', open }),
+      toggleShop: (open?: boolean) => dispatch({ type: 'TOGGLE_SHOP', open }),
+      buyUpgrade: (id: UpgradeId) => dispatch({ type: 'BUY_UPGRADE', id }),
       openDetail: (clientId: string) => dispatch({ type: 'OPEN_DETAIL', clientId }),
       closeDetail: () => dispatch({ type: 'CLOSE_DETAIL' }),
     };

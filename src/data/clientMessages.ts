@@ -5,7 +5,7 @@
 import STOCKS, { stocksById } from './stocks';
 import { RuntimeClient } from './gameState';
 
-export type MessageType = 'new_stock_request' | 'increase_position_request';
+export type MessageType = 'new_stock_request' | 'increase_position_request' | 'insider_tip';
 
 export interface ClientMessage {
   id: string;

@@ -1,11 +1,18 @@
-// Pool of market-news articles. Reading an article applies its priceImpact to
-// the affected stocks' prices for the current week (cumulative, applied once).
+// Pool of market-news articles. Headlines break every week with varying impact
+// levels (minor/moderate/major); all impacts resolve at week-end.
+
+import { maybeExclusiveArticle } from './exclusiveNews';
 
 export type NewsSource = 'Bloomberg' | 'Reuters' | 'CNBC' | 'WSJ';
 export type NewsCategory = 'Industry' | 'Specific Stock';
 export type ImpactType =
   | 'partnership' | 'new product' | 'lost client' | 'acquisition' | 'regulatory'
   | 'earnings beat' | 'lawsuit' | 'innovation' | 'market shift';
+
+// How hard a headline hits the market. Minor stories barely move prices;
+// major ones move them a lot. Rolled at generation time so the same headline
+// can land with different weight on different weeks.
+export type ImpactLevel = 'minor' | 'moderate' | 'major';
 
 export interface NewsArticle {
   id: string;
@@ -18,6 +25,10 @@ export interface NewsArticle {
   publicationDate: string;
   articleText: string;
   source: NewsSource;
+  impactLevel?: ImpactLevel; // set on generated copies
+  exclusive?: boolean; // only visible pre-week to News Terminal owners
+  exclusiveTier?: 1 | 2 | 3;
+  insider?: boolean; // Politician Bill tip — never shown in the news feed
 }
 
 const ARTICLES: NewsArticle[] = [
@@ -73,16 +84,46 @@ export const articlesById: Record<string, NewsArticle> = ARTICLES.reduce(
   {} as Record<string, NewsArticle>
 );
 
-// News only breaks every third week (weeks 1, 4, 7, ...). Other weeks are calm.
-export function isNewsWeek(week: number): boolean {
-  return (week - 1) % 3 === 0;
+// Target |max impact| bands per level. A generated article's impacts are
+// rescaled (keeping sign and relative proportions) so its biggest move lands
+// inside the rolled band — minor stories are common, major ones are rare.
+const LEVEL_BANDS: Record<ImpactLevel, [number, number]> = {
+  minor: [0.005, 0.025], // ±0.5% .. ±2.5%
+  moderate: [0.03, 0.07], // ±3% .. ±7%
+  major: [0.09, 0.16], // ±9% .. ±16%
+};
+
+function rollImpactLevel(): ImpactLevel {
+  const r = Math.random();
+  if (r < 0.5) return 'minor';
+  if (r < 0.83) return 'moderate';
+  return 'major';
 }
 
-// Pick 1-2 varied articles for a news week.
+// Clone an article with its impacts rescaled to the rolled level's band.
+export function scaleArticleToLevel(article: NewsArticle, level: ImpactLevel, week: number): NewsArticle {
+  const [lo, hi] = LEVEL_BANDS[level];
+  const target = lo + Math.random() * (hi - lo);
+  const maxAbs = Math.max(...Object.values(article.priceImpact).map(Math.abs), 1e-9);
+  const f = target / maxAbs;
+  const priceImpact: Record<string, number> = {};
+  Object.entries(article.priceImpact).forEach(([id, v]) => {
+    priceImpact[id] = Math.round(v * f * 10000) / 10000;
+  });
+  return { ...article, id: `${article.id}-w${week}`, priceImpact, impactLevel: level };
+}
+
+// 1-3 headlines break every week, each with its own rolled impact level, so
+// the news mix genuinely varies from barely-moves-the-needle to market-moving.
+// Occasionally an exclusive scoop rides along (visible early only to News
+// Terminal owners, but it moves prices for everyone).
 export function generateWeeklyNews(week: number): NewsArticle[] {
-  if (!isNewsWeek(week)) return [];
-  const count = 1 + Math.floor(Math.random() * 2); // 1 or 2
-  return [...ARTICLES].sort(() => Math.random() - 0.5).slice(0, count);
+  const count = 1 + Math.floor(Math.random() * 3); // 1-3
+  const picks = [...ARTICLES].sort(() => Math.random() - 0.5).slice(0, count);
+  const articles = picks.map((a) => scaleArticleToLevel(a, rollImpactLevel(), week));
+  const scoop = maybeExclusiveArticle(week);
+  if (scoop) articles.push(scoop);
+  return articles;
 }
 
 export default ARTICLES;

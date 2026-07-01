@@ -5,6 +5,7 @@ import Button from '../components/Button';
 import BarChart from '../components/BarChart';
 import HappinessMeter from '../components/HappinessMeter';
 import { useGame } from '../state/GameContext';
+import { REGIME_BLURB, REGIME_LABEL } from '../data/economicCycles';
 import { formatMoney, formatPrice } from '../utils/format';
 import { C, FONT_PIXEL, BORDER_W } from '../theme';
 
@@ -29,6 +30,15 @@ export default function WeekSummaryScreen({ onContinue }: { onContinue: () => vo
   return (
     <ScrollView contentContainerStyle={styles.content}>
       <Text style={styles.title}>Week {t.week} Summary</Text>
+
+      {/* Economic cycle context for the week */}
+      <View style={styles.regimeCard}>
+        <Text style={styles.regimeLabel}>MARKET: {REGIME_LABEL[t.regime]}</Text>
+        <Text style={styles.regimeBlurb}>{REGIME_BLURB[t.regime]}</Text>
+        {t.feeIncome > 0 && (
+          <Text style={styles.feeLine}>Advisor fees earned this week: +{formatMoney(Math.round(t.feeIncome))}</Text>
+        )}
+      </View>
 
       {t.blackSwan && (
         <View style={styles.swanCard}>
@@ -107,9 +117,12 @@ export default function WeekSummaryScreen({ onContinue }: { onContinue: () => vo
                   <Text style={styles.priceName} numberOfLines={1}>{m.name} ({m.ticker})</Text>
                   {hasNews && (
                     <Text style={styles.priceBreakdown}>
-                      drift {m.driftPct >= 0 ? '+' : ''}{(m.driftPct * 100).toFixed(2)}% · news {m.newsPct >= 0 ? '+' : ''}{(m.newsPct * 100).toFixed(2)}%
+                      market {m.driftPct >= 0 ? '+' : ''}{(m.driftPct * 100).toFixed(2)}% · news {m.newsPct >= 0 ? '+' : ''}{(m.newsPct * 100).toFixed(2)}%
                     </Text>
                   )}
+                  {m.notes.map((n, i) => (
+                    <Text key={i} style={styles.priceNoteRibbon} numberOfLines={2}>{n}</Text>
+                  ))}
                 </View>
                 <Text style={styles.priceMove}>
                   {formatPrice(m.startPrice)} → {formatPrice(m.endPrice)}{'  '}
@@ -161,6 +174,11 @@ const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: C.bg, alignItems: 'center', justifyContent: 'center' },
   content: { padding: 20 },
   title: { fontFamily: FONT_PIXEL, color: C.gold, fontSize: 20, fontWeight: '900', textAlign: 'center', marginVertical: 12, letterSpacing: 1, textTransform: 'uppercase' },
+  regimeCard: { backgroundColor: C.panel, borderWidth: BORDER_W, borderColor: C.border, padding: 12, marginBottom: 16 },
+  regimeLabel: { fontFamily: FONT_PIXEL, color: C.gold, fontSize: 13, fontWeight: '900', letterSpacing: 0.5 },
+  regimeBlurb: { color: C.textDim, fontSize: 12, lineHeight: 17, marginTop: 4 },
+  feeLine: { fontFamily: FONT_PIXEL, color: C.success, fontSize: 12, fontWeight: '800', marginTop: 8 },
+  priceNoteRibbon: { fontFamily: FONT_PIXEL, color: C.gold, fontSize: 9, fontWeight: '800', marginTop: 3 },
   swanCard: { backgroundColor: C.panelDark, borderWidth: BORDER_W, borderColor: C.danger, padding: 14, marginBottom: 16 },
   swanTitle: { fontFamily: FONT_PIXEL, color: C.danger, fontSize: 14, fontWeight: '900', letterSpacing: 0.5 },
   swanBlurb: { color: C.text, fontSize: 13, lineHeight: 19, marginTop: 8 },

@@ -35,10 +35,11 @@ export default function PhoneNotifications() {
         ) : (
           <ScrollView contentContainerStyle={styles.list}>
             {messages.map((m) => {
-              const status = !m.resolved ? 'PENDING' : m.fulfilled ? 'DONE' : 'MISSED';
-              const statusColor = !m.resolved ? c.gold : m.fulfilled ? c.success : c.danger;
+              const isTip = m.messageType === 'insider_tip';
+              const status = isTip ? 'INSIDER' : !m.resolved ? 'PENDING' : m.fulfilled ? 'DONE' : 'MISSED';
+              const statusColor = isTip ? c.warning : !m.resolved ? c.gold : m.fulfilled ? c.success : c.danger;
               return (
-                <View key={m.id} style={styles.card}>
+                <View key={m.id} style={[styles.card, isTip && { borderColor: c.warning }]}>
                   <View style={styles.cardTop}>
                     <PixelCharacter seed={m.clientId} cell={4} />
                     <View style={styles.cardHead}>
@@ -50,10 +51,12 @@ export default function PhoneNotifications() {
                     </View>
                   </View>
                   <Text style={styles.body}>{m.messageText}</Text>
-                  <Text style={styles.ask}>
-                    {m.messageType === 'new_stock_request' ? 'Wants to BUY ' : 'Wants to ADD to '}
-                    <Text style={styles.askStock}>{m.stockName}</Text>
-                  </Text>
+                  {m.stockName ? (
+                    <Text style={styles.ask}>
+                      {isTip ? 'Concerns ' : m.messageType === 'new_stock_request' ? 'Wants to BUY ' : 'Wants to ADD to '}
+                      <Text style={styles.askStock}>{m.stockName}</Text>
+                    </Text>
+                  ) : null}
                 </View>
               );
             })}

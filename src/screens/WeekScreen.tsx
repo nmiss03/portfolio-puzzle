@@ -13,8 +13,11 @@ import NewsPopup from './NewsPopup';
 import ClientBook from './ClientBook';
 import PhoneNotifications from './PhoneNotifications';
 import SettingsMenu from './SettingsMenu';
+import ShopScreen from './ShopScreen';
 import ReputationBar from '../components/ReputationBar';
 import { useGame } from '../state/GameContext';
+import { REGIME_LABEL } from '../data/economicCycles';
+import { formatMoney } from '../utils/format';
 import { C, FONT_PIXEL, BORDER_W } from '../theme';
 
 // Pixel-scene literal colors (a wooden desk + monitor bezel + a little plant).
@@ -27,7 +30,7 @@ const LEAF = '#3f8f4f';
 const LEAF_D = '#2f6f3c';
 
 export default function WeekScreen() {
-  const { state, activeClients, availableClients, canSign, setPhase, transitionWeek, advanceWeek, toggleBook, toggleNews, togglePhone } = useGame();
+  const { state, activeClients, availableClients, canSign, maxClients, advisorBalance, setPhase, transitionWeek, advanceWeek, toggleBook, toggleNews, togglePhone, toggleShop } = useGame();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const [alertSeen, setAlertSeen] = useState(false);
@@ -70,7 +73,13 @@ export default function WeekScreen() {
           <View style={styles.hudLeft}>
             <Text style={styles.weekText}>WEEK {state.currentWeek}</Text>
             <View style={styles.clientChip}>
-              <Text style={styles.clientChipText}>♟ {activeClients.length}/3</Text>
+              <Text style={styles.clientChipText}>♟ {activeClients.length}/{maxClients}</Text>
+            </View>
+            <View style={styles.clientChip}>
+              <Text style={styles.clientChipText}>{formatMoney(Math.round(advisorBalance))}</Text>
+            </View>
+            <View style={styles.regimeChip}>
+              <Text style={styles.regimeChipText}>{REGIME_LABEL[state.regime]}</Text>
             </View>
           </View>
           <View style={styles.hudRight}>
@@ -129,6 +138,7 @@ export default function WeekScreen() {
                     <DesktopIcon label="TELEPHONE" icon="☎" onPress={() => togglePhone(true)} badge={state.unreadMessageCount} />
                     <DesktopIcon label="NEWS" icon="📰" onPress={() => toggleNews(true)} />
                     <DesktopIcon label="STOCK TERMINAL" icon="📈" onPress={() => setPcView('terminal')} />
+                    <DesktopIcon label="SHOP" icon="🛒" onPress={() => toggleShop(true)} />
                   </View>
                 ) : (
                   <PortfolioBuilder analysisOnly embedded />
@@ -177,6 +187,7 @@ export default function WeekScreen() {
       <ClientBook />
       <NewsPopup />
       <PhoneNotifications />
+      <ShopScreen />
       <SettingsMenu visible={settingsOpen} onClose={() => setSettingsOpen(false)} />
     </View>
   );
@@ -207,6 +218,8 @@ const styles = StyleSheet.create({
   weekText: { fontFamily: FONT_PIXEL, color: C.gold, fontSize: 18, fontWeight: '900', letterSpacing: 1 },
   clientChip: { backgroundColor: C.panel, borderWidth: 2, borderColor: C.border, paddingHorizontal: 8, paddingVertical: 4, marginLeft: 8 },
   clientChipText: { fontFamily: FONT_PIXEL, color: C.text, fontSize: 11, fontWeight: '800' },
+  regimeChip: { backgroundColor: C.panel, borderWidth: 2, borderColor: C.gold, paddingHorizontal: 8, paddingVertical: 4, marginLeft: 8 },
+  regimeChipText: { fontFamily: FONT_PIXEL, color: C.gold, fontSize: 10, fontWeight: '900' },
   gearBtn: { width: 28, height: 28, marginLeft: 8, borderWidth: 2, borderColor: C.border, backgroundColor: C.panel, alignItems: 'center', justifyContent: 'center' },
   gearText: { fontSize: 16, color: C.text },
   alert: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: C.panel, borderBottomWidth: 2, borderBottomColor: C.gold, paddingVertical: 10 },

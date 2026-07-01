@@ -8,17 +8,27 @@ import { C, FONT_PIXEL, BORDER_W } from '../theme';
 const BLUE = C.gold;
 
 type FilterMode = 'All' | 'Industry' | 'Specific Stock';
+type WeekTab = 'this' | 'next';
 
 export default function NewsPopup() {
-  const { state, toggleNews } = useGame();
+  const { state, upgrades, toggleNews } = useGame();
   const [filter, setFilter] = useState<FilterMode>('All');
+  const [weekTab, setWeekTab] = useState<WeekTab>('this');
 
-  const articles = useMemo(
-    () => state.weekNews.filter((a) => filter === 'All' || a.category === filter),
-    [state.weekNews, filter]
-  );
+  const hasTerminal = upgrades.newsTerminal;
+
+  // Insider tips never appear in the feed; exclusive scoops only for terminal
+  // owners. The Next Week tab is a terminal perk.
+  const articles = useMemo(() => {
+    const pool = weekTab === 'next' ? state.nextWeekNews : state.weekNews;
+    return pool
+      .filter((a) => !a.insider && (!a.exclusive || hasTerminal))
+      .filter((a) => filter === 'All' || a.category === filter);
+  }, [state.weekNews, state.nextWeekNews, filter, weekTab, hasTerminal]);
 
   if (!state.newsOpen) return null;
+
+  const visibleThisWeek = state.weekNews.some((a) => !a.insider && (!a.exclusive || hasTerminal));
 
   return (
     <View style={styles.backdrop}>
@@ -30,7 +40,19 @@ export default function NewsPopup() {
           </Pressable>
         </View>
 
-        {state.weekNews.length === 0 ? (
+        {hasTerminal && (
+          <View style={styles.weekTabs}>
+            {(['this', 'next'] as WeekTab[]).map((t) => (
+              <Pressable key={t} onPress={() => setWeekTab(t)} style={[styles.weekTab, weekTab === t && styles.weekTabActive]}>
+                <Text style={[styles.weekTabText, weekTab === t && styles.weekTabTextActive]}>
+                  {t === 'this' ? `WEEK ${state.currentWeek}` : `WEEK ${state.currentWeek + 1} PREVIEW`}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+        )}
+
+        {weekTab === 'this' && !visibleThisWeek ? (
           <View style={styles.empty}>
             <Text style={styles.emptyTitle}>Quiet markets this week.</Text>
             <Text style={styles.emptyText}>No major headlines. Trade on the fundamentals.</Text>
@@ -48,13 +70,19 @@ export default function NewsPopup() {
             </View>
 
             <Text style={styles.hint}>
-              Read the headlines and decide for yourself. Then buy what you think will rise and sell what you
-              think will fall — the results land at week's end.
+              {weekTab === 'next'
+                ? 'Terminal preview: these stories break next week. Position yourself before the crowd reads them.'
+                : "Read the headlines and decide for yourself. Then buy what you think will rise and sell what you think will fall — the results land at week's end."}
             </Text>
 
             <ScrollView contentContainerStyle={styles.list}>
               {articles.map((a) => (
-                <View key={a.id} style={styles.card}>
+                <View key={a.id} style={[styles.card, a.exclusive && styles.cardExclusive]}>
+                  {a.exclusive && (
+                    <View style={styles.exclusiveTag}>
+                      <Text style={styles.exclusiveTagText}>★ EXCLUSIVE · TIER {a.exclusiveTier}</Text>
+                    </View>
+                  )}
                   <Text style={styles.headline}>{a.headline}</Text>
                   <View style={styles.metaRow}>
                     <View style={styles.badge}>
@@ -69,6 +97,9 @@ export default function NewsPopup() {
                   <Text style={styles.body}>{a.articleText}</Text>
                 </View>
               ))}
+              {articles.length === 0 && (
+                <Text style={styles.emptyText}>Nothing matching this filter.</Text>
+              )}
             </ScrollView>
           </>
         )}
@@ -83,6 +114,14 @@ const styles = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16, borderBottomWidth: BORDER_W, borderBottomColor: C.border, backgroundColor: C.panelDark },
   title: { fontFamily: FONT_PIXEL, color: C.gold, fontSize: 18, fontWeight: '900', letterSpacing: 1, textTransform: 'uppercase' },
   close: { fontFamily: FONT_PIXEL, color: C.gold, fontSize: 18, fontWeight: '800' },
+  weekTabs: { flexDirection: 'row', backgroundColor: C.panelDark, borderBottomWidth: 2, borderBottomColor: C.border },
+  weekTab: { flex: 1, paddingVertical: 9, alignItems: 'center', borderBottomWidth: 3, borderBottomColor: 'transparent' },
+  weekTabActive: { borderBottomColor: C.gold },
+  weekTabText: { fontFamily: FONT_PIXEL, color: C.muted, fontSize: 11, fontWeight: '800', letterSpacing: 0.5 },
+  weekTabTextActive: { color: C.gold },
+  cardExclusive: { borderColor: C.gold },
+  exclusiveTag: { alignSelf: 'flex-start', backgroundColor: C.gold, paddingHorizontal: 6, paddingVertical: 2, marginBottom: 8 },
+  exclusiveTagText: { fontFamily: FONT_PIXEL, color: C.ink, fontSize: 10, fontWeight: '900', letterSpacing: 0.5 },
   controls: { flexDirection: 'row', alignItems: 'center', padding: 10, backgroundColor: C.panelDark, borderBottomWidth: 2, borderBottomColor: C.border },
   chip: { borderWidth: 2, borderColor: C.border, paddingHorizontal: 10, paddingVertical: 5, marginRight: 6, backgroundColor: C.panel },
   chipActive: { backgroundColor: C.button, borderColor: C.border },

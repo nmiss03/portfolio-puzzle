@@ -33,6 +33,10 @@ export interface ClientProfile {
   negativeReturnHappinessPenalty: number; // happiness hit on a sharply negative week (< -2%)
   initialCapital: number;
   unlockedAtReputation: number; // becomes available at/above this reputation
+  // Advisor compensation — some clients pay a one-time signing fee, some a cut
+  // of positive weekly returns, some a mix. Scales with tier.
+  signingFee: number; // one-time, paid on signing (and on renewal)
+  returnsFeePct: number; // advisor's share of a positive weekly return, 0..1
 }
 
 // Runtime state layered on top of a profile.
