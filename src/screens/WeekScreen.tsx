@@ -10,15 +10,18 @@ import WeekSummaryScreen from './WeekSummaryScreen';
 import GameOverScreen from './GameOverScreen';
 import NewsPopup from './NewsPopup';
 import ClientBook from './ClientBook';
+import PhoneNotifications from './PhoneNotifications';
+import SettingsMenu from './SettingsMenu';
 import ReputationBar from '../components/ReputationBar';
 import Button from '../components/Button';
 import { useGame } from '../state/GameContext';
 import { C, FONT_PIXEL, BORDER_W } from '../theme';
 
 export default function WeekScreen() {
-  const { state, activeClients, availableClients, canSign, startGame, setPhase, transitionWeek, advanceWeek, toggleBook, toggleNews } = useGame();
+  const { state, activeClients, availableClients, canSign, startGame, setPhase, transitionWeek, advanceWeek, toggleBook, toggleNews, togglePhone } = useGame();
   const insets = useSafeAreaInsets();
   const [alertSeen, setAlertSeen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   useEffect(() => {
     if (!state.started) startGame();
@@ -53,7 +56,12 @@ export default function WeekScreen() {
               <Text style={styles.clientChipText}>♟ {activeClients.length}/3</Text>
             </View>
           </View>
-          <ReputationBar reputation={state.reputation} />
+          <View style={styles.hudRight}>
+            <ReputationBar reputation={state.reputation} />
+            <Pressable onPress={() => setSettingsOpen(true)} style={styles.gearBtn} hitSlop={8}>
+              <Text style={styles.gearText}>⚙</Text>
+            </Pressable>
+          </View>
         </View>
 
         {showAlert && (
@@ -81,9 +89,17 @@ export default function WeekScreen() {
         </View>
 
         <View style={[styles.tabBar, { paddingBottom: insets.bottom + 10 }]}>
-          <Button title="📖 Clients" variant="secondary" onPress={() => toggleBook(true)} style={styles.tabBtn} />
-          <Button title="📰 News" variant="secondary" onPress={() => toggleNews(true)} style={styles.tabBtn} />
-          <Button title="Next Week  ›" onPress={transitionWeek} disabled={activeClients.length === 0} style={styles.tabBtn} />
+          <Button title="Clients" variant="secondary" onPress={() => toggleBook(true)} style={styles.tabBtn} />
+          <Button title="News" variant="secondary" onPress={() => toggleNews(true)} style={styles.tabBtn} />
+          <View style={styles.tabBtn}>
+            <Button title="Phone" variant="secondary" onPress={() => togglePhone(true)} />
+            {state.unreadMessageCount > 0 && (
+              <View style={styles.badge} pointerEvents="none">
+                <Text style={styles.badgeText}>{state.unreadMessageCount}</Text>
+              </View>
+            )}
+          </View>
+          <Button title="Next  ›" onPress={transitionWeek} disabled={activeClients.length === 0} style={styles.tabBtn} />
         </View>
       </View>
     );
@@ -94,6 +110,8 @@ export default function WeekScreen() {
       {body}
       <ClientBook />
       <NewsPopup />
+      <PhoneNotifications />
+      <SettingsMenu visible={settingsOpen} onClose={() => setSettingsOpen(false)} />
     </View>
   );
 }
@@ -104,9 +122,14 @@ const styles = StyleSheet.create({
   flex: { flex: 1 },
   topBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingBottom: 10, backgroundColor: C.panelDark, borderBottomWidth: BORDER_W, borderBottomColor: C.border },
   hudLeft: { flexDirection: 'row', alignItems: 'center' },
+  hudRight: { flexDirection: 'row', alignItems: 'center' },
   weekText: { fontFamily: FONT_PIXEL, color: C.gold, fontSize: 18, fontWeight: '900', letterSpacing: 1 },
-  clientChip: { backgroundColor: C.panel, borderWidth: 2, borderColor: C.border, paddingHorizontal: 7, paddingVertical: 3, marginLeft: 10 },
+  clientChip: { backgroundColor: C.panel, borderWidth: 2, borderColor: C.border, paddingHorizontal: 8, paddingVertical: 4, marginLeft: 8 },
   clientChipText: { fontFamily: FONT_PIXEL, color: C.text, fontSize: 11, fontWeight: '800' },
+  gearBtn: { width: 28, height: 28, marginLeft: 8, borderWidth: 2, borderColor: C.border, backgroundColor: C.panel, alignItems: 'center', justifyContent: 'center' },
+  gearText: { fontSize: 16, color: C.text },
+  badge: { position: 'absolute', top: -6, right: -2, minWidth: 18, height: 18, paddingHorizontal: 3, backgroundColor: C.danger, borderWidth: 2, borderColor: C.border, alignItems: 'center', justifyContent: 'center' },
+  badgeText: { fontFamily: FONT_PIXEL, color: C.white, fontSize: 10, fontWeight: '900' },
   alert: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: C.panel, borderBottomWidth: 2, borderBottomColor: C.gold, paddingVertical: 10 },
   alertText: { fontFamily: FONT_PIXEL, color: C.gold, fontSize: 12, fontWeight: '800', letterSpacing: 0.5 },
   alertDot: { width: 8, height: 8, backgroundColor: C.danger, marginLeft: 8 },

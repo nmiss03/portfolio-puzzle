@@ -45,11 +45,11 @@ export interface Stock {
 
 const SC: Record<Sector, string> = {
   Technology: '#3b82f6',
-  Healthcare: '#ec4899',
+  Healthcare: '#d946a6', // softened from #ec4899
   Finance: '#10b981',
   Energy: '#f59e0b',
-  Consumer: '#8b5cf6',
-  'Real Estate': '#f97316',
+  Consumer: '#a575d9', // softened from #8b5cf6
+  'Real Estate': '#d97706', // softened from #f97316
   Utilities: '#6b7280',
   Commodities: '#14b8a6',
   'Fixed Income': '#6366f1',
@@ -172,9 +172,65 @@ const STOCKS: Stock[] = [
     id: 'at', ticker: 'AT', name: 'AgriTech', price: 70, sector: 'Consumer', sectorColor: SC.Consumer,
     pe: 22, beta: 0.7, dividend: 1.5, week52Low: 50, week52High: 85, marketCap: '$18B',
     yearFounded: 2010, employees: 2200, headquarters: 'Des Moines, IA',
-    logo: { type: 'symbol', value: '🌱', bgColor: '#8b5cf6' },
+    logo: { type: 'symbol', value: '🌱', bgColor: SC.Consumer },
     background: `AgriTech is a precision-agriculture software company modernizing farming through data analytics, IoT sensors, and AI insights. Founded in 2010 by a farming family in Iowa, it serves 50,000 farms globally with steady 15% annual growth. Using satellite imagery and soil sensors, it guides planting, irrigation, and pest management. With 70% gross margin and nearing operating break-even, it recently acquired a competitor for $400M. Its subscription model ($2k-$10k per farm) gives recurring revenue, though revenue is seasonal and commodity prices are volatile.`,
     annualReturn: 0.11, newsRelated: ['commodity prices', 'farm economics', 'climate'], assetClass: 'stock',
+  },
+  {
+    id: 'si', ticker: 'SI', name: 'SemiconductorIntel', price: 165, sector: 'Technology', sectorColor: SC.Technology,
+    pe: 18, beta: 1.9, dividend: 0.3, week52Low: 130, week52High: 185, marketCap: '$180B',
+    yearFounded: 1968, employees: 110000, headquarters: 'Santa Clara, CA',
+    logo: { type: 'initials', value: 'SI', bgColor: SC.Technology },
+    background: `Established semiconductor manufacturer and fab operator. Founded 1968, now facing competition from TSMC and Samsung but remains dominant in CPU design. 110k employees across 30 fabrication facilities worldwide. CEO leading turnaround with $20B in new fab investments. Company supplies chips to every major tech company. Recent earnings beat but margin pressure from competition. Geopolitical tensions (China restrictions) add volatility. Patent portfolio extremely strong.`,
+    annualReturn: 0.15, newsRelated: ['semiconductor demand', 'fab capacity', 'chip shortage'], assetClass: 'stock',
+  },
+  {
+    id: 'hp', ticker: 'HP', name: 'HealthcarePharma', price: 120, sector: 'Healthcare', sectorColor: SC.Healthcare,
+    pe: 25, beta: 1.5, dividend: 0.8, week52Low: 95, week52High: 140, marketCap: '$75B',
+    yearFounded: 1995, employees: 8500, headquarters: 'Cambridge, MA',
+    logo: { type: 'symbol', value: '⚕', bgColor: SC.Healthcare },
+    background: `Boutique biotech focused on immunotherapy and oncology. Founded 1995 by Harvard researchers. 8,500 employees, entirely focused on cancer treatment pipeline. 2 drugs approaching FDA approval with blockbuster potential. CEO is chief scientific officer. Company has burned cash aggressively but recent funding rounds at higher valuations suggest confidence. Partnership with major pharma company de-risks development. Patent positions very strong in checkpoint inhibitors.`,
+    annualReturn: 0.18, newsRelated: ['clinical trials', 'fda approval', 'partnership deals'], assetClass: 'stock',
+  },
+  {
+    id: 'gb', ticker: 'GB', name: 'GreenBuildings', price: 68, sector: 'Real Estate', sectorColor: SC['Real Estate'],
+    pe: 22, beta: 1.0, dividend: 4.8, week52Low: 55, week52High: 75, marketCap: '$28B',
+    yearFounded: 2005, employees: 1800, headquarters: 'Austin, TX',
+    logo: { type: 'symbol', value: '🏢', bgColor: SC['Real Estate'] },
+    background: `Modern REIT specializing in sustainable, LEED-certified commercial properties. Founded 2005, now operates 120+ buildings in major US metros. Focus on ESG-compliant office and mixed-use properties. 1,800 employees, strong occupancy rates (92%+). CEO emphasizes climate-positive operations. Dividend is reliably paid from NOI. Post-pandemic office headwinds present risks, but flight-to-quality favors premium assets. Recent 10-year partnership with Fortune 500 company de-risks revenue. Strong ESG credentials attract ESG-focused institutional capital.`,
+    annualReturn: 0.08, newsRelated: ['office demand', 'esg adoption', 'real estate prices'], assetClass: 'stock',
+  },
+  {
+    id: 'et', ticker: 'ET', name: 'EnergyTransition', price: 92, sector: 'Energy', sectorColor: SC.Energy,
+    pe: 16, beta: 1.4, dividend: 3.2, week52Low: 70, week52High: 110, marketCap: '$38B',
+    yearFounded: 1987, employees: 9500, headquarters: 'Denver, CO',
+    logo: { type: 'symbol', value: '⚡', bgColor: SC.Energy },
+    background: `Legacy oil company pivoting toward renewables and hydrogen. Founded 1987, traditional oil & gas heritage but now 40% revenue from renewables. 9,500 employees split between traditional upstream and new renewable divisions. CEO committed to net-zero by 2050. Recently acquired solar company and hydrogen startup. Dividend remains attractive but faces pressure long-term. Stock reflects transition risk: upside if pivot succeeds, downside if oil demand collapses. Activism from both climate advocates and traditionalists. Geopolitical tensions support oil prices short-term.`,
+    annualReturn: 0.1, newsRelated: ['energy transition', 'oil prices', 'renewable adoption'], assetClass: 'stock',
+  },
+  {
+    id: 'pgm', ticker: 'PGM', name: 'PowerGridModern', price: 58, sector: 'Utilities', sectorColor: SC.Utilities,
+    pe: 20, beta: 0.5, dividend: 4.2, week52Low: 55, week52High: 63, marketCap: '$32B',
+    yearFounded: 2010, employees: 3200, headquarters: 'Atlanta, GA',
+    logo: { type: 'symbol', value: '🔌', bgColor: SC.Utilities },
+    background: `Modern utility operator focused on grid modernization and EV charging infrastructure. Founded 2010 (newer among utilities), primarily owns transmission and distribution networks. 3,200 employees, regulated monopoly in Southeast US. CEO emphasizes smart grid and distributed energy resources. Recently received regulatory approval for $5B infrastructure upgrade. Dividend growing 3-4% annually. Less volatile than traditional equities. Company positioned to benefit from EV adoption (charging infrastructure) and renewable integration. Regulatory environment supportive. Boring but stable.`,
+    annualReturn: 0.05, newsRelated: ['utility earnings', 'grid modernization', 'ev infrastructure'], assetClass: 'stock',
+  },
+  {
+    id: 'bgy', ticker: 'BGY', name: 'BondGovt10Yr', price: 100, sector: 'Fixed Income', sectorColor: SC['Fixed Income'],
+    pe: null, beta: 0.3, dividend: 4.5, week52Low: 98, week52High: 102, marketCap: '$300B',
+    yearFounded: 1935, employees: 2000, headquarters: 'Washington, DC',
+    logo: { type: 'symbol', value: '📋', bgColor: SC['Fixed Income'] },
+    background: `10-year US Treasury bonds, longest duration exposure. Issued by US Treasury. Lowest default risk possible. Price inverse to interest rates—when rates rise, prices fall; when rates fall, prices rise. Portfolio ladder strategy recommended. 2000 employees manage fund operations. Yield currently 4.5%, inversely correlated to growth equities. Excellent diversifier. Market has priced in Fed rate trajectory. Long-duration exposure means interest rate risk if inflation accelerates. Zero credit risk.`,
+    annualReturn: 0.045, newsRelated: ['interest rates', 'inflation', 'fed policy'], assetClass: 'bond',
+  },
+  {
+    id: 'csd', ticker: 'CSD', name: 'CyberSecurityDefense', price: 145, sector: 'Technology', sectorColor: SC.Technology,
+    pe: 35, beta: 2.0, dividend: 0.0, week52Low: 95, week52High: 165, marketCap: '$65B',
+    yearFounded: 2012, employees: 4500, headquarters: 'San Jose, CA',
+    logo: { type: 'symbol', value: '🔒', bgColor: SC.Technology },
+    background: `Cybersecurity SaaS platform protecting enterprise networks. Founded 2012, rapid growth 40%+ YoY. 4,500 employees, mostly engineers. CEO is former NSA cybersecurity director. Company provides AI-driven threat detection and response. No dividend (reinvests all revenue). Recent breaches at major corporations driving demand. Stock highly correlated to enterprise spending and security news. Recent government contracts worth $500M+ over 5 years. Patent portfolio strong in ML-based security. Valuation stretched but growth justifies multiples. Cyber attacks increasing in frequency, driving secular demand.`,
+    annualReturn: 0.28, newsRelated: ['cybersecurity threats', 'breaches', 'government spending'], assetClass: 'stock',
   },
 ];
 

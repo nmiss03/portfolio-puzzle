@@ -4,6 +4,7 @@ import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { GameProvider } from '../state/GameContext';
+import { ThemeProvider } from '../contexts/ThemeContext';
 import { colors, font } from '../theme';
 
 // Root layout: wires up the navigation stack and the shared game state.
@@ -14,6 +15,7 @@ import { colors, font } from '../theme';
 export default function RootLayout() {
   return (
     <SafeAreaProvider>
+      <ThemeProvider>
       <GameProvider>
         {/* Light status-bar icons read well on the dark retro background. */}
         <StatusBar style="light" />
@@ -33,6 +35,7 @@ export default function RootLayout() {
           <Stack.Screen name="(game)/WeekScreen" options={{ headerShown: false }} />
         </Stack>
       </GameProvider>
+      </ThemeProvider>
     </SafeAreaProvider>
   );
 }

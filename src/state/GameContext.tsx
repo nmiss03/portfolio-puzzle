@@ -5,7 +5,7 @@ import React, { createContext, useContext, useMemo, useReducer } from 'react';
 
 import CLIENTS from '../data/clients';
 import STOCKS, { stocksById } from '../data/stocks';
-import { ClientProfile, Phase, RuntimeClient, initRuntimeClient } from '../data/gameState';
+import { ClientProfile, Phase, RuntimeClient, clampHappiness, initRuntimeClient } from '../data/gameState';
 import { marketValue, calculateWeeklyHappiness } from '../data/scoring';
 import { NewsArticle, generateWeeklyNews } from '../data/newsArticles';
 import {
@@ -27,6 +27,13 @@ import {
   calculateWeeklyReputation,
 } from '../data/reputationSystem';
 import { activeCount, canSignMore, signContract, tickContract } from '../data/contractSystem';
+import {
+  ClientMessage,
+  MESSAGE_FULFILLED_BONUS,
+  MESSAGE_IGNORED_PENALTY,
+  generateClientMessages,
+  isMessageFulfilled,
+} from '../data/clientMessages';
 
 export interface PerClientWeekResult {
   clientId: string;
@@ -81,6 +88,10 @@ interface State {
   detailClientId: string | null;
   transition: TransitionInfo | null;
   weekNews: NewsArticle[];
+  // Phone messages from clients (requests to buy / add to positions).
+  messages: ClientMessage[];
+  unreadMessageCount: number;
+  phoneOpen: boolean;
   // Stock prices persist week-to-week. weekStartPrices are what the player
   // trades at all week; weekEndPrices are computed at week-end and carried
   // over to become next week's start prices.
@@ -101,6 +112,7 @@ type Action =
   | { type: 'ADVANCE_WEEK' }
   | { type: 'TOGGLE_BOOK'; open?: boolean }
   | { type: 'TOGGLE_NEWS'; open?: boolean }
+  | { type: 'TOGGLE_PHONE'; open?: boolean }
   | { type: 'OPEN_DETAIL'; clientId: string }
   | { type: 'CLOSE_DETAIL' };
 
@@ -121,6 +133,9 @@ function buildInitial(): State {
     detailClientId: null,
     transition: null,
     weekNews: [],
+    messages: [],
+    unreadMessageCount: 0,
+    phoneOpen: false,
     weekStartPrices: initializeWeekPrices(null, 1),
     weekEndPrices: {},
     stockPriceHistory: {},
@@ -217,6 +232,10 @@ function reducer(state: State, action: Action): State {
       const firedNames: string[] = [];
       const snapshots: ActiveSnapshot[] = [];
 
+      // Phone requests issued this week are graded now (deadline = week-end).
+      const pendingMsgs = state.messages.filter((m) => !m.resolved && m.weekIssued === state.currentWeek);
+      const msgResolutions: Record<string, boolean> = {};
+
       Object.values(state.clients)
         .filter((c) => c.status === 'signed')
         .forEach((client) => {
@@ -236,14 +255,25 @@ function reducer(state: State, action: Action): State {
           // scaled by tier (higher tiers demand diversification).
           const conc = evaluateConcentrationRisk(client.holdings, client, weekStartPrices);
 
+          // Phone requests: fulfilling a buy/add request builds the relationship.
+          let msgDelta = 0;
+          pendingMsgs
+            .filter((m) => m.clientId === client.id)
+            .forEach((m) => {
+              const curShares = client.holdings[m.stockId]?.shares || 0;
+              const ok = isMessageFulfilled(m, curShares);
+              msgResolutions[m.id] = ok;
+              msgDelta += ok ? MESSAGE_FULFILLED_BONUS : MESSAGE_IGNORED_PENALTY;
+            });
+
           const prevHappiness = client.happiness;
-          const newHappiness = calculateWeeklyHappiness(
+          const newHappiness = clampHappiness(msgDelta + calculateWeeklyHappiness(
             prevHappiness,
             returnPct,
             alloc.happinessMatched,
             client.negativeReturnHappinessPenalty,
             conc.happinessPenalty
-          );
+          ));
           const fired = newHappiness <= 0;
           const allTimeDollar = endValue - client.initialCapital;
           const allTimePct = client.initialCapital > 0 ? allTimeDollar / client.initialCapital : 0;
@@ -312,6 +342,13 @@ function reducer(state: State, action: Action): State {
         ];
       });
 
+      // Mark this week's phone requests resolved (fulfilled or not).
+      const resolvedMessages = state.messages.map((m) =>
+        !m.resolved && m.weekIssued === state.currentWeek
+          ? { ...m, resolved: true, fulfilled: msgResolutions[m.id] ?? false }
+          : m
+      );
+
       return {
         ...state,
         clients: updated,
@@ -320,6 +357,7 @@ function reducer(state: State, action: Action): State {
         phase: 'transition',
         weekEndPrices,
         stockPriceHistory,
+        messages: resolvedMessages,
         transition: {
           week: state.currentWeek,
           results,
@@ -340,6 +378,11 @@ function reducer(state: State, action: Action): State {
       Object.values(state.clients).forEach((c) => (ticked[c.id] = tickContract(c)));
       // Carry this week's ending prices over to become next week's start prices.
       const nextStartPrices = initializeWeekPrices(carryOverPrices(state.weekEndPrices), nextWeek);
+      // Clients may text you a buy/add request for the new week.
+      const newMessages = generateClientMessages(
+        nextWeek,
+        Object.values(ticked).filter((c) => c.status === 'signed')
+      );
       return {
         ...state,
         currentWeek: nextWeek,
@@ -350,13 +393,21 @@ function reducer(state: State, action: Action): State {
         weekNews: generateWeeklyNews(nextWeek),
         weekStartPrices: nextStartPrices,
         weekEndPrices: {},
+        messages: [...newMessages, ...state.messages],
+        unreadMessageCount: state.unreadMessageCount + newMessages.length,
       };
     }
 
     case 'TOGGLE_BOOK':
-      return { ...state, bookOpen: action.open ?? !state.bookOpen, newsOpen: false, detailClientId: null };
+      return { ...state, bookOpen: action.open ?? !state.bookOpen, newsOpen: false, phoneOpen: false, detailClientId: null };
     case 'TOGGLE_NEWS':
-      return { ...state, newsOpen: action.open ?? !state.newsOpen, bookOpen: false };
+      return { ...state, newsOpen: action.open ?? !state.newsOpen, bookOpen: false, phoneOpen: false };
+    case 'TOGGLE_PHONE': {
+      const open = action.open ?? !state.phoneOpen;
+      // Opening the phone marks everything read and clears the badge.
+      const messages = open ? state.messages.map((m) => (m.read ? m : { ...m, read: true })) : state.messages;
+      return { ...state, phoneOpen: open, bookOpen: false, newsOpen: false, messages, unreadMessageCount: open ? 0 : state.unreadMessageCount };
+    }
     case 'OPEN_DETAIL':
       return { ...state, detailClientId: action.clientId };
     case 'CLOSE_DETAIL':
@@ -389,6 +440,7 @@ interface GameContextValue {
   advanceWeek: () => void;
   toggleBook: (open?: boolean) => void;
   toggleNews: (open?: boolean) => void;
+  togglePhone: (open?: boolean) => void;
   openDetail: (clientId: string) => void;
   closeDetail: () => void;
 }
@@ -428,6 +480,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       advanceWeek: () => dispatch({ type: 'ADVANCE_WEEK' }),
       toggleBook: (open?: boolean) => dispatch({ type: 'TOGGLE_BOOK', open }),
       toggleNews: (open?: boolean) => dispatch({ type: 'TOGGLE_NEWS', open }),
+      togglePhone: (open?: boolean) => dispatch({ type: 'TOGGLE_PHONE', open }),
       openDetail: (clientId: string) => dispatch({ type: 'OPEN_DETAIL', clientId }),
       closeDetail: () => dispatch({ type: 'CLOSE_DETAIL' }),
     };
