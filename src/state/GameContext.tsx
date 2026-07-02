@@ -227,15 +227,16 @@ function reducer(state: State, action: Action): State {
 
     case 'BUY': {
       const client = state.clients[action.clientId];
-      if (!client || action.shares <= 0) return state;
+      const shares = Math.floor(action.shares); // whole shares only
+      if (!client || shares <= 0) return state;
       const stock = stocksById[action.stockId];
       if (!stock) return state;
-      const cost = action.shares * priceOf(action.stockId);
+      const cost = shares * priceOf(action.stockId);
       if (cost > client.cash + 1e-6) return state;
       const prev = client.holdings[action.stockId];
       const holdings = {
         ...client.holdings,
-        [action.stockId]: { shares: (prev?.shares || 0) + action.shares, cost: (prev?.cost || 0) + cost },
+        [action.stockId]: { shares: (prev?.shares || 0) + shares, cost: (prev?.cost || 0) + cost },
       };
       return { ...state, clients: { ...state.clients, [client.id]: { ...client, holdings, cash: client.cash - cost } } };
     }
@@ -245,7 +246,8 @@ function reducer(state: State, action: Action): State {
       if (!client) return state;
       const h = client.holdings[action.stockId];
       if (!h || h.shares <= 0) return state;
-      const n = Math.min(action.shares > 0 ? action.shares : h.shares, h.shares);
+      const wanted = Math.floor(action.shares); // whole shares only
+      const n = Math.min(wanted > 0 ? wanted : h.shares, h.shares);
       const refund = n * priceOf(action.stockId);
       const avgCost = h.cost / h.shares;
       const holdings = { ...client.holdings };
@@ -300,6 +302,9 @@ function reducer(state: State, action: Action): State {
     }
 
     case 'TRANSITION_WEEK': {
+      // Guard against double-dispatch (e.g. a fast double-tap on "Next Week"):
+      // a week can only be resolved from the builder phase.
+      if (state.phase !== 'builder') return state;
       // Week-end resolution: every stock gets natural market drift plus the
       // economic-cycle regime tilt, then this week's accumulated news impact is
       // added on top. On a rare black-swan week a crash replaces both drift and
@@ -339,6 +344,8 @@ function reducer(state: State, action: Action): State {
           const endValue = client.cash + mvEnd; // portfolio value after price moves
           const returnDollar = endValue - startValue; // == mvEnd - mvStart
           const returnPct = startValue > 0 ? returnDollar / startValue : 0;
+          // How much of the move came from news alone (vs drift/regime).
+          const newsGain = marketValue(client.holdings, newsImpact, weekStartPrices) - mvStart;
 
           if (returnDollar > 0) {
             totalPositiveGains += returnDollar;
@@ -352,8 +359,9 @@ function reducer(state: State, action: Action): State {
           // Relationship: does the allocation match the client's tier target?
           const alloc = evaluateAllocationMatch(client, client.holdings, weekStartPrices);
           // Concentration: too much capital in a single stock hurts trust,
-          // scaled by tier (higher tiers demand diversification).
-          const conc = evaluateConcentrationRisk(client.holdings, client, weekStartPrices);
+          // scaled by tier (higher tiers demand diversification). Cash counts
+          // toward the denominator, so a small starter position is safe.
+          const conc = evaluateConcentrationRisk(client.holdings, client, weekStartPrices, client.cash);
 
           // Phone requests: fulfilling a buy/add request builds the relationship.
           let msgDelta = 0;
@@ -372,7 +380,8 @@ function reducer(state: State, action: Action): State {
             returnPct,
             alloc.happinessMatched,
             client.negativeReturnHappinessPenalty,
-            conc.happinessPenalty
+            conc.happinessPenalty,
+            alloc.invested
           ));
           const fired = newHappiness <= 0;
           const allTimeDollar = endValue - client.initialCapital;
@@ -398,7 +407,7 @@ function reducer(state: State, action: Action): State {
 
           results.push({
             clientId: client.id, name: client.name, characterColor: client.characterColor,
-            returnDollar, returnPct, newsContribution: returnDollar, prevHappiness, newHappiness,
+            returnDollar, returnPct, newsContribution: newsGain, prevHappiness, newHappiness,
             allTimeDollar, allTimePct, fired,
             concentrationLevel: conc.level, concentrationPenalty: conc.happinessPenalty,
             largestStockPct: conc.largestStockWeight,
@@ -502,6 +511,8 @@ function reducer(state: State, action: Action): State {
     }
 
     case 'ADVANCE_WEEK': {
+      // Guard against double-dispatch: advancing is only valid from the summary.
+      if (state.phase !== 'summary') return state;
       if (state.reputation <= 0) return { ...state, phase: 'gameOver', transition: null };
       const nextWeek = state.currentWeek + 1;
       const ticked: Record<string, RuntimeClient> = {};

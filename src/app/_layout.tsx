@@ -4,8 +4,15 @@ import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { GameProvider } from '../state/GameContext';
-import { ThemeProvider } from '../contexts/ThemeContext';
+import { ThemeProvider, useTheme } from '../contexts/ThemeContext';
 import { colors, font } from '../theme';
+
+// Status-bar icons flip with the theme: dark icons on the light palette,
+// light icons on the dark one.
+function ThemedStatusBar() {
+  const { mode } = useTheme();
+  return <StatusBar style={mode === 'dark' ? 'light' : 'dark'} />;
+}
 
 // Root layout: wires up the navigation stack and the shared game state.
 //
@@ -17,8 +24,7 @@ export default function RootLayout() {
     <SafeAreaProvider>
       <ThemeProvider>
       <GameProvider>
-        {/* Light status-bar icons read well on the dark retro background. */}
-        <StatusBar style="light" />
+        <ThemedStatusBar />
         <Stack
           screenOptions={{
             headerStyle: { backgroundColor: colors.bg },
@@ -30,7 +36,7 @@ export default function RootLayout() {
             animation: 'slide_from_right',
           }}
         >
-          {/* Home / entry point — LevelSelect. The root, so no back button. */}
+          {/* Home / entry point — TitleScreen. The root, so no back button. */}
           <Stack.Screen name="index" options={{ headerShown: false }} />
           <Stack.Screen name="(game)/WeekScreen" options={{ headerShown: false }} />
         </Stack>

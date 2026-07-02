@@ -58,11 +58,13 @@ export function generateClientMessages(currentWeek: number, activeClients: Runti
     const owned = STOCKS.filter((s) => (client.holdings[s.id]?.shares || 0) > 0);
     const notOwned = STOCKS.filter((s) => (client.holdings[s.id]?.shares || 0) <= 0);
 
-    // 60% new stock, 40% increase — fall back to new if nothing owned.
+    // 60% new stock, 40% increase (only if they own something). If the pool is
+    // somehow empty (e.g. client owns every stock), skip rather than generate
+    // an unfulfillable request.
     const wantIncrease = Math.random() < 0.4 && owned.length > 0;
-    const pool = wantIncrease ? owned : notOwned.length > 0 ? notOwned : STOCKS;
+    const pool = wantIncrease ? owned : notOwned;
+    if (pool.length === 0) return;
     const stock = pick(pool);
-    if (!stock) return;
 
     const messageType: MessageType = wantIncrease ? 'increase_position_request' : 'new_stock_request';
     const template = wantIncrease ? pick(INCREASE_TEMPLATES) : pick(NEW_STOCK_TEMPLATES);

@@ -131,7 +131,9 @@ export interface InsiderTip {
 // has the whole week to act on it.
 export function maybeInsiderTip(week: number): InsiderTip | null {
   if (Math.random() > INSIDER_CHANCE) return null;
-  const stock = STOCKS[Math.floor(Math.random() * STOCKS.length)];
+  // Committee gossip moves companies, not Treasury funds — bonds are exempt.
+  const pool = STOCKS.filter((s) => s.assetClass !== 'bond');
+  const stock = pool[Math.floor(Math.random() * pool.length)];
   const up = Math.random() < 0.6;
   const mag = INSIDER_MIN + Math.random() * (INSIDER_MAX - INSIDER_MIN);
   const impact = up ? mag : -mag;

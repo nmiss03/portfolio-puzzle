@@ -42,12 +42,17 @@ export function calculateWeeklyPriceImpact(weekNews: NewsArticle[]): PriceMap {
   return impact;
 }
 
+// No matter how many negative shocks stack up in one week (crash + insider +
+// several bad headlines), a stock can never lose more than this — which also
+// guarantees prices stay positive.
+const MAX_WEEKLY_DROP = -0.85;
+
 // Apply accumulated impacts to the week's starting prices → week-end prices.
 // These become the next week's starting prices (carry-over).
 export function applyWeekEndPrices(weekStartPrices: PriceMap, priceImpact: PriceMap): PriceMap {
   const end: PriceMap = {};
   Object.entries(weekStartPrices).forEach(([id, price]) => {
-    const mult = priceImpact[id] || 0;
+    const mult = Math.max(MAX_WEEKLY_DROP, priceImpact[id] || 0);
     end[id] = price * (1 + mult);
   });
   return end;

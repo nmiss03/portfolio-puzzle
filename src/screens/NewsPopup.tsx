@@ -3,15 +3,15 @@ import { View, Text, Pressable, ScrollView, StyleSheet } from 'react-native';
 
 import { stocksById } from '../data/stocks';
 import { useGame } from '../state/GameContext';
-import { C, FONT_PIXEL, BORDER_W } from '../theme';
-
-const BLUE = C.gold;
+import { FONT_PIXEL, BORDER_W, Palette } from '../theme';
+import { makeUseStyles } from '../contexts/ThemeContext';
 
 type FilterMode = 'All' | 'Industry' | 'Specific Stock';
 type WeekTab = 'this' | 'next';
 
 export default function NewsPopup() {
   const { state, upgrades, toggleNews } = useGame();
+  const styles = useStyles();
   const [filter, setFilter] = useState<FilterMode>('All');
   const [weekTab, setWeekTab] = useState<WeekTab>('this');
 
@@ -108,35 +108,37 @@ export default function NewsPopup() {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeUseStyles((c: Palette) =>
+  StyleSheet.create({
   backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(10,16,16,0.6)', justifyContent: 'flex-end' },
-  panel: { height: '90%', backgroundColor: C.bg, borderTopWidth: BORDER_W * 2, borderColor: C.border, overflow: 'hidden' },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16, borderBottomWidth: BORDER_W, borderBottomColor: C.border, backgroundColor: C.panelDark },
-  title: { fontFamily: FONT_PIXEL, color: C.gold, fontSize: 18, fontWeight: '900', letterSpacing: 1, textTransform: 'uppercase' },
-  close: { fontFamily: FONT_PIXEL, color: C.gold, fontSize: 18, fontWeight: '800' },
-  weekTabs: { flexDirection: 'row', backgroundColor: C.panelDark, borderBottomWidth: 2, borderBottomColor: C.border },
+  panel: { height: '90%', backgroundColor: c.bg, borderTopWidth: BORDER_W * 2, borderColor: c.border, overflow: 'hidden' },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16, borderBottomWidth: BORDER_W, borderBottomColor: c.border, backgroundColor: c.panelDark },
+  title: { fontFamily: FONT_PIXEL, color: c.gold, fontSize: 18, fontWeight: '900', letterSpacing: 1, textTransform: 'uppercase' },
+  close: { fontFamily: FONT_PIXEL, color: c.gold, fontSize: 18, fontWeight: '800' },
+  weekTabs: { flexDirection: 'row', backgroundColor: c.panelDark, borderBottomWidth: 2, borderBottomColor: c.border },
   weekTab: { flex: 1, paddingVertical: 9, alignItems: 'center', borderBottomWidth: 3, borderBottomColor: 'transparent' },
-  weekTabActive: { borderBottomColor: C.gold },
-  weekTabText: { fontFamily: FONT_PIXEL, color: C.muted, fontSize: 11, fontWeight: '800', letterSpacing: 0.5 },
-  weekTabTextActive: { color: C.gold },
-  cardExclusive: { borderColor: C.gold },
-  exclusiveTag: { alignSelf: 'flex-start', backgroundColor: C.gold, paddingHorizontal: 6, paddingVertical: 2, marginBottom: 8 },
-  exclusiveTagText: { fontFamily: FONT_PIXEL, color: C.ink, fontSize: 10, fontWeight: '900', letterSpacing: 0.5 },
-  controls: { flexDirection: 'row', alignItems: 'center', padding: 10, backgroundColor: C.panelDark, borderBottomWidth: 2, borderBottomColor: C.border },
-  chip: { borderWidth: 2, borderColor: C.border, paddingHorizontal: 10, paddingVertical: 5, marginRight: 6, backgroundColor: C.panel },
-  chipActive: { backgroundColor: C.button, borderColor: C.border },
-  chipText: { fontFamily: FONT_PIXEL, color: C.textDim, fontSize: 11, fontWeight: '700' },
-  chipTextActive: { color: C.ink },
-  hint: { color: C.textDim, fontSize: 12, fontStyle: 'italic', padding: 12, paddingBottom: 0 },
+  weekTabActive: { borderBottomColor: c.gold },
+  weekTabText: { fontFamily: FONT_PIXEL, color: c.muted, fontSize: 11, fontWeight: '800', letterSpacing: 0.5 },
+  weekTabTextActive: { color: c.gold },
+  cardExclusive: { borderColor: c.gold },
+  exclusiveTag: { alignSelf: 'flex-start', backgroundColor: c.gold, paddingHorizontal: 6, paddingVertical: 2, marginBottom: 8 },
+  exclusiveTagText: { fontFamily: FONT_PIXEL, color: c.ink, fontSize: 10, fontWeight: '900', letterSpacing: 0.5 },
+  controls: { flexDirection: 'row', alignItems: 'center', padding: 10, backgroundColor: c.panelDark, borderBottomWidth: 2, borderBottomColor: c.border },
+  chip: { borderWidth: 2, borderColor: c.border, paddingHorizontal: 10, paddingVertical: 5, marginRight: 6, backgroundColor: c.panel },
+  chipActive: { backgroundColor: c.button, borderColor: c.border },
+  chipText: { fontFamily: FONT_PIXEL, color: c.textDim, fontSize: 11, fontWeight: '700' },
+  chipTextActive: { color: c.ink },
+  hint: { color: c.textDim, fontSize: 12, fontStyle: 'italic', padding: 12, paddingBottom: 0 },
   list: { padding: 12 },
-  card: { backgroundColor: C.panel, borderWidth: BORDER_W, borderColor: C.border, padding: 14, marginBottom: 10 },
-  headline: { fontFamily: FONT_PIXEL, color: C.text, fontSize: 14, fontWeight: '800', lineHeight: 20 },
+  card: { backgroundColor: c.panel, borderWidth: BORDER_W, borderColor: c.border, padding: 14, marginBottom: 10 },
+  headline: { fontFamily: FONT_PIXEL, color: c.text, fontSize: 14, fontWeight: '800', lineHeight: 20 },
   metaRow: { flexDirection: 'row', alignItems: 'center', marginTop: 6 },
-  badge: { backgroundColor: C.panelDark, borderWidth: 1, borderColor: C.border, paddingHorizontal: 6, paddingVertical: 2, marginRight: 8 },
-  badgeText: { fontFamily: FONT_PIXEL, color: C.gold, fontSize: 10, fontWeight: '800' },
-  metaText: { color: C.muted, fontSize: 11 },
-  body: { color: C.textDim, fontSize: 13, lineHeight: 19, marginTop: 8 },
+  badge: { backgroundColor: c.panelDark, borderWidth: 1, borderColor: c.border, paddingHorizontal: 6, paddingVertical: 2, marginRight: 8 },
+  badgeText: { fontFamily: FONT_PIXEL, color: c.gold, fontSize: 10, fontWeight: '800' },
+  metaText: { color: c.muted, fontSize: 11 },
+  body: { color: c.textDim, fontSize: 13, lineHeight: 19, marginTop: 8 },
   empty: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 30 },
-  emptyTitle: { fontFamily: FONT_PIXEL, color: C.gold, fontSize: 16, fontWeight: '800' },
-  emptyText: { color: C.textDim, fontSize: 13, marginTop: 6, textAlign: 'center' },
-});
+  emptyTitle: { fontFamily: FONT_PIXEL, color: c.gold, fontSize: 16, fontWeight: '800' },
+  emptyText: { color: c.textDim, fontSize: 13, marginTop: 6, textAlign: 'center' },
+  })
+);

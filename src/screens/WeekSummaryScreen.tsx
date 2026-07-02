@@ -7,14 +7,13 @@ import HappinessMeter from '../components/HappinessMeter';
 import { useGame } from '../state/GameContext';
 import { REGIME_BLURB, REGIME_LABEL } from '../data/economicCycles';
 import { formatMoney, formatPrice } from '../utils/format';
-import { C, FONT_PIXEL, BORDER_W } from '../theme';
-
-const GREEN = C.success;
-const RED = C.danger;
-const BLUE = C.gold;
+import { FONT_PIXEL, BORDER_W, Palette } from '../theme';
+import { makeUseStyles, useTheme } from '../contexts/ThemeContext';
 
 export default function WeekSummaryScreen({ onContinue }: { onContinue: () => void }) {
   const { state } = useGame();
+  const styles = useStyles();
+  const { c } = useTheme();
   const t = state.transition;
 
   if (!t) {
@@ -26,6 +25,18 @@ export default function WeekSummaryScreen({ onContinue }: { onContinue: () => vo
   }
 
   const barData = t.results.map((r) => ({ label: r.name, value: Math.round(r.returnDollar) }));
+
+  // Keep the price list scannable: your holdings, the week's biggest movers,
+  // and anything with a special-event note — not all 22 stocks.
+  const heldIds = new Set<string>();
+  Object.values(state.clients).forEach((cl) => {
+    if (cl.status !== 'signed') return;
+    Object.entries(cl.holdings).forEach(([id, h]) => {
+      if (h.shares > 0) heldIds.add(id);
+    });
+  });
+  const topIds = new Set(t.priceMoves.slice(0, 5).map((m) => m.stockId));
+  const shownMoves = t.priceMoves.filter((m) => heldIds.has(m.stockId) || topIds.has(m.stockId) || m.notes.length > 0);
 
   return (
     <ScrollView contentContainerStyle={styles.content}>
@@ -56,7 +67,7 @@ export default function WeekSummaryScreen({ onContinue }: { onContinue: () => vo
         <View style={styles.tHead}>
           <Text style={[styles.thClient, styles.th]}>Client</Text>
           <Text style={[styles.thNum, styles.th]}>Week</Text>
-          <Text style={[styles.thNum, styles.th]}>Market</Text>
+          <Text style={[styles.thNum, styles.th]}>News</Text>
           <Text style={[styles.thNum, styles.th]}>All-time</Text>
           <Text style={[styles.thHappy, styles.th]}>Happy</Text>
         </View>
@@ -67,14 +78,14 @@ export default function WeekSummaryScreen({ onContinue }: { onContinue: () => vo
           return (
             <View key={r.clientId} style={styles.tRow}>
               <Text style={[styles.thClient, styles.tdName]} numberOfLines={1}>{r.name}</Text>
-              <Text style={[styles.thNum, styles.td, { color: wPos ? GREEN : RED }]}>
+              <Text style={[styles.thNum, styles.td, { color: wPos ? c.success : c.danger }]}>
                 {wPos ? '+' : '-'}{formatMoney(Math.abs(Math.round(r.returnDollar)))}{'\n'}
                 {wPos ? '+' : ''}{(r.returnPct * 100).toFixed(2)}%
               </Text>
-              <Text style={[styles.thNum, styles.td, { color: BLUE }]}>
+              <Text style={[styles.thNum, styles.td, { color: c.gold }]}>
                 {nPos ? '+' : '-'}{formatMoney(Math.abs(Math.round(r.newsContribution)))}
               </Text>
-              <Text style={[styles.thNum, styles.td, { color: aPos ? GREEN : RED }]}>
+              <Text style={[styles.thNum, styles.td, { color: aPos ? c.success : c.danger }]}>
                 {aPos ? '+' : '-'}{formatMoney(Math.abs(Math.round(r.allTimeDollar)))}{'\n'}
                 {aPos ? '+' : ''}{(r.allTimePct * 100).toFixed(2)}%
               </Text>
@@ -108,7 +119,7 @@ export default function WeekSummaryScreen({ onContinue }: { onContinue: () => vo
       {t.priceMoves.length > 0 && (
         <View style={styles.priceCard}>
           <Text style={styles.priceTitle}>Price Movements (week-end)</Text>
-          {t.priceMoves.map((m) => {
+          {shownMoves.map((m) => {
             const up = m.pct >= 0;
             const hasNews = Math.abs(m.newsPct) > 1e-9;
             return (
@@ -126,14 +137,14 @@ export default function WeekSummaryScreen({ onContinue }: { onContinue: () => vo
                 </View>
                 <Text style={styles.priceMove}>
                   {formatPrice(m.startPrice)} → {formatPrice(m.endPrice)}{'  '}
-                  <Text style={{ color: up ? GREEN : RED }}>
+                  <Text style={{ color: up ? c.success : c.danger }}>
                     ({up ? '+' : ''}{(m.pct * 100).toFixed(1)}%)
                   </Text>
                 </Text>
               </View>
             );
           })}
-          <Text style={styles.priceNote}>These ending prices carry over as next week's starting prices.</Text>
+          <Text style={styles.priceNote}>Top movers, your holdings & special events shown · {t.priceMoves.length} stocks tracked. Ending prices carry over to next week.</Text>
         </View>
       )}
 
@@ -146,13 +157,13 @@ export default function WeekSummaryScreen({ onContinue }: { onContinue: () => vo
         {t.repChanges.length === 0 ? (
           <Text style={styles.repNeutral}>No change this week.</Text>
         ) : (
-          t.repChanges.map((c, i) => (
-            <Text key={i} style={[styles.repChange, { color: c.amount >= 0 ? GREEN : RED }]}>
-              {c.amount >= 0 ? '+' : ''}{c.amount} · {c.reason}
+          t.repChanges.map((ch, i) => (
+            <Text key={i} style={[styles.repChange, { color: ch.amount >= 0 ? c.success : c.danger }]}>
+              {ch.amount >= 0 ? '+' : ''}{ch.amount} · {ch.reason}
             </Text>
           ))
         )}
-        <Text style={[styles.repTotal, { color: t.repAfter >= t.repBefore ? GREEN : RED }]}>
+        <Text style={[styles.repTotal, { color: t.repAfter >= t.repBefore ? c.success : c.danger }]}>
           {t.repAfter >= t.repBefore ? '+' : ''}{Math.round(t.repAfter - t.repBefore)} reputation this week
         </Text>
         {t.newlyUnlocked.length > 0 && (
@@ -170,52 +181,54 @@ export default function WeekSummaryScreen({ onContinue }: { onContinue: () => vo
   );
 }
 
-const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: C.bg, alignItems: 'center', justifyContent: 'center' },
+const useStyles = makeUseStyles((c: Palette) =>
+  StyleSheet.create({
+  screen: { flex: 1, backgroundColor: c.bg, alignItems: 'center', justifyContent: 'center' },
   content: { padding: 20 },
-  title: { fontFamily: FONT_PIXEL, color: C.gold, fontSize: 20, fontWeight: '900', textAlign: 'center', marginVertical: 12, letterSpacing: 1, textTransform: 'uppercase' },
-  regimeCard: { backgroundColor: C.panel, borderWidth: BORDER_W, borderColor: C.border, padding: 12, marginBottom: 16 },
-  regimeLabel: { fontFamily: FONT_PIXEL, color: C.gold, fontSize: 13, fontWeight: '900', letterSpacing: 0.5 },
-  regimeBlurb: { color: C.textDim, fontSize: 12, lineHeight: 17, marginTop: 4 },
-  feeLine: { fontFamily: FONT_PIXEL, color: C.success, fontSize: 12, fontWeight: '800', marginTop: 8 },
-  priceNoteRibbon: { fontFamily: FONT_PIXEL, color: C.gold, fontSize: 9, fontWeight: '800', marginTop: 3 },
-  swanCard: { backgroundColor: C.panelDark, borderWidth: BORDER_W, borderColor: C.danger, padding: 14, marginBottom: 16 },
-  swanTitle: { fontFamily: FONT_PIXEL, color: C.danger, fontSize: 14, fontWeight: '900', letterSpacing: 0.5 },
-  swanBlurb: { color: C.text, fontSize: 13, lineHeight: 19, marginTop: 8 },
-  swanNote: { color: C.textDim, fontSize: 11, fontStyle: 'italic', marginTop: 8 },
-  chartCard: { backgroundColor: C.panel, borderWidth: BORDER_W, borderColor: C.border, padding: 16, marginBottom: 16 },
-  accuracyCard: { backgroundColor: C.panelDark, borderWidth: BORDER_W, borderColor: C.gold, padding: 12, marginBottom: 16 },
-  accuracyText: { color: C.text, fontSize: 13, fontWeight: '700', lineHeight: 18 },
-  table: { backgroundColor: C.panel, borderWidth: BORDER_W, borderColor: C.border, padding: 12 },
-  concCard: { backgroundColor: C.panelDark, borderWidth: BORDER_W, borderColor: C.danger, padding: 14, marginTop: 16 },
-  concTitle: { fontFamily: FONT_PIXEL, color: C.danger, fontSize: 14, fontWeight: '900', marginBottom: 6, letterSpacing: 0.5, textTransform: 'uppercase' },
-  concRow: { color: C.text, fontSize: 13, fontWeight: '700', marginVertical: 2 },
-  concPenalty: { color: C.danger, fontWeight: '900' },
-  concNote: { color: C.muted, fontSize: 11, fontStyle: 'italic', marginTop: 8 },
-  priceCard: { backgroundColor: C.panel, borderWidth: BORDER_W, borderColor: C.border, padding: 14, marginTop: 16 },
-  priceTitle: { fontFamily: FONT_PIXEL, color: C.gold, fontSize: 15, fontWeight: '900', marginBottom: 8, letterSpacing: 0.5, textTransform: 'uppercase' },
-  priceRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 5, borderBottomWidth: 1, borderBottomColor: C.divider },
+  title: { fontFamily: FONT_PIXEL, color: c.gold, fontSize: 20, fontWeight: '900', textAlign: 'center', marginVertical: 12, letterSpacing: 1, textTransform: 'uppercase' },
+  regimeCard: { backgroundColor: c.panel, borderWidth: BORDER_W, borderColor: c.border, padding: 12, marginBottom: 16 },
+  regimeLabel: { fontFamily: FONT_PIXEL, color: c.gold, fontSize: 13, fontWeight: '900', letterSpacing: 0.5 },
+  regimeBlurb: { color: c.textDim, fontSize: 12, lineHeight: 17, marginTop: 4 },
+  feeLine: { fontFamily: FONT_PIXEL, color: c.success, fontSize: 12, fontWeight: '800', marginTop: 8 },
+  priceNoteRibbon: { fontFamily: FONT_PIXEL, color: c.gold, fontSize: 9, fontWeight: '800', marginTop: 3 },
+  swanCard: { backgroundColor: c.panelDark, borderWidth: BORDER_W, borderColor: c.danger, padding: 14, marginBottom: 16 },
+  swanTitle: { fontFamily: FONT_PIXEL, color: c.danger, fontSize: 14, fontWeight: '900', letterSpacing: 0.5 },
+  swanBlurb: { color: c.text, fontSize: 13, lineHeight: 19, marginTop: 8 },
+  swanNote: { color: c.textDim, fontSize: 11, fontStyle: 'italic', marginTop: 8 },
+  chartCard: { backgroundColor: c.panel, borderWidth: BORDER_W, borderColor: c.border, padding: 16, marginBottom: 16 },
+  accuracyCard: { backgroundColor: c.panelDark, borderWidth: BORDER_W, borderColor: c.gold, padding: 12, marginBottom: 16 },
+  accuracyText: { color: c.text, fontSize: 13, fontWeight: '700', lineHeight: 18 },
+  table: { backgroundColor: c.panel, borderWidth: BORDER_W, borderColor: c.border, padding: 12 },
+  concCard: { backgroundColor: c.panelDark, borderWidth: BORDER_W, borderColor: c.danger, padding: 14, marginTop: 16 },
+  concTitle: { fontFamily: FONT_PIXEL, color: c.danger, fontSize: 14, fontWeight: '900', marginBottom: 6, letterSpacing: 0.5, textTransform: 'uppercase' },
+  concRow: { color: c.text, fontSize: 13, fontWeight: '700', marginVertical: 2 },
+  concPenalty: { color: c.danger, fontWeight: '900' },
+  concNote: { color: c.muted, fontSize: 11, fontStyle: 'italic', marginTop: 8 },
+  priceCard: { backgroundColor: c.panel, borderWidth: BORDER_W, borderColor: c.border, padding: 14, marginTop: 16 },
+  priceTitle: { fontFamily: FONT_PIXEL, color: c.gold, fontSize: 15, fontWeight: '900', marginBottom: 8, letterSpacing: 0.5, textTransform: 'uppercase' },
+  priceRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 5, borderBottomWidth: 1, borderBottomColor: c.divider },
   priceLeft: { flex: 1, marginRight: 8 },
-  priceName: { color: C.text, fontSize: 13, fontWeight: '700' },
-  priceBreakdown: { color: C.muted, fontSize: 10, fontWeight: '600', marginTop: 1 },
-  priceMove: { fontFamily: FONT_PIXEL, color: C.textDim, fontSize: 13, fontWeight: '800' },
-  priceNote: { color: C.muted, fontSize: 11, fontStyle: 'italic', marginTop: 8 },
-  repCard: { backgroundColor: C.panel, borderWidth: BORDER_W, borderColor: C.border, padding: 14, marginTop: 16 },
+  priceName: { color: c.text, fontSize: 13, fontWeight: '700' },
+  priceBreakdown: { color: c.muted, fontSize: 10, fontWeight: '600', marginTop: 1 },
+  priceMove: { fontFamily: FONT_PIXEL, color: c.textDim, fontSize: 13, fontWeight: '800' },
+  priceNote: { color: c.muted, fontSize: 11, fontStyle: 'italic', marginTop: 8 },
+  repCard: { backgroundColor: c.panel, borderWidth: BORDER_W, borderColor: c.border, padding: 14, marginTop: 16 },
   repHeadRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
-  repTitle: { fontFamily: FONT_PIXEL, color: C.gold, fontSize: 15, fontWeight: '900', letterSpacing: 0.5, textTransform: 'uppercase' },
-  repNow: { fontFamily: FONT_PIXEL, color: C.text, fontSize: 14, fontWeight: '800' },
-  repNeutral: { color: C.muted, fontSize: 13 },
+  repTitle: { fontFamily: FONT_PIXEL, color: c.gold, fontSize: 15, fontWeight: '900', letterSpacing: 0.5, textTransform: 'uppercase' },
+  repNow: { fontFamily: FONT_PIXEL, color: c.text, fontSize: 14, fontWeight: '800' },
+  repNeutral: { color: c.muted, fontSize: 13 },
   repChange: { fontSize: 13, fontWeight: '700', marginVertical: 2 },
   repTotal: { fontFamily: FONT_PIXEL, fontSize: 14, fontWeight: '900', marginTop: 8 },
-  unlock: { color: C.gold, fontSize: 13, fontWeight: '800', marginTop: 8 },
-  dead: { color: C.danger, fontSize: 13, fontWeight: '800', marginTop: 8 },
-  tHead: { flexDirection: 'row', alignItems: 'center', paddingBottom: 8, borderBottomWidth: 2, borderBottomColor: C.border },
-  th: { fontFamily: FONT_PIXEL, color: C.textDim, fontSize: 11, fontWeight: '800', textTransform: 'uppercase' },
-  tRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: C.divider },
+  unlock: { color: c.gold, fontSize: 13, fontWeight: '800', marginTop: 8 },
+  dead: { color: c.danger, fontSize: 13, fontWeight: '800', marginTop: 8 },
+  tHead: { flexDirection: 'row', alignItems: 'center', paddingBottom: 8, borderBottomWidth: 2, borderBottomColor: c.border },
+  th: { fontFamily: FONT_PIXEL, color: c.textDim, fontSize: 11, fontWeight: '800', textTransform: 'uppercase' },
+  tRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: c.divider },
   thClient: { flex: 1.2 },
   thNum: { flex: 1.2, textAlign: 'right' },
   thHappy: { flex: 1.3, paddingLeft: 10 },
-  tdName: { fontFamily: FONT_PIXEL, color: C.text, fontSize: 14, fontWeight: '800' },
+  tdName: { fontFamily: FONT_PIXEL, color: c.text, fontSize: 14, fontWeight: '800' },
   td: { fontFamily: FONT_PIXEL, fontSize: 12, fontWeight: '800' },
-  happyPct: { fontFamily: FONT_PIXEL, color: C.muted, fontSize: 11, fontWeight: '700', marginTop: 2, textAlign: 'right' },
-});
+  happyPct: { fontFamily: FONT_PIXEL, color: c.muted, fontSize: 11, fontWeight: '700', marginTop: 2, textAlign: 'right' },
+  })
+);

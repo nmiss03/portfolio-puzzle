@@ -4,6 +4,15 @@
 // regular news and roughly 1.1x as impactful, in three tiers.
 
 import type { NewsArticle } from './newsArticles';
+import { stocksById } from './stocks';
+
+// Same bond cap as regular news (kept local — newsArticles runtime-imports
+// this module, so importing back from it would create a cycle).
+const BOND_CAP = 0.05;
+function capBond(stockId: string, impact: number): number {
+  if (stocksById[stockId]?.assetClass !== 'bond') return impact;
+  return Math.max(-BOND_CAP, Math.min(BOND_CAP, impact));
+}
 
 // |max impact| bands per exclusive tier (≈ regular bands x 1.1, tier 3 on top).
 const EXCLUSIVE_BANDS: Record<1 | 2 | 3, [number, number]> = {
@@ -55,7 +64,7 @@ export function maybeExclusiveArticle(week: number): NewsArticle | null {
   const f = target / maxAbs;
   const priceImpact: Record<string, number> = {};
   Object.entries(seed.priceImpact).forEach(([id, v]) => {
-    priceImpact[id] = Math.round(v * f * 10000) / 10000;
+    priceImpact[id] = capBond(id, Math.round(v * f * 10000) / 10000);
   });
   return {
     id: `${seed.id}-w${week}`,

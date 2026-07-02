@@ -9,7 +9,8 @@ import {
   ViewStyle,
 } from 'react-native';
 
-import { C, FONT_PIXEL, BORDER_W } from '../theme';
+import { FONT_PIXEL, BORDER_W, Palette } from '../theme';
+import { makeUseStyles, useTheme } from '../contexts/ThemeContext';
 
 type Variant = 'primary' | 'secondary' | 'ghost' | 'danger';
 
@@ -22,8 +23,7 @@ interface ButtonProps {
   style?: StyleProp<ViewStyle>;
 }
 
-// Boxy bronze game button with a faux-3D bevel (light top/left, dark
-// bottom/right). Pressing inverts the bevel for an inset "click".
+// Boxy pixel button, themed light/dark. Pressing nudges it down a pixel.
 export default function Button({
   title,
   onPress,
@@ -33,7 +33,9 @@ export default function Button({
   style,
 }: ButtonProps) {
   const isDisabled = disabled || loading;
-  const v = variantStyles[variant];
+  const styles = useStyles();
+  const { c } = useTheme();
+  const v = variantStyles(c)[variant];
 
   return (
     <Pressable
@@ -59,54 +61,45 @@ export default function Button({
   );
 }
 
-const styles = StyleSheet.create({
-  base: {
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: BORDER_W,
-    borderRadius: 0,
-    // raised bevel
-    borderTopColor: C.borderHi,
-    borderLeftColor: C.borderHi,
-    borderBottomColor: C.borderLo,
-    borderRightColor: C.borderLo,
-  },
-  content: { flexDirection: 'row', alignItems: 'center' },
-  text: {
-    fontFamily: FONT_PIXEL,
-    fontSize: 13,
-    fontWeight: '700',
-    letterSpacing: 1,
-    textTransform: 'uppercase',
-  },
-  // Pressed: invert the bevel so the button looks pushed in.
-  pressed: {
-    borderTopColor: C.borderLo,
-    borderLeftColor: C.borderLo,
-    borderBottomColor: C.borderHi,
-    borderRightColor: C.borderHi,
-    transform: [{ translateY: 1 }],
-  },
-  disabled: { opacity: 0.45 },
-});
+const useStyles = makeUseStyles((c: Palette) =>
+  StyleSheet.create({
+    base: {
+      paddingVertical: 12,
+      paddingHorizontal: 16,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderWidth: BORDER_W,
+      borderRadius: 0,
+      borderColor: c.border,
+    },
+    content: { flexDirection: 'row', alignItems: 'center' },
+    text: {
+      fontFamily: FONT_PIXEL,
+      fontSize: 13,
+      fontWeight: '700',
+      letterSpacing: 1,
+      textTransform: 'uppercase',
+    },
+    pressed: { transform: [{ translateY: 1 }] },
+    disabled: { opacity: 0.45 },
+  })
+);
 
-const variantStyles: Record<Variant, { container: ViewStyle; text: { color: string } & object }> = {
+const variantStyles = (c: Palette): Record<Variant, { container: ViewStyle; text: { color: string } & object }> => ({
   primary: {
-    container: { backgroundColor: C.button },
-    text: { color: C.ink },
+    container: { backgroundColor: c.button },
+    text: { color: c.ink },
   },
   secondary: {
-    container: { backgroundColor: C.panelLite },
-    text: { color: C.text },
+    container: { backgroundColor: c.panelLite },
+    text: { color: c.text },
   },
   ghost: {
-    container: { backgroundColor: 'transparent', borderColor: C.border },
-    text: { color: C.textDim },
+    container: { backgroundColor: 'transparent', borderColor: c.border },
+    text: { color: c.textDim },
   },
   danger: {
-    container: { backgroundColor: C.danger },
-    text: { color: '#2A0E0C' },
+    container: { backgroundColor: c.danger },
+    text: { color: c.white },
   },
-};
+});

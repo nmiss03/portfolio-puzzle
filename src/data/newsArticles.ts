@@ -2,6 +2,16 @@
 // levels (minor/moderate/major); all impacts resolve at week-end.
 
 import { maybeExclusiveArticle } from './exclusiveNews';
+import { stocksById } from './stocks';
+
+// Treasuries don't swing double digits on a headline. News impact on bond
+// assets is capped so they stay the stable, defensive holdings they should be.
+export const BOND_NEWS_CAP = 0.05;
+
+export function capBondImpact(stockId: string, impact: number): number {
+  if (stocksById[stockId]?.assetClass !== 'bond') return impact;
+  return Math.max(-BOND_NEWS_CAP, Math.min(BOND_NEWS_CAP, impact));
+}
 
 export type NewsSource = 'Bloomberg' | 'Reuters' | 'CNBC' | 'WSJ';
 export type NewsCategory = 'Industry' | 'Specific Stock';
@@ -100,7 +110,9 @@ function rollImpactLevel(): ImpactLevel {
   return 'major';
 }
 
-// Clone an article with its impacts rescaled to the rolled level's band.
+// Clone an article with its impacts rescaled to the rolled level's band, its
+// publication date stamped to the week it actually breaks, and bond impacts
+// capped so fixed income stays defensive.
 export function scaleArticleToLevel(article: NewsArticle, level: ImpactLevel, week: number): NewsArticle {
   const [lo, hi] = LEVEL_BANDS[level];
   const target = lo + Math.random() * (hi - lo);
@@ -108,9 +120,15 @@ export function scaleArticleToLevel(article: NewsArticle, level: ImpactLevel, we
   const f = target / maxAbs;
   const priceImpact: Record<string, number> = {};
   Object.entries(article.priceImpact).forEach(([id, v]) => {
-    priceImpact[id] = Math.round(v * f * 10000) / 10000;
+    priceImpact[id] = capBondImpact(id, Math.round(v * f * 10000) / 10000);
   });
-  return { ...article, id: `${article.id}-w${week}`, priceImpact, impactLevel: level };
+  return {
+    ...article,
+    id: `${article.id}-w${week}`,
+    priceImpact,
+    impactLevel: level,
+    publicationDate: `Week ${week}`,
+  };
 }
 
 // 1-3 headlines break every week, each with its own rolled impact level, so

@@ -5,9 +5,9 @@ import { View } from 'react-native';
 // Grid is 10 cols x 13 rows; each cell is `cell` px (default 7 -> 70x91).
 
 const SKINS = ['#FFD4A3', '#E8A87C', '#D4957A', '#C9896D'];
-const HAIRS = ['#2C2416', '#5C4033', '#8B6F47', '#FFD700', '#FF6347'];
-const EYES = ['#0066CC', '#008B00', '#8B0000', '#FFB300'];
-const SHIRTS = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7'];
+const HAIRS = ['#2C2416', '#5C4033', '#8B6F47', '#FFD700', '#A0522D'];
+const EYES = ['#0066CC', '#008B00', '#6B4226', '#FFB300'];
+const SHIRTS = ['#C98B5E', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7'];
 const PANTS = ['#333333', '#1A4D7A', '#2D5016', '#4A3728'];
 const MOUTH = '#5C4033';
 const SHOE = '#2b2b2b';

@@ -75,3 +75,15 @@ export function useTheme(): ThemeContextValue {
   }
   return ctx;
 }
+
+// Build a per-file `useStyles()` hook from a palette→styles factory. Styles are
+// created once per theme mode and cached, so subcomponents can call the hook
+// freely without re-creating StyleSheets on every render.
+export function makeUseStyles<T>(factory: (c: Palette) => T): () => T {
+  const cache: Partial<Record<ThemeMode, T>> = {};
+  return function useStyles(): T {
+    const { mode, c } = useTheme();
+    if (!cache[mode]) cache[mode] = factory(c);
+    return cache[mode] as T;
+  };
+}

@@ -5,15 +5,14 @@ import Button from '../../components/Button';
 import PixelCharacter from '../../components/PixelCharacter';
 import { useGame } from '../../state/GameContext';
 import { formatMoney } from '../../utils/format';
-import { C, FONT_PIXEL, BORDER_W } from '../../theme';
-
-const GREEN = C.success;
-const RED = C.danger;
-const GRAY = C.textDim;
+import { FONT_PIXEL, BORDER_W, Palette } from '../../theme';
+import { makeUseStyles, useTheme } from '../../contexts/ThemeContext';
 
 export default function WeekTransition({ onContinue }: { onContinue: () => void }) {
   const { state } = useGame();
   const t = state.transition;
+  const styles = useStyles();
+  const { c } = useTheme();
 
   const progress = useRef(new Animated.Value(0)).current;
   const [frac, setFrac] = useState(0);
@@ -43,7 +42,7 @@ export default function WeekTransition({ onContinue }: { onContinue: () => void 
 
   return (
     <ScrollView contentContainerStyle={styles.content}>
-      <Text style={styles.weekDone}>Week {t.week} Complete</Text>
+      <Text style={styles.weekDone}>WEEK {t.week} COMPLETE</Text>
 
       {t.results.map((r) => {
         const gain = r.returnDollar * frac;
@@ -56,20 +55,20 @@ export default function WeekTransition({ onContinue }: { onContinue: () => void 
               <Text style={styles.rowName}>{r.name}</Text>
               <Text style={styles.rowHappy}>
                 happiness {r.prevHappiness}{' '}
-                <Text style={{ color: arrowUp ? GREEN : RED }}>{arrowUp ? '▲' : '▼'}</Text> {r.newHappiness}
+                <Text style={{ color: arrowUp ? c.success : c.danger }}>{arrowUp ? '▲' : '▼'}</Text> {r.newHappiness}
                 {r.fired ? '  (fired you!)' : ''}
               </Text>
             </View>
             <View style={styles.rowRight}>
-              <Text style={[styles.rowReturn, { color: positive ? GREEN : RED }]}>
+              <Text style={[styles.rowReturn, { color: positive ? c.success : c.danger }]}>
                 {positive ? '+' : '-'}
                 {formatMoney(Math.abs(Math.round(gain)))}
               </Text>
-              <Text style={[styles.rowPct, { color: positive ? GREEN : RED }]}>
+              <Text style={[styles.rowPct, { color: positive ? c.success : c.danger }]}>
                 {positive ? '+' : ''}
                 {(r.returnPct * 100).toFixed(2)}%
               </Text>
-              {done && r.newsContribution !== 0 && (
+              {done && Math.abs(r.newsContribution) >= 1 && (
                 <Text style={styles.rowNews}>
                   news {r.newsContribution >= 0 ? '+' : '-'}
                   {formatMoney(Math.abs(Math.round(r.newsContribution)))}
@@ -98,28 +97,30 @@ export default function WeekTransition({ onContinue }: { onContinue: () => void 
   );
 }
 
-const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: C.bg, alignItems: 'center', justifyContent: 'center' },
-  content: { padding: 24, alignItems: 'center', flexGrow: 1, justifyContent: 'center' },
-  weekDone: { fontFamily: FONT_PIXEL, color: C.gold, fontSize: 24, fontWeight: '900', marginBottom: 24, letterSpacing: 1, textTransform: 'uppercase' },
-  row: {
-    width: '100%',
-    maxWidth: 420,
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: C.panel,
-    borderWidth: BORDER_W,
-    borderColor: C.border,
-    padding: 14,
-    marginBottom: 12,
-  },
-  rowMid: { flex: 1, marginLeft: 14 },
-  rowName: { fontFamily: FONT_PIXEL, color: C.text, fontSize: 16, fontWeight: '900' },
-  rowHappy: { color: C.textDim, fontSize: 13, fontWeight: '700', marginTop: 4 },
-  rowRight: { alignItems: 'flex-end' },
-  rowReturn: { fontFamily: FONT_PIXEL, fontSize: 17, fontWeight: '900' },
-  rowPct: { fontFamily: FONT_PIXEL, fontSize: 13, fontWeight: '800', marginTop: 2 },
-  rowNews: { color: C.gold, fontSize: 11, fontWeight: '700', marginTop: 2 },
-  allTime: { fontFamily: FONT_PIXEL, color: GRAY, fontSize: 14, fontWeight: '800', marginTop: 8 },
-  fired: { color: C.danger, fontSize: 14, fontWeight: '800', marginTop: 12, textAlign: 'center' },
-});
+const useStyles = makeUseStyles((c: Palette) =>
+  StyleSheet.create({
+    screen: { flex: 1, backgroundColor: c.bg, alignItems: 'center', justifyContent: 'center' },
+    content: { padding: 24, alignItems: 'center', flexGrow: 1, justifyContent: 'center', backgroundColor: c.bg },
+    weekDone: { fontFamily: FONT_PIXEL, color: c.gold, fontSize: 24, fontWeight: '900', marginBottom: 24, letterSpacing: 1 },
+    row: {
+      width: '100%',
+      maxWidth: 420,
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: c.panel,
+      borderWidth: BORDER_W,
+      borderColor: c.border,
+      padding: 14,
+      marginBottom: 12,
+    },
+    rowMid: { flex: 1, marginLeft: 14 },
+    rowName: { fontFamily: FONT_PIXEL, color: c.text, fontSize: 16, fontWeight: '900' },
+    rowHappy: { color: c.textDim, fontSize: 13, fontWeight: '700', marginTop: 4 },
+    rowRight: { alignItems: 'flex-end' },
+    rowReturn: { fontFamily: FONT_PIXEL, fontSize: 17, fontWeight: '900' },
+    rowPct: { fontFamily: FONT_PIXEL, fontSize: 13, fontWeight: '800', marginTop: 2 },
+    rowNews: { color: c.gold, fontSize: 11, fontWeight: '700', marginTop: 2 },
+    allTime: { fontFamily: FONT_PIXEL, color: c.textDim, fontSize: 14, fontWeight: '800', marginTop: 8 },
+    fired: { color: c.danger, fontSize: 14, fontWeight: '800', marginTop: 12, textAlign: 'center' },
+  })
+);

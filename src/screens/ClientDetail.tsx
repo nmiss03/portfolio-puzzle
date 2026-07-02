@@ -9,11 +9,8 @@ import STOCKS from '../data/stocks';
 import { RuntimeClient, avgCost, riskPreferenceLabel } from '../data/gameState';
 import { useGame } from '../state/GameContext';
 import { formatMoney, formatPrice } from '../utils/format';
-import { C, FONT_PIXEL, BORDER_W } from '../theme';
-
-const GREEN = C.success;
-const RED = C.danger;
-const BLUE = C.gold;
+import { FONT_PIXEL, BORDER_W, Palette } from '../theme';
+import { makeUseStyles, useTheme } from '../contexts/ThemeContext';
 
 function signedMoney(n: number) {
   return `${n >= 0 ? '+' : '-'}${formatMoney(Math.abs(Math.round(n)))}`;
@@ -24,6 +21,8 @@ function signedPct(n: number) {
 
 export default function ClientDetail({ client, onClose }: { client: RuntimeClient; onClose: () => void }) {
   const { priceOf } = useGame();
+  const styles = useStyles();
+  const { c } = useTheme();
   const [editing, setEditing] = useState(false);
   const hasHistory = client.performanceHistory.length > 0;
   const ownedStocks = STOCKS.filter((s) => (client.holdings[s.id]?.shares || 0) > 0);
@@ -77,13 +76,13 @@ export default function ClientDetail({ client, onClose }: { client: RuntimeClien
             <View style={styles.portGrid}>
               <View style={styles.portCell}>
                 <Text style={styles.portCellLabel}>Weekly P/L</Text>
-                <Text style={[styles.portCellVal, { color: weeklyPos ? GREEN : RED }]}>
+                <Text style={[styles.portCellVal, { color: weeklyPos ? c.success : c.danger }]}>
                   {hasHistory ? `${signedMoney(client.lastWeekReturnDollar ?? 0)} (${signedPct(client.lastWeekReturnPct ?? 0)})` : 'pending'}
                 </Text>
               </View>
               <View style={styles.portCell}>
                 <Text style={styles.portCellLabel}>Total P/L</Text>
-                <Text style={[styles.portCellVal, { color: allTimePos ? GREEN : RED }]}>
+                <Text style={[styles.portCellVal, { color: allTimePos ? c.success : c.danger }]}>
                   {hasHistory ? `${signedMoney(client.allTimeReturnDollar)} (${signedPct(client.allTimeReturnPct)})` : '—'}
                 </Text>
               </View>
@@ -105,7 +104,7 @@ export default function ClientDetail({ client, onClose }: { client: RuntimeClien
             <Text style={[styles.cNum, styles.th]}>G/L</Text>
           </View>
           {ownedStocks.length === 0 ? (
-            <Text style={styles.empty}>No holdings yet — this account is all cash.</Text>
+            <Text style={styles.empty}>No holdings yet — this account is all cash. Idle capital slowly frustrates clients.</Text>
           ) : (
             ownedStocks.map((s) => {
               const h = client.holdings[s.id];
@@ -121,7 +120,7 @@ export default function ClientDetail({ client, onClose }: { client: RuntimeClien
                   <Text style={[styles.cNum, styles.td]}>{formatPrice(ac)}</Text>
                   <Text style={[styles.cNum, styles.td]}>{formatPrice(cur)}</Text>
                   <Text style={[styles.cNum, styles.td]}>{formatMoney(Math.round(mv))}</Text>
-                  <Text style={[styles.cNum, styles.td, { color: glPos ? GREEN : RED }]}>{signedPct(glPct)}</Text>
+                  <Text style={[styles.cNum, styles.td, { color: glPos ? c.success : c.danger }]}>{signedPct(glPct)}</Text>
                 </View>
               );
             })
@@ -135,34 +134,36 @@ export default function ClientDetail({ client, onClose }: { client: RuntimeClien
   );
 }
 
-const styles = StyleSheet.create({
-  panel: { height: '88%', backgroundColor: C.bg, borderTopWidth: BORDER_W * 2, borderColor: C.border, overflow: 'hidden' },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16, borderBottomWidth: BORDER_W, borderBottomColor: C.border, backgroundColor: C.panelDark },
-  title: { fontFamily: FONT_PIXEL, color: C.gold, fontSize: 18, fontWeight: '900', letterSpacing: 1, textTransform: 'uppercase' },
-  close: { fontFamily: FONT_PIXEL, color: C.gold, fontSize: 18, fontWeight: '800' },
+const useStyles = makeUseStyles((c: Palette) =>
+  StyleSheet.create({
+  panel: { height: '88%', backgroundColor: c.bg, borderTopWidth: BORDER_W * 2, borderColor: c.border, overflow: 'hidden' },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16, borderBottomWidth: BORDER_W, borderBottomColor: c.border, backgroundColor: c.panelDark },
+  title: { fontFamily: FONT_PIXEL, color: c.gold, fontSize: 18, fontWeight: '900', letterSpacing: 1, textTransform: 'uppercase' },
+  close: { fontFamily: FONT_PIXEL, color: c.gold, fontSize: 18, fontWeight: '800' },
   detailTop: { flexDirection: 'row', alignItems: 'center' },
   detailInfo: { flex: 1, marginLeft: 16 },
-  detailName: { fontFamily: FONT_PIXEL, color: C.text, fontSize: 20, fontWeight: '900', letterSpacing: 0.5 },
-  detailMeta: { color: C.muted, fontSize: 13, fontWeight: '700', marginTop: 2 },
-  detailRisk: { color: BLUE, fontSize: 13, fontWeight: '800', marginTop: 4 },
-  contract: { fontFamily: FONT_PIXEL, color: C.muted, fontSize: 12, fontWeight: '700', marginTop: 3 },
-  detailBg: { color: C.textDim, fontSize: 14, fontStyle: 'italic', lineHeight: 20, marginTop: 14 },
+  detailName: { fontFamily: FONT_PIXEL, color: c.text, fontSize: 20, fontWeight: '900', letterSpacing: 0.5 },
+  detailMeta: { color: c.muted, fontSize: 13, fontWeight: '700', marginTop: 2 },
+  detailRisk: { color: c.gold, fontSize: 13, fontWeight: '800', marginTop: 4 },
+  contract: { fontFamily: FONT_PIXEL, color: c.muted, fontSize: 12, fontWeight: '700', marginTop: 3 },
+  detailBg: { color: c.textDim, fontSize: 14, fontStyle: 'italic', lineHeight: 20, marginTop: 14 },
 
-  portCard: { backgroundColor: C.panel, borderWidth: BORDER_W, borderColor: C.border, padding: 16, marginTop: 16 },
-  portValueLabel: { fontFamily: FONT_PIXEL, color: C.textDim, fontSize: 10, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.5 },
-  portValue: { fontFamily: FONT_PIXEL, color: C.gold, fontSize: 26, fontWeight: '900', marginTop: 2 },
+  portCard: { backgroundColor: c.panel, borderWidth: BORDER_W, borderColor: c.border, padding: 16, marginTop: 16 },
+  portValueLabel: { fontFamily: FONT_PIXEL, color: c.textDim, fontSize: 10, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.5 },
+  portValue: { fontFamily: FONT_PIXEL, color: c.gold, fontSize: 26, fontWeight: '900', marginTop: 2 },
   portGrid: { flexDirection: 'row', marginTop: 12 },
   portCell: { flex: 1 },
-  portCellLabel: { fontFamily: FONT_PIXEL, color: C.muted, fontSize: 9, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5 },
-  portCellVal: { fontFamily: FONT_PIXEL, color: C.text, fontSize: 14, fontWeight: '800', marginTop: 2 },
+  portCellLabel: { fontFamily: FONT_PIXEL, color: c.muted, fontSize: 9, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5 },
+  portCellVal: { fontFamily: FONT_PIXEL, color: c.text, fontSize: 14, fontWeight: '800', marginTop: 2 },
 
-  happyBox: { backgroundColor: C.panel, borderWidth: BORDER_W, borderColor: C.border, padding: 16, marginTop: 16 },
-  sectionLabel: { fontFamily: FONT_PIXEL, color: C.gold, fontSize: 13, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.5, marginTop: 18, marginBottom: 8 },
-  tableHead: { flexDirection: 'row', paddingBottom: 6, borderBottomWidth: 2, borderBottomColor: C.border },
-  th: { fontFamily: FONT_PIXEL, color: C.textDim, fontSize: 11, fontWeight: '800', textTransform: 'uppercase' },
-  td: { fontFamily: FONT_PIXEL, color: C.text, fontSize: 12, fontWeight: '600' },
+  happyBox: { backgroundColor: c.panel, borderWidth: BORDER_W, borderColor: c.border, padding: 16, marginTop: 16 },
+  sectionLabel: { fontFamily: FONT_PIXEL, color: c.gold, fontSize: 13, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.5, marginTop: 18, marginBottom: 8 },
+  tableHead: { flexDirection: 'row', paddingBottom: 6, borderBottomWidth: 2, borderBottomColor: c.border },
+  th: { fontFamily: FONT_PIXEL, color: c.textDim, fontSize: 11, fontWeight: '800', textTransform: 'uppercase' },
+  td: { fontFamily: FONT_PIXEL, color: c.text, fontSize: 12, fontWeight: '600' },
   cStock: { flex: 1.1 },
   cNum: { flex: 1, textAlign: 'right' },
-  tableRow: { flexDirection: 'row', paddingVertical: 7, borderBottomWidth: 1, borderBottomColor: C.divider },
-  empty: { color: C.muted, fontSize: 14, paddingVertical: 8 },
-});
+  tableRow: { flexDirection: 'row', paddingVertical: 7, borderBottomWidth: 1, borderBottomColor: c.divider },
+  empty: { color: c.muted, fontSize: 14, paddingVertical: 8 },
+  })
+);

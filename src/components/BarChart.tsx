@@ -1,7 +1,8 @@
 import React, { useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, Animated, Easing } from 'react-native';
 
-import { C, FONT_PIXEL } from '../theme';
+import { FONT_PIXEL, Palette } from '../theme';
+import { makeUseStyles, useTheme } from '../contexts/ThemeContext';
 
 export interface BarDatum {
   label: string;
@@ -9,16 +10,15 @@ export interface BarDatum {
   color?: string;
 }
 
-const GREEN = C.success;
-const RED = C.danger;
-
 /**
  * Simple animated bar chart drawn with Views (no SVG). Bars grow from 0 to
  * their value over ~1s. Positive bars are green (or a provided color), negative
- * bars are red.
+ * bars are maroon.
  */
 export default function BarChart({ data, height = 160 }: { data: BarDatum[]; height?: number }) {
   const grow = useRef(new Animated.Value(0)).current;
+  const styles = useStyles();
+  const { c } = useTheme();
 
   useEffect(() => {
     grow.setValue(0);
@@ -33,14 +33,14 @@ export default function BarChart({ data, height = 160 }: { data: BarDatum[]; hei
       <View style={[styles.plot, { height: plotHeight }]}>
         {data.map((d, i) => {
           const frac = Math.abs(d.value) / maxAbs;
-          const barColor = d.value < 0 ? RED : d.color || GREEN;
+          const barColor = d.value < 0 ? c.danger : d.color || c.success;
           const barHeight = grow.interpolate({ inputRange: [0, 1], outputRange: [0, frac * (plotHeight - 18)] });
           return (
             <View key={i} style={styles.col}>
               <Animated.Text style={[styles.value, { color: barColor }]}>
                 {d.value >= 0 ? '+' : '-'}${Math.abs(Math.round(d.value)).toLocaleString()}
               </Animated.Text>
-              <Animated.View style={{ width: 36, height: barHeight, backgroundColor: barColor, borderWidth: 2, borderColor: C.border }} />
+              <Animated.View style={{ width: 36, height: barHeight, backgroundColor: barColor, borderWidth: 2, borderColor: c.border }} />
             </View>
           );
         })}
@@ -57,12 +57,14 @@ export default function BarChart({ data, height = 160 }: { data: BarDatum[]; hei
   );
 }
 
-const styles = StyleSheet.create({
-  wrap: { width: '100%' },
-  plot: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-around' },
-  col: { alignItems: 'center', justifyContent: 'flex-end', flex: 1 },
-  value: { fontFamily: FONT_PIXEL, fontSize: 11, fontWeight: '800', marginBottom: 4 },
-  axis: { height: 2, backgroundColor: C.border, marginTop: 0 },
-  labels: { flexDirection: 'row', justifyContent: 'space-around', marginTop: 6 },
-  label: { fontFamily: FONT_PIXEL, flex: 1, textAlign: 'center', color: C.textDim, fontSize: 11, fontWeight: '700' },
-});
+const useStyles = makeUseStyles((c: Palette) =>
+  StyleSheet.create({
+    wrap: { width: '100%' },
+    plot: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-around' },
+    col: { alignItems: 'center', justifyContent: 'flex-end', flex: 1 },
+    value: { fontFamily: FONT_PIXEL, fontSize: 11, fontWeight: '800', marginBottom: 4 },
+    axis: { height: 2, backgroundColor: c.border, marginTop: 0 },
+    labels: { flexDirection: 'row', justifyContent: 'space-around', marginTop: 6 },
+    label: { fontFamily: FONT_PIXEL, flex: 1, textAlign: 'center', color: c.textDim, fontSize: 11, fontWeight: '700' },
+  })
+);

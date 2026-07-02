@@ -18,7 +18,8 @@ import ReputationBar from '../components/ReputationBar';
 import { useGame } from '../state/GameContext';
 import { REGIME_LABEL } from '../data/economicCycles';
 import { formatMoney } from '../utils/format';
-import { C, FONT_PIXEL, BORDER_W } from '../theme';
+import { FONT_PIXEL, BORDER_W, Palette } from '../theme';
+import { makeUseStyles, useTheme } from '../contexts/ThemeContext';
 
 // Pixel-scene literal colors (a wooden desk + monitor bezel + a little plant).
 const BEZEL = '#3a3a3a';
@@ -33,6 +34,8 @@ export default function WeekScreen() {
   const { state, activeClients, availableClients, canSign, maxClients, advisorBalance, setPhase, transitionWeek, advanceWeek, toggleBook, toggleNews, togglePhone, toggleShop } = useGame();
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const styles = useStyles();
+  const { c } = useTheme();
   const [alertSeen, setAlertSeen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [pcView, setPcView] = useState<'desktop' | 'terminal'>('desktop');
@@ -74,9 +77,6 @@ export default function WeekScreen() {
             <Text style={styles.weekText}>WEEK {state.currentWeek}</Text>
             <View style={styles.clientChip}>
               <Text style={styles.clientChipText}>♟ {activeClients.length}/{maxClients}</Text>
-            </View>
-            <View style={styles.clientChip}>
-              <Text style={styles.clientChipText}>{formatMoney(Math.round(advisorBalance))}</Text>
             </View>
             <View style={styles.regimeChip}>
               <Text style={styles.regimeChipText}>{REGIME_LABEL[state.regime]}</Text>
@@ -125,9 +125,9 @@ export default function WeekScreen() {
                   </Text>
                 )}
                 <View style={styles.pcDots}>
-                  <View style={[styles.pcDot, { backgroundColor: C.success }]} />
-                  <View style={[styles.pcDot, { backgroundColor: C.warning }]} />
-                  <View style={[styles.pcDot, { backgroundColor: C.danger }]} />
+                  <View style={[styles.pcDot, { backgroundColor: c.success }]} />
+                  <View style={[styles.pcDot, { backgroundColor: c.warning }]} />
+                  <View style={[styles.pcDot, { backgroundColor: c.danger }]} />
                 </View>
               </View>
 
@@ -167,8 +167,12 @@ export default function WeekScreen() {
           </View>
         </View>
 
-        {/* Advance control — on the desk, outside the PC */}
+        {/* Advance control + advisor funds — on the desk, outside the PC */}
         <View style={[styles.nextBar, { paddingBottom: insets.bottom + 10 }]}>
+          <View style={styles.deskFunds}>
+            <Text style={styles.deskFundsLabel}>FUNDS</Text>
+            <Text style={styles.deskFundsVal} numberOfLines={1}>{formatMoney(Math.round(advisorBalance))}</Text>
+          </View>
           <Pressable
             onPress={transitionWeek}
             disabled={activeClients.length === 0}
@@ -194,6 +198,7 @@ export default function WeekScreen() {
 }
 
 function DesktopIcon({ label, icon, onPress, badge }: { label: string; icon: string; onPress: () => void; badge?: number }) {
+  const styles = useStyles();
   return (
     <Pressable style={({ pressed }) => [styles.icon, pressed && styles.iconPressed]} onPress={onPress}>
       <View style={styles.iconGlyphBox}>
@@ -209,43 +214,44 @@ function DesktopIcon({ label, icon, onPress, badge }: { label: string; icon: str
   );
 }
 
-const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: C.bg },
-  screen: { flex: 1, backgroundColor: C.bg },
-  topBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingBottom: 10, backgroundColor: C.panelDark, borderBottomWidth: BORDER_W, borderBottomColor: C.border },
+const useStyles = makeUseStyles((c: Palette) =>
+  StyleSheet.create({
+  root: { flex: 1, backgroundColor: c.bg },
+  screen: { flex: 1, backgroundColor: c.bg },
+  topBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingBottom: 10, backgroundColor: c.panelDark, borderBottomWidth: BORDER_W, borderBottomColor: c.border },
   hudLeft: { flexDirection: 'row', alignItems: 'center' },
   hudRight: { flexDirection: 'row', alignItems: 'center' },
-  weekText: { fontFamily: FONT_PIXEL, color: C.gold, fontSize: 18, fontWeight: '900', letterSpacing: 1 },
-  clientChip: { backgroundColor: C.panel, borderWidth: 2, borderColor: C.border, paddingHorizontal: 8, paddingVertical: 4, marginLeft: 8 },
-  clientChipText: { fontFamily: FONT_PIXEL, color: C.text, fontSize: 11, fontWeight: '800' },
-  regimeChip: { backgroundColor: C.panel, borderWidth: 2, borderColor: C.gold, paddingHorizontal: 8, paddingVertical: 4, marginLeft: 8 },
-  regimeChipText: { fontFamily: FONT_PIXEL, color: C.gold, fontSize: 10, fontWeight: '900' },
-  gearBtn: { width: 28, height: 28, marginLeft: 8, borderWidth: 2, borderColor: C.border, backgroundColor: C.panel, alignItems: 'center', justifyContent: 'center' },
-  gearText: { fontSize: 16, color: C.text },
-  alert: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: C.panel, borderBottomWidth: 2, borderBottomColor: C.gold, paddingVertical: 10 },
-  alertText: { fontFamily: FONT_PIXEL, color: C.gold, fontSize: 12, fontWeight: '800', letterSpacing: 0.5 },
-  alertDot: { width: 8, height: 8, backgroundColor: C.danger, marginLeft: 8 },
-  manageHint: { backgroundColor: C.panel, borderBottomWidth: 2, borderBottomColor: C.gold, paddingVertical: 9, paddingHorizontal: 16 },
-  manageHintText: { color: C.gold, fontSize: 12, fontWeight: '700', textAlign: 'center' },
+  weekText: { fontFamily: FONT_PIXEL, color: c.gold, fontSize: 18, fontWeight: '900', letterSpacing: 1 },
+  clientChip: { backgroundColor: c.panel, borderWidth: 2, borderColor: c.border, paddingHorizontal: 8, paddingVertical: 4, marginLeft: 8 },
+  clientChipText: { fontFamily: FONT_PIXEL, color: c.text, fontSize: 11, fontWeight: '800' },
+  regimeChip: { backgroundColor: c.panel, borderWidth: 2, borderColor: c.gold, paddingHorizontal: 8, paddingVertical: 4, marginLeft: 8 },
+  regimeChipText: { fontFamily: FONT_PIXEL, color: c.gold, fontSize: 10, fontWeight: '900' },
+  gearBtn: { width: 28, height: 28, marginLeft: 8, borderWidth: 2, borderColor: c.border, backgroundColor: c.panel, alignItems: 'center', justifyContent: 'center' },
+  gearText: { fontSize: 16, color: c.text },
+  alert: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: c.panel, borderBottomWidth: 2, borderBottomColor: c.gold, paddingVertical: 10 },
+  alertText: { fontFamily: FONT_PIXEL, color: c.gold, fontSize: 12, fontWeight: '800', letterSpacing: 0.5 },
+  alertDot: { width: 8, height: 8, backgroundColor: c.danger, marginLeft: 8 },
+  manageHint: { backgroundColor: c.panel, borderBottomWidth: 2, borderBottomColor: c.gold, paddingVertical: 9, paddingHorizontal: 16 },
+  manageHintText: { color: c.gold, fontSize: 12, fontWeight: '700', textAlign: 'center' },
 
   // Desk + PC scene
-  scene: { flex: 1, backgroundColor: C.bg, paddingHorizontal: 12, paddingTop: 12 },
+  scene: { flex: 1, backgroundColor: c.bg, paddingHorizontal: 12, paddingTop: 12 },
   roomRow: { flex: 1, flexDirection: 'row' },
   pc: { flex: 1, borderWidth: 10, borderColor: BEZEL, backgroundColor: BEZEL },
   pcTitleBar: { height: 24, backgroundColor: '#2b2b2b', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 8 },
   pcTitle: { fontFamily: FONT_PIXEL, color: '#dddddd', fontSize: 11, fontWeight: '800', letterSpacing: 1, flex: 1, marginRight: 8 },
-  pcBack: { fontFamily: FONT_PIXEL, color: C.gold, fontSize: 11, fontWeight: '900', letterSpacing: 1 },
+  pcBack: { fontFamily: FONT_PIXEL, color: c.gold, fontSize: 11, fontWeight: '900', letterSpacing: 1 },
   pcDots: { flexDirection: 'row' },
   pcDot: { width: 8, height: 8, marginLeft: 5 },
-  pcScreen: { flex: 1, backgroundColor: C.panelDark },
+  pcScreen: { flex: 1, backgroundColor: c.panelDark },
   desktop: { flex: 1, flexDirection: 'row', flexWrap: 'wrap', padding: 10, alignContent: 'flex-start' },
   icon: { width: '50%', alignItems: 'center', paddingVertical: 14 },
   iconPressed: { opacity: 0.7 },
-  iconGlyphBox: { width: 52, height: 52, borderWidth: 2, borderColor: C.border, backgroundColor: C.panel, alignItems: 'center', justifyContent: 'center' },
+  iconGlyphBox: { width: 52, height: 52, borderWidth: 2, borderColor: c.border, backgroundColor: c.panel, alignItems: 'center', justifyContent: 'center' },
   iconGlyph: { fontSize: 26 },
-  iconLabel: { fontFamily: FONT_PIXEL, color: C.text, fontSize: 10, fontWeight: '800', letterSpacing: 0.5, marginTop: 6, textAlign: 'center' },
-  iconBadge: { position: 'absolute', top: 10, right: '24%', minWidth: 18, height: 18, paddingHorizontal: 3, backgroundColor: C.danger, borderWidth: 2, borderColor: C.border, alignItems: 'center', justifyContent: 'center' },
-  iconBadgeText: { fontFamily: FONT_PIXEL, color: C.white, fontSize: 10, fontWeight: '900' },
+  iconLabel: { fontFamily: FONT_PIXEL, color: c.text, fontSize: 10, fontWeight: '800', letterSpacing: 0.5, marginTop: 6, textAlign: 'center' },
+  iconBadge: { position: 'absolute', top: 10, right: '24%', minWidth: 18, height: 18, paddingHorizontal: 3, backgroundColor: c.danger, borderWidth: 2, borderColor: c.border, alignItems: 'center', justifyContent: 'center' },
+  iconBadgeText: { fontFamily: FONT_PIXEL, color: c.white, fontSize: 10, fontWeight: '900' },
 
   // Plant beside the monitor
   plantCol: { width: 44, justifyContent: 'flex-end', alignItems: 'center', paddingLeft: 8, paddingBottom: 0 },
@@ -260,9 +266,13 @@ const styles = StyleSheet.create({
   // Wooden desk + advance control
   desk: { height: 26, backgroundColor: WOOD, borderTopWidth: 4, borderTopColor: WOOD_TOP },
   deskEdge: { position: 'absolute', bottom: 0, left: 0, right: 0, height: 6, backgroundColor: WOOD_DARK },
-  nextBar: { backgroundColor: WOOD, paddingTop: 10, paddingHorizontal: 12, alignItems: 'center' },
-  nextBtn: { width: '100%', maxWidth: 460, backgroundColor: C.button, borderWidth: BORDER_W, borderColor: C.border, paddingVertical: 14, alignItems: 'center' },
+  nextBar: { flexDirection: 'row', backgroundColor: WOOD, paddingTop: 10, paddingHorizontal: 12, alignItems: 'center', justifyContent: 'center' },
+  deskFunds: { backgroundColor: WOOD_DARK, borderWidth: 2, borderColor: '#3a2a14', paddingVertical: 6, paddingHorizontal: 10, marginRight: 10, alignItems: 'center', maxWidth: 130 },
+  deskFundsLabel: { fontFamily: FONT_PIXEL, color: '#e8d5b5', fontSize: 8, fontWeight: '900', letterSpacing: 1 },
+  deskFundsVal: { fontFamily: FONT_PIXEL, color: '#FFD36B', fontSize: 13, fontWeight: '900' },
+  nextBtn: { flex: 1, maxWidth: 460, backgroundColor: c.button, borderWidth: BORDER_W, borderColor: c.border, paddingVertical: 14, alignItems: 'center' },
   nextBtnDisabled: { opacity: 0.4 },
   nextBtnPressed: { transform: [{ translateY: 1 }] },
-  nextText: { fontFamily: FONT_PIXEL, color: C.ink, fontSize: 15, fontWeight: '900', letterSpacing: 1 },
-});
+  nextText: { fontFamily: FONT_PIXEL, color: c.ink, fontSize: 15, fontWeight: '900', letterSpacing: 1 },
+  })
+);

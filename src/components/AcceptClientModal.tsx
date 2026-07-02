@@ -5,7 +5,8 @@ import Button from './Button';
 import { RuntimeClient, CONTRACT_WEEKS, riskPreferenceLabel } from '../data/gameState';
 import { feeLabel } from '../data/advisorEconomy';
 import { formatMoney } from '../utils/format';
-import { C, FONT_PIXEL, BORDER_W } from '../theme';
+import { FONT_PIXEL, BORDER_W, Palette } from '../theme';
+import { makeUseStyles } from '../contexts/ThemeContext';
 
 export default function AcceptClientModal({
   client,
@@ -16,6 +17,7 @@ export default function AcceptClientModal({
   onAccept: () => void;
   onCancel: () => void;
 }) {
+  const styles = useStyles();
   return (
     <View style={styles.backdrop}>
       <View style={styles.card}>
@@ -38,6 +40,7 @@ export default function AcceptClientModal({
 }
 
 function Row({ label, value }: { label: string; value: string }) {
+  const styles = useStyles();
   return (
     <View style={styles.row}>
       <Text style={styles.rowLabel}>{label}</Text>
@@ -46,13 +49,15 @@ function Row({ label, value }: { label: string; value: string }) {
   );
 }
 
-const styles = StyleSheet.create({
-  backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(10,16,16,0.7)', alignItems: 'center', justifyContent: 'center', padding: 24, zIndex: 50 },
-  card: { width: '100%', maxWidth: 360, backgroundColor: C.panel, borderWidth: BORDER_W, borderColor: C.border, padding: 20 },
-  title: { fontFamily: FONT_PIXEL, color: C.gold, fontSize: 16, fontWeight: '900', letterSpacing: 0.5, textTransform: 'uppercase' },
-  name: { color: C.textDim, fontSize: 14, fontWeight: '700', marginTop: 4 },
-  rows: { marginTop: 14 },
-  row: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: C.divider },
-  rowLabel: { fontFamily: FONT_PIXEL, color: C.muted, fontSize: 12, fontWeight: '700' },
-  rowValue: { fontFamily: FONT_PIXEL, color: C.text, fontSize: 12, fontWeight: '700', flex: 1, textAlign: 'right', marginLeft: 12 },
-});
+const useStyles = makeUseStyles((c: Palette) =>
+  StyleSheet.create({
+    backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.55)', alignItems: 'center', justifyContent: 'center', padding: 24, zIndex: 50 },
+    card: { width: '100%', maxWidth: 360, backgroundColor: c.panel, borderWidth: BORDER_W, borderColor: c.border, padding: 20 },
+    title: { fontFamily: FONT_PIXEL, color: c.gold, fontSize: 16, fontWeight: '900', letterSpacing: 0.5, textTransform: 'uppercase' },
+    name: { color: c.textDim, fontSize: 14, fontWeight: '700', marginTop: 4 },
+    rows: { marginTop: 14 },
+    row: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: c.divider },
+    rowLabel: { fontFamily: FONT_PIXEL, color: c.muted, fontSize: 12, fontWeight: '700' },
+    rowValue: { fontFamily: FONT_PIXEL, color: c.text, fontSize: 12, fontWeight: '700', flex: 1, textAlign: 'right', marginLeft: 12 },
+  })
+);

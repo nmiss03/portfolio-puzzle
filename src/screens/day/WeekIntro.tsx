@@ -1,12 +1,14 @@
 import React, { useEffect, useRef } from 'react';
 import { Animated, Pressable, StyleSheet, Text } from 'react-native';
 
-import { C, FONT_PIXEL } from '../../theme';
+import { FONT_PIXEL, Palette } from '../../theme';
+import { makeUseStyles } from '../../contexts/ThemeContext';
 
-// Dark screen that fades to light while the "Week X" title appears.
+// Dark screen that fades away while the "Week X" title appears.
 export default function WeekIntro({ week, onContinue }: { week: number; onContinue: () => void }) {
   const overlay = useRef(new Animated.Value(1)).current;
   const titleOpacity = useRef(new Animated.Value(0)).current;
+  const styles = useStyles();
 
   useEffect(() => {
     Animated.sequence([
@@ -30,10 +32,12 @@ export default function WeekIntro({ week, onContinue }: { week: number; onContin
   );
 }
 
-const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: C.bg, alignItems: 'center', justifyContent: 'center' },
-  week: { fontFamily: FONT_PIXEL, color: C.gold, fontSize: 40, fontWeight: '900', letterSpacing: 2 },
-  tap: { fontFamily: FONT_PIXEL, color: C.textDim, fontSize: 13, marginTop: 12, letterSpacing: 1 },
-  overlay: { ...StyleSheet.absoluteFillObject, backgroundColor: C.panelDark, alignItems: 'center', justifyContent: 'center' },
-  overlayText: { fontFamily: FONT_PIXEL, color: C.gold, fontSize: 44, fontWeight: '900', letterSpacing: 2 },
-});
+const useStyles = makeUseStyles((c: Palette) =>
+  StyleSheet.create({
+    screen: { flex: 1, backgroundColor: c.bg, alignItems: 'center', justifyContent: 'center' },
+    week: { fontFamily: FONT_PIXEL, color: c.gold, fontSize: 40, fontWeight: '900', letterSpacing: 2 },
+    tap: { fontFamily: FONT_PIXEL, color: c.textDim, fontSize: 13, marginTop: 12, letterSpacing: 1 },
+    overlay: { ...StyleSheet.absoluteFillObject, backgroundColor: c.panelDark, alignItems: 'center', justifyContent: 'center' },
+    overlayText: { fontFamily: FONT_PIXEL, color: c.gold, fontSize: 44, fontWeight: '900', letterSpacing: 2 },
+  })
+);

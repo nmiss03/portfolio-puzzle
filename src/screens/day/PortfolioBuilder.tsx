@@ -4,7 +4,8 @@ import { View, Text, TextInput, Pressable, ScrollView, StyleSheet } from 'react-
 import STOCKS, { Stock, StockLogo, Sector, SECTORS } from '../../data/stocks';
 import { useGame } from '../../state/GameContext';
 import { formatMoney, formatPrice } from '../../utils/format';
-import { C, FONT_PIXEL, BORDER_W } from '../../theme';
+import { FONT_PIXEL, BORDER_W, Palette } from '../../theme';
+import { makeUseStyles, useTheme } from '../../contexts/ThemeContext';
 
 type StringMap = Record<string, string>;
 type Filter = 'All' | Sector;
@@ -18,6 +19,7 @@ const SECTOR_COUNTS: Record<string, number> = STOCKS.reduce(
 );
 
 function Logo({ logo }: { logo: StockLogo }) {
+  const styles = useStyles();
   return (
     <View style={[styles.logo, { backgroundColor: logo.bgColor }]}>
       <Text style={[styles.logoText, { fontSize: logo.type === 'initials' ? 24 : 30 }]}>{logo.value}</Text>
@@ -35,6 +37,8 @@ export default function PortfolioBuilder({
   embedded?: boolean; // render bare (no monitor bezel/stand) inside the PC screen
 }) {
   const { state, buy, sell, availableBalance, priceOf } = useGame();
+  const styles = useStyles();
+  const { c } = useTheme();
   const client = clientId ? state.clients[clientId] : undefined;
   // Trading is only allowed from the Client Book (a bound client + not analysis-only).
   const tradable = !analysisOnly && !!client && !!clientId;
@@ -181,7 +185,7 @@ export default function PortfolioBuilder({
                   </View>
                   <View style={styles.specsCol}>
                     <Text style={styles.spec}>Mkt Cap: {stock.marketCap}</Text>
-                    <Text style={[styles.spec, { color: stock.dividend > 0 ? C.success : C.muted }]}>Div: {stock.dividend.toFixed(1)}%</Text>
+                    <Text style={[styles.spec, { color: stock.dividend > 0 ? c.success : c.muted }]}>Div: {stock.dividend.toFixed(1)}%</Text>
                     <Text style={styles.spec}>52wk: {formatPrice(stock.week52Low)}-{formatPrice(stock.week52High)}</Text>
                     <Text style={styles.spec} numberOfLines={1}>HQ: {stock.headquarters}</Text>
                   </View>
@@ -206,7 +210,7 @@ export default function PortfolioBuilder({
                   onChangeText={(t) => setInput(stock.id, t)}
                   keyboardType="number-pad"
                   placeholder="0"
-                  placeholderTextColor={C.muted}
+                  placeholderTextColor={c.muted}
                   maxLength={6}
                 />
                 <Pressable onPress={() => doBuy(stock)} style={({ pressed }) => [styles.buyBtn, pressed && { opacity: 0.85 }]}>
@@ -265,7 +269,7 @@ export default function PortfolioBuilder({
                 <Text style={[styles.colName, styles.cell]} numberOfLines={1}>{s.ticker}</Text>
                 <Text style={[styles.colNum, styles.cell]}>{h.shares}</Text>
                 <Text style={[styles.colNum, styles.cell]}>{formatMoney(Math.round(mv))}</Text>
-                <Text style={[styles.colNum, styles.cell, { color: glPos ? C.success : C.danger }]}>
+                <Text style={[styles.colNum, styles.cell, { color: glPos ? c.success : c.danger }]}>
                   {glPos ? '+' : ''}{(glPct * 100).toFixed(1)}%
                 </Text>
                 <Pressable onPress={() => clientId && sell(clientId, s.id, h.shares)} hitSlop={8} style={styles.colX}>
@@ -284,86 +288,88 @@ export default function PortfolioBuilder({
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeUseStyles((c: Palette) =>
+  StyleSheet.create({
   content: { padding: 16, alignItems: 'center' },
   embeddedContent: { padding: 0 },
-  embeddedMonitor: { width: '100%', backgroundColor: C.panel },
-  monitor: { width: '100%', borderWidth: 6, borderColor: C.border, backgroundColor: C.panel, overflow: 'hidden' },
-  headerBar: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: C.panelDark, borderBottomWidth: BORDER_W, borderBottomColor: C.border, paddingVertical: 10, paddingHorizontal: 12 },
-  headerText: { fontFamily: FONT_PIXEL, color: C.gold, fontSize: 12, fontWeight: '800', letterSpacing: 0.5 },
-  monitorScreen: { backgroundColor: C.panel, padding: 12 },
+  embeddedMonitor: { width: '100%', backgroundColor: c.panel },
+  monitor: { width: '100%', borderWidth: 6, borderColor: c.border, backgroundColor: c.panel, overflow: 'hidden' },
+  headerBar: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: c.panelDark, borderBottomWidth: BORDER_W, borderBottomColor: c.border, paddingVertical: 10, paddingHorizontal: 12 },
+  headerText: { fontFamily: FONT_PIXEL, color: c.gold, fontSize: 12, fontWeight: '800', letterSpacing: 0.5 },
+  monitorScreen: { backgroundColor: c.panel, padding: 12 },
 
   filterRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
-  filterLabel: { color: C.textDim, fontSize: 12, marginRight: 8 },
-  dropdown: { backgroundColor: C.button, borderWidth: 2, borderColor: C.border, paddingVertical: 8, paddingHorizontal: 12 },
-  dropdownText: { fontFamily: FONT_PIXEL, color: C.ink, fontSize: 12, fontWeight: '800' },
-  menu: { backgroundColor: C.panelDark, borderWidth: 2, borderColor: C.border, marginBottom: 10 },
-  menuItem: { paddingVertical: 9, paddingHorizontal: 12, borderBottomWidth: 1, borderBottomColor: C.divider },
-  menuText: { color: C.text, fontSize: 13, fontWeight: '600' },
-  menuTextActive: { color: C.gold, fontWeight: '900' },
+  filterLabel: { color: c.textDim, fontSize: 12, marginRight: 8 },
+  dropdown: { backgroundColor: c.button, borderWidth: 2, borderColor: c.border, paddingVertical: 8, paddingHorizontal: 12 },
+  dropdownText: { fontFamily: FONT_PIXEL, color: c.ink, fontSize: 12, fontWeight: '800' },
+  menu: { backgroundColor: c.panelDark, borderWidth: 2, borderColor: c.border, marginBottom: 10 },
+  menuItem: { paddingVertical: 9, paddingHorizontal: 12, borderBottomWidth: 1, borderBottomColor: c.divider },
+  menuText: { color: c.text, fontSize: 13, fontWeight: '600' },
+  menuTextActive: { color: c.gold, fontWeight: '900' },
 
   ribbon: { marginBottom: 10 },
   ribbonContent: { paddingRight: 4 },
-  tab: { flexDirection: 'row', alignItems: 'center', backgroundColor: C.panelDark, borderWidth: 2, paddingVertical: 6, paddingHorizontal: 10, marginRight: 6 },
-  tabText: { fontFamily: FONT_PIXEL, color: C.text, fontSize: 12, fontWeight: '800' },
+  tab: { flexDirection: 'row', alignItems: 'center', backgroundColor: c.panelDark, borderWidth: 2, paddingVertical: 6, paddingHorizontal: 10, marginRight: 6 },
+  tabText: { fontFamily: FONT_PIXEL, color: c.text, fontSize: 12, fontWeight: '800' },
   tabDot: { width: 6, height: 6, marginLeft: 6 },
 
   ribbonNav: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 },
-  arrow: { width: 40, height: 36, backgroundColor: C.button, borderWidth: 2, borderColor: C.border, alignItems: 'center', justifyContent: 'center' },
+  arrow: { width: 40, height: 36, backgroundColor: c.button, borderWidth: 2, borderColor: c.border, alignItems: 'center', justifyContent: 'center' },
   arrowDisabled: { opacity: 0.4 },
-  arrowText: { color: C.ink, fontSize: 24, lineHeight: 26, fontWeight: '800' },
-  ribbonLabel: { fontFamily: FONT_PIXEL, color: C.text, fontSize: 12, fontWeight: '800' },
+  arrowText: { color: c.ink, fontSize: 24, lineHeight: 26, fontWeight: '800' },
+  ribbonLabel: { fontFamily: FONT_PIXEL, color: c.text, fontSize: 12, fontWeight: '800' },
 
-  card: { backgroundColor: C.panelLite, borderWidth: BORDER_W, borderColor: C.border, overflow: 'hidden' },
-  cardTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 8, paddingHorizontal: 12, borderBottomWidth: 2, borderBottomColor: C.border },
+  card: { backgroundColor: c.panelLite, borderWidth: BORDER_W, borderColor: c.border, overflow: 'hidden' },
+  cardTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 8, paddingHorizontal: 12, borderBottomWidth: 2, borderBottomColor: c.border },
   cardTicker: { fontFamily: FONT_PIXEL, color: '#ffffff', fontSize: 16, fontWeight: '900', letterSpacing: 1 },
   cardSector: { color: '#ffffff', fontSize: 11, fontWeight: '600', opacity: 0.95, marginTop: 1 },
   cardPrice: { fontFamily: FONT_PIXEL, color: '#ffffff', fontSize: 18, fontWeight: '900' },
   cardChange: { color: '#ffffff', fontSize: 10, fontWeight: '800', opacity: 0.95, marginTop: 1 },
   cardBody: { flexDirection: 'row', padding: 12 },
   leftCol: { width: 90, alignItems: 'center' },
-  companyName: { color: C.text, fontSize: 12, fontWeight: '800', textAlign: 'center', marginTop: 8 },
-  logo: { width: 70, height: 70, borderWidth: 2, borderColor: C.border, alignItems: 'center', justifyContent: 'center' },
+  companyName: { color: c.text, fontSize: 12, fontWeight: '800', textAlign: 'center', marginTop: 8 },
+  logo: { width: 70, height: 70, borderWidth: 2, borderColor: c.border, alignItems: 'center', justifyContent: 'center' },
   logoText: { color: '#ffffff', fontWeight: '900' },
   rightCol: { flex: 1, paddingLeft: 8 },
   specsRow: { flexDirection: 'row' },
   specsCol: { flex: 1 },
-  spec: { color: C.textDim, fontSize: 12, marginBottom: 3 },
-  divider: { height: 2, backgroundColor: C.divider, marginHorizontal: 12 },
-  background: { color: C.textDim, fontSize: 13, fontStyle: 'italic', lineHeight: 18, padding: 12, paddingTop: 8 },
-  analysisNote: { color: C.gold, fontSize: 12, fontWeight: '700', fontStyle: 'italic', backgroundColor: C.panelDark, borderTopWidth: 2, borderTopColor: C.border, padding: 12 },
+  spec: { color: c.textDim, fontSize: 12, marginBottom: 3 },
+  divider: { height: 2, backgroundColor: c.divider, marginHorizontal: 12 },
+  background: { color: c.textDim, fontSize: 13, fontStyle: 'italic', lineHeight: 18, padding: 12, paddingTop: 8 },
+  analysisNote: { color: c.gold, fontSize: 12, fontWeight: '700', fontStyle: 'italic', backgroundColor: c.panelDark, borderTopWidth: 2, borderTopColor: c.border, padding: 12 },
 
-  buySection: { backgroundColor: C.panelDark, borderTopWidth: 2, borderTopColor: C.border, padding: 12 },
+  buySection: { backgroundColor: c.panelDark, borderTopWidth: 2, borderTopColor: c.border, padding: 12 },
   buyRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap' },
-  buyLabel: { fontFamily: FONT_PIXEL, color: C.text, fontSize: 12, marginRight: 8 },
-  input: { width: 56, borderWidth: 2, borderColor: C.border, paddingVertical: 8, paddingHorizontal: 8, fontSize: 16, color: C.text, backgroundColor: C.panel, marginRight: 8, textAlign: 'center' },
-  buyBtn: { backgroundColor: C.button, borderWidth: 2, borderColor: C.border, paddingVertical: 9, paddingHorizontal: 16, marginRight: 8 },
-  buyBtnText: { fontFamily: FONT_PIXEL, color: C.ink, fontSize: 13, fontWeight: '800', letterSpacing: 0.5 },
-  sellBtn: { backgroundColor: C.panelLite, borderWidth: 2, borderColor: C.danger, paddingVertical: 8, paddingHorizontal: 12, marginRight: 8 },
-  sellBtnText: { fontFamily: FONT_PIXEL, color: C.danger, fontSize: 13, fontWeight: '800', letterSpacing: 0.5 },
-  priceInline: { color: C.textDim, fontSize: 12, fontWeight: '700' },
+  buyLabel: { fontFamily: FONT_PIXEL, color: c.text, fontSize: 12, marginRight: 8 },
+  input: { width: 56, borderWidth: 2, borderColor: c.border, paddingVertical: 8, paddingHorizontal: 8, fontSize: 16, color: c.text, backgroundColor: c.panel, marginRight: 8, textAlign: 'center' },
+  buyBtn: { backgroundColor: c.button, borderWidth: 2, borderColor: c.border, paddingVertical: 9, paddingHorizontal: 16, marginRight: 8 },
+  buyBtnText: { fontFamily: FONT_PIXEL, color: c.ink, fontSize: 13, fontWeight: '800', letterSpacing: 0.5 },
+  sellBtn: { backgroundColor: c.panelLite, borderWidth: 2, borderColor: c.danger, paddingVertical: 8, paddingHorizontal: 12, marginRight: 8 },
+  sellBtnText: { fontFamily: FONT_PIXEL, color: c.danger, fontSize: 13, fontWeight: '800', letterSpacing: 0.5 },
+  priceInline: { color: c.textDim, fontSize: 12, fontWeight: '700' },
   quickRow: { flexDirection: 'row', alignItems: 'center', marginTop: 10 },
-  quickLabel: { color: C.textDim, fontSize: 12, fontWeight: '700', marginRight: 8 },
-  quickBtn: { borderWidth: 2, borderColor: C.danger, paddingVertical: 5, paddingHorizontal: 10, marginRight: 6 },
-  quickBtnText: { fontFamily: FONT_PIXEL, color: C.danger, fontSize: 12, fontWeight: '800' },
-  available: { color: C.textDim, fontSize: 12, fontWeight: '700', marginTop: 8 },
-  ownedTag: { color: C.success, fontSize: 13, fontWeight: '700', marginTop: 6 },
-  error: { color: C.danger, fontSize: 13, fontWeight: '700', marginTop: 6 },
+  quickLabel: { color: c.textDim, fontSize: 12, fontWeight: '700', marginRight: 8 },
+  quickBtn: { borderWidth: 2, borderColor: c.danger, paddingVertical: 5, paddingHorizontal: 10, marginRight: 6 },
+  quickBtnText: { fontFamily: FONT_PIXEL, color: c.danger, fontSize: 12, fontWeight: '800' },
+  available: { color: c.textDim, fontSize: 12, fontWeight: '700', marginTop: 8 },
+  ownedTag: { color: c.success, fontSize: 13, fontWeight: '700', marginTop: 6 },
+  error: { color: c.danger, fontSize: 13, fontWeight: '700', marginTop: 6 },
 
-  standNeck: { width: '30%', height: 18, backgroundColor: C.border },
-  standBase: { width: '45%', height: 10, backgroundColor: C.border, marginBottom: 16 },
+  standNeck: { width: '30%', height: 18, backgroundColor: c.border },
+  standBase: { width: '45%', height: 10, backgroundColor: c.border, marginBottom: 16 },
 
-  summary: { width: '100%', backgroundColor: C.panel, borderWidth: BORDER_W, borderColor: C.border, padding: 12 },
-  summaryTitle: { fontFamily: FONT_PIXEL, color: C.gold, fontSize: 14, fontWeight: '800', marginBottom: 8, letterSpacing: 0.5, textTransform: 'uppercase' },
-  summaryHeadRow: { flexDirection: 'row', alignItems: 'center', paddingBottom: 6, borderBottomWidth: 2, borderBottomColor: C.border },
-  colHead: { fontFamily: FONT_PIXEL, color: C.textDim, fontSize: 11, fontWeight: '800', textTransform: 'uppercase' },
-  summaryRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: C.divider },
-  cell: { fontFamily: FONT_PIXEL, color: C.text, fontSize: 13 },
+  summary: { width: '100%', backgroundColor: c.panel, borderWidth: BORDER_W, borderColor: c.border, padding: 12 },
+  summaryTitle: { fontFamily: FONT_PIXEL, color: c.gold, fontSize: 14, fontWeight: '800', marginBottom: 8, letterSpacing: 0.5, textTransform: 'uppercase' },
+  summaryHeadRow: { flexDirection: 'row', alignItems: 'center', paddingBottom: 6, borderBottomWidth: 2, borderBottomColor: c.border },
+  colHead: { fontFamily: FONT_PIXEL, color: c.textDim, fontSize: 11, fontWeight: '800', textTransform: 'uppercase' },
+  summaryRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: c.divider },
+  cell: { fontFamily: FONT_PIXEL, color: c.text, fontSize: 13 },
   colName: { flex: 1.4 },
   colNum: { flex: 1, textAlign: 'right' },
   colX: { width: 34, alignItems: 'flex-end' },
-  removeX: { color: C.danger, fontSize: 16, fontWeight: '800' },
-  totalRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 8, paddingTop: 8, borderTopWidth: 2, borderTopColor: C.border },
-  totalLabel: { fontFamily: FONT_PIXEL, color: C.text, fontSize: 13, fontWeight: '800' },
-  totalValue: { fontFamily: FONT_PIXEL, color: C.gold, fontSize: 15, fontWeight: '800' },
-});
+  removeX: { color: c.danger, fontSize: 16, fontWeight: '800' },
+  totalRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 8, paddingTop: 8, borderTopWidth: 2, borderTopColor: c.border },
+  totalLabel: { fontFamily: FONT_PIXEL, color: c.text, fontSize: 13, fontWeight: '800' },
+  totalValue: { fontFamily: FONT_PIXEL, color: c.gold, fontSize: 15, fontWeight: '800' },
+  })
+);

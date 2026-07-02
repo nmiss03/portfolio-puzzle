@@ -8,13 +8,10 @@ import AcceptClientModal from '../components/AcceptClientModal';
 import ClientDetail from './ClientDetail';
 import { RuntimeClient, riskPreferenceLabel } from '../data/gameState';
 import { useGame } from '../state/GameContext';
+import { feeLabel } from '../data/advisorEconomy';
 import { formatMoney } from '../utils/format';
-import { C, FONT_PIXEL, BORDER_W } from '../theme';
-
-const BLUE = C.gold;
-const GREEN = C.success;
-const RED = C.danger;
-const GRAY = C.textDim;
+import { FONT_PIXEL, BORDER_W, Palette } from '../theme';
+import { makeUseStyles, useTheme } from '../contexts/ThemeContext';
 
 function returnText(dollar: number, pct: number) {
   const p = dollar >= 0;
@@ -23,6 +20,8 @@ function returnText(dollar: number, pct: number) {
 
 export default function ClientBook() {
   const { state, activeClients, availableClients, expiredClients, firedClients, canSign, maxClients, signClient, renewClient, dismissExpired, openDetail, closeDetail, toggleBook } = useGame();
+  const styles = useStyles();
+  const { c } = useTheme();
   const [pendingSign, setPendingSign] = useState<RuntimeClient | null>(null);
 
   if (!state.bookOpen) return null;
@@ -64,7 +63,7 @@ export default function ClientBook() {
 
           {expiredClients.length > 0 && (
             <>
-              <Text style={[styles.section, { color: C.muted }]}>Past Clients</Text>
+              <Text style={[styles.section, { color: c.muted }]}>Past Clients</Text>
               {expiredClients.map((c) => (
                 <ExpiredCard key={c.id} client={c} canSign={canSign} onRenew={() => renewClient(c.id)} onDismiss={() => dismissExpired(c.id)} />
               ))}
@@ -73,7 +72,7 @@ export default function ClientBook() {
 
           {firedClients.length > 0 && (
             <>
-              <Text style={[styles.section, { color: RED }]}>Terminated Relationships</Text>
+              <Text style={[styles.section, { color: c.danger }]}>Terminated Relationships</Text>
               {firedClients.map((c) => (
                 <View key={c.id} style={[styles.card, { opacity: 0.4 }]}>
                   <View style={styles.cardRow}>
@@ -103,13 +102,15 @@ export default function ClientBook() {
 
 function ActiveCard({ client, onPress }: { client: RuntimeClient; onPress: () => void }) {
   const { priceOf } = useGame();
+  const styles = useStyles();
+  const { c } = useTheme();
   const hasHistory = client.performanceHistory.length > 0;
   const positive = (client.lastWeekReturnDollar ?? 0) >= 0;
   const spark = client.performanceHistory.map((h) => h.returnPct);
   const holdingsValue = Object.entries(client.holdings).reduce((s, [id, h]) => s + h.shares * priceOf(id), 0);
   const portfolioValue = client.cash + holdingsValue;
   return (
-    <Pressable style={({ pressed }) => [styles.card, pressed && { borderColor: BLUE }]} onPress={onPress}>
+    <Pressable style={({ pressed }) => [styles.card, pressed && { borderColor: c.gold }]} onPress={onPress}>
       <Text style={styles.contract}>Contract: {client.contractWeeksRemaining} {client.contractWeeksRemaining === 1 ? 'week' : 'weeks'} left</Text>
       <View style={styles.cardRow}>
         <View style={styles.charCol}><PixelCharacter seed={client.id} cell={7} /></View>
@@ -121,18 +122,19 @@ function ActiveCard({ client, onPress }: { client: RuntimeClient; onPress: () =>
         </View>
         <View style={styles.rightCol}>
           <Text style={styles.statLabel}>Week-over-week</Text>
-          <Text style={[styles.wow, { color: positive ? GREEN : RED }]}>{hasHistory ? returnText(client.lastWeekReturnDollar ?? 0, client.lastWeekReturnPct ?? 0) : 'pending'}</Text>
+          <Text style={[styles.wow, { color: positive ? c.success : c.danger }]}>{hasHistory ? returnText(client.lastWeekReturnDollar ?? 0, client.lastWeekReturnPct ?? 0) : 'pending'}</Text>
           <Text style={[styles.statLabel, { marginTop: 4 }]}>All-time</Text>
           <Text style={styles.allTime}>{hasHistory ? returnText(client.allTimeReturnDollar, client.allTimeReturnPct) : '—'}</Text>
-          {hasHistory && <View style={{ marginTop: 4 }}><Sparkline data={spark} color={client.allTimeReturnDollar >= 0 ? GREEN : RED} /></View>}
+          {hasHistory && <View style={{ marginTop: 4 }}><Sparkline data={spark} color={client.allTimeReturnDollar >= 0 ? c.success : c.danger} /></View>}
         </View>
       </View>
-      <View style={styles.happyBar}><View style={{ width: `${client.happiness}%`, height: '100%', backgroundColor: BLUE }} /></View>
+      <View style={styles.happyBar}><View style={{ width: `${client.happiness}%`, height: '100%', backgroundColor: c.gold }} /></View>
     </Pressable>
   );
 }
 
 function AvailableCard({ client, canSign, onAccept }: { client: RuntimeClient; canSign: boolean; onAccept: () => void }) {
+  const styles = useStyles();
   return (
     <View style={styles.card}>
       <View style={styles.cardRow}>
@@ -141,6 +143,7 @@ function AvailableCard({ client, canSign, onAccept }: { client: RuntimeClient; c
           <Text style={styles.name}>{client.name} <Text style={styles.age}>· {client.age}</Text></Text>
           <Text style={styles.occupation}>{client.occupation}</Text>
           <Text style={styles.riskLine}>{riskPreferenceLabel(client.recommendedAllocation)} · {formatMoney(client.initialCapital)} to invest</Text>
+          <Text style={styles.feeLine}>Your fee: {feeLabel(client)}</Text>
           <Text style={styles.background} numberOfLines={2}>{client.background}</Text>
         </View>
       </View>
@@ -154,6 +157,8 @@ function AvailableCard({ client, canSign, onAccept }: { client: RuntimeClient; c
 }
 
 function ExpiredCard({ client, canSign, onRenew, onDismiss }: { client: RuntimeClient; canSign: boolean; onRenew: () => void; onDismiss: () => void }) {
+  const styles = useStyles();
+  const { c } = useTheme();
   const positive = client.allTimeReturnDollar >= 0;
   return (
     <View style={[styles.card, { opacity: 0.6 }]}>
@@ -162,7 +167,7 @@ function ExpiredCard({ client, canSign, onRenew, onDismiss }: { client: RuntimeC
         <View style={styles.midCol}>
           <Text style={styles.name}>{client.name} <Text style={styles.age}>· {client.age}</Text></Text>
           <Text style={styles.occupation}>{client.occupation}</Text>
-          <Text style={[styles.allTime, { color: positive ? GREEN : RED, textAlign: 'left', marginTop: 4 }]}>All-time {returnText(client.allTimeReturnDollar, client.allTimeReturnPct)}</Text>
+          <Text style={[styles.allTime, { color: positive ? c.success : c.danger, textAlign: 'left', marginTop: 4 }]}>All-time {returnText(client.allTimeReturnDollar, client.allTimeReturnPct)}</Text>
         </View>
       </View>
       <View style={styles.expiredBtns}>
@@ -173,33 +178,36 @@ function ExpiredCard({ client, canSign, onRenew, onDismiss }: { client: RuntimeC
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeUseStyles((c: Palette) =>
+  StyleSheet.create({
   backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(10,16,16,0.6)', justifyContent: 'flex-end' },
-  panel: { height: '90%', backgroundColor: C.bg, borderTopWidth: BORDER_W * 2, borderColor: C.border, overflow: 'hidden' },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16, borderBottomWidth: BORDER_W, borderBottomColor: C.border, backgroundColor: C.panelDark },
-  title: { fontFamily: FONT_PIXEL, color: C.gold, fontSize: 18, fontWeight: '900', letterSpacing: 1, textTransform: 'uppercase' },
-  close: { fontFamily: FONT_PIXEL, color: C.gold, fontSize: 18, fontWeight: '800' },
+  panel: { height: '90%', backgroundColor: c.bg, borderTopWidth: BORDER_W * 2, borderColor: c.border, overflow: 'hidden' },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16, borderBottomWidth: BORDER_W, borderBottomColor: c.border, backgroundColor: c.panelDark },
+  title: { fontFamily: FONT_PIXEL, color: c.gold, fontSize: 18, fontWeight: '900', letterSpacing: 1, textTransform: 'uppercase' },
+  close: { fontFamily: FONT_PIXEL, color: c.gold, fontSize: 18, fontWeight: '800' },
   list: { padding: 12 },
-  section: { fontFamily: FONT_PIXEL, color: C.gold, fontSize: 14, fontWeight: '900', marginTop: 12, marginBottom: 4, letterSpacing: 0.5, textTransform: 'uppercase' },
-  emptyNote: { color: C.textDim, fontSize: 13, marginBottom: 6 },
-  card: { backgroundColor: C.panel, borderWidth: BORDER_W, borderColor: C.border, padding: 12, marginVertical: 8, overflow: 'hidden' },
-  contract: { fontFamily: FONT_PIXEL, color: C.gold, fontSize: 11, fontWeight: '800', textAlign: 'right', marginBottom: 4 },
+  section: { fontFamily: FONT_PIXEL, color: c.gold, fontSize: 14, fontWeight: '900', marginTop: 12, marginBottom: 4, letterSpacing: 0.5, textTransform: 'uppercase' },
+  emptyNote: { color: c.textDim, fontSize: 13, marginBottom: 6 },
+  card: { backgroundColor: c.panel, borderWidth: BORDER_W, borderColor: c.border, padding: 12, marginVertical: 8, overflow: 'hidden' },
+  contract: { fontFamily: FONT_PIXEL, color: c.gold, fontSize: 11, fontWeight: '800', textAlign: 'right', marginBottom: 4 },
   cardRow: { flexDirection: 'row' },
   charCol: { width: 100, alignItems: 'flex-start', justifyContent: 'center' },
   midCol: { flex: 1, paddingHorizontal: 8 },
-  name: { fontFamily: FONT_PIXEL, color: C.text, fontSize: 15, fontWeight: '800' },
-  age: { color: C.muted, fontSize: 13, fontWeight: '600' },
-  occupation: { color: C.muted, fontSize: 12, marginTop: 1 },
-  portLine: { fontFamily: FONT_PIXEL, color: C.gold, fontSize: 12, fontWeight: '800', marginTop: 3 },
-  riskLine: { color: C.textDim, fontSize: 12, fontWeight: '700', marginTop: 3 },
-  background: { color: C.textDim, fontSize: 13, fontStyle: 'italic', lineHeight: 18, marginTop: 4 },
-  firedNote: { color: RED, fontSize: 12, fontWeight: '700', marginTop: 4 },
+  name: { fontFamily: FONT_PIXEL, color: c.text, fontSize: 15, fontWeight: '800' },
+  age: { color: c.muted, fontSize: 13, fontWeight: '600' },
+  occupation: { color: c.muted, fontSize: 12, marginTop: 1 },
+  portLine: { fontFamily: FONT_PIXEL, color: c.gold, fontSize: 12, fontWeight: '800', marginTop: 3 },
+  riskLine: { color: c.textDim, fontSize: 12, fontWeight: '700', marginTop: 3 },
+  background: { color: c.textDim, fontSize: 13, fontStyle: 'italic', lineHeight: 18, marginTop: 4 },
+  firedNote: { color: c.danger, fontSize: 12, fontWeight: '700', marginTop: 4 },
   rightCol: { width: 140, alignItems: 'flex-end' },
-  statLabel: { fontFamily: FONT_PIXEL, color: C.muted, fontSize: 9, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.3 },
+  statLabel: { fontFamily: FONT_PIXEL, color: c.muted, fontSize: 9, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.3 },
   wow: { fontFamily: FONT_PIXEL, fontSize: 13, fontWeight: '800', marginTop: 1, textAlign: 'right' },
-  allTime: { fontFamily: FONT_PIXEL, color: GRAY, fontSize: 12, fontWeight: '700', marginTop: 1, textAlign: 'right' },
-  happyBar: { height: 6, backgroundColor: C.panelDark, borderWidth: 2, borderColor: C.border, marginTop: 10, overflow: 'hidden' },
-  capNote: { color: C.muted, fontSize: 12, fontStyle: 'italic', marginTop: 8 },
+  allTime: { fontFamily: FONT_PIXEL, color: c.textDim, fontSize: 12, fontWeight: '700', marginTop: 1, textAlign: 'right' },
+  happyBar: { height: 6, backgroundColor: c.panelDark, borderWidth: 2, borderColor: c.border, marginTop: 10, overflow: 'hidden' },
+  capNote: { color: c.muted, fontSize: 12, fontStyle: 'italic', marginTop: 8 },
+  feeLine: { fontFamily: FONT_PIXEL, color: c.gold, fontSize: 11, fontWeight: '800', marginTop: 3 },
   expiredBtns: { flexDirection: 'row', marginTop: 10 },
   expiredBtn: { flex: 1, marginHorizontal: 4 },
-});
+  })
+);

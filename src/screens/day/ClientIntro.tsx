@@ -5,11 +5,13 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Button from '../../components/Button';
 import PixelCharacter from '../../components/PixelCharacter';
 import { useGame } from '../../state/GameContext';
-import { C, FONT_PIXEL, BORDER_W } from '../../theme';
+import { FONT_PIXEL, BORDER_W, Palette } from '../../theme';
+import { makeUseStyles } from '../../contexts/ThemeContext';
 
 export default function ClientIntro({ onDone }: { onDone: () => void }) {
   const { introClient } = useGame();
   const insets = useSafeAreaInsets();
+  const styles = useStyles();
   const activeClient = introClient!;
   const dialogue = activeClient?.dialogue ?? [];
 
@@ -43,15 +45,16 @@ export default function ClientIntro({ onDone }: { onDone: () => void }) {
   );
 }
 
-const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: C.bg, paddingHorizontal: 20, alignItems: 'center', justifyContent: 'space-between' },
-  top: { alignItems: 'center' },
-  title: { fontFamily: FONT_PIXEL, color: C.gold, fontSize: 20, fontWeight: '900', marginBottom: 16, letterSpacing: 1 },
-  name: { fontFamily: FONT_PIXEL, color: C.textDim, fontSize: 13, fontWeight: '700', marginTop: 12 },
-  risk: { color: C.gold, fontSize: 13, fontWeight: '800', marginTop: 2 },
-  bubbleArea: { width: '100%', alignItems: 'center' },
-  bubble: { backgroundColor: C.panel, borderWidth: BORDER_W, borderColor: C.border, padding: 16, maxWidth: 320 },
-  bubbleText: { color: C.text, fontSize: 16, lineHeight: 23 },
-  counter: { fontFamily: FONT_PIXEL, color: C.muted, fontSize: 13, fontWeight: '700', marginTop: 12 },
-  actions: { width: '100%', maxWidth: 320 },
-});
+const useStyles = makeUseStyles((c: Palette) =>
+  StyleSheet.create({
+    screen: { flex: 1, backgroundColor: c.bg, paddingHorizontal: 20, alignItems: 'center', justifyContent: 'space-between' },
+    top: { alignItems: 'center' },
+    title: { fontFamily: FONT_PIXEL, color: c.gold, fontSize: 20, fontWeight: '900', marginBottom: 16, letterSpacing: 1 },
+    name: { fontFamily: FONT_PIXEL, color: c.textDim, fontSize: 13, fontWeight: '700', marginTop: 12 },
+    bubbleArea: { width: '100%', alignItems: 'center' },
+    bubble: { backgroundColor: c.panel, borderWidth: BORDER_W, borderColor: c.border, padding: 16, maxWidth: 320 },
+    bubbleText: { color: c.text, fontSize: 16, lineHeight: 23 },
+    counter: { fontFamily: FONT_PIXEL, color: c.muted, fontSize: 13, fontWeight: '700', marginTop: 12 },
+    actions: { width: '100%', maxWidth: 320 },
+  })
+);

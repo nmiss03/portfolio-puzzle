@@ -65,14 +65,16 @@ function concentrationLevel(weight: number): ConcentrationLevel {
 }
 
 // Check whether too much of the client's capital sits in a single stock. Weight
-// is measured against the whole portfolio (stocks + bonds); bonds themselves are
-// never counted as a concentration risk. Penalty severity scales by tier.
+// is measured against the WHOLE portfolio (stocks + bonds + uninvested cash);
+// bonds themselves are never counted as a concentration risk. Penalty severity
+// scales by tier.
 export function evaluateConcentrationRisk(
   holdings: Record<string, Holding>,
   client: RuntimeClient,
-  prices: PriceMap
+  prices: PriceMap,
+  cash = 0
 ): ConcentrationEvaluation {
-  let total = 0;
+  let total = Math.max(0, cash);
   let largestStockValue = 0;
   let largestStockId: string | null = null;
 
