@@ -63,7 +63,7 @@ export const CLIENT_TIERS: Record<number, ClientTier> = {
     label: 'Executive',
     unlockedAtReputation: 40,
     minInitialCapital: 120000,
-    allocationTolerance: 0.05,
+    allocationTolerance: 0.07,
     negativeReturnHappinessPenalty: -5,
     concentrationPenalty: { moderate: -4, high: -8, extreme: -15 },
     requiresStrictDiversification: true,

@@ -5,8 +5,8 @@ import React, { createContext, useContext, useEffect, useMemo, useReducer } from
 
 import CLIENTS from '../data/clients';
 import STOCKS, { stocksById } from '../data/stocks';
-import { ClientProfile, Phase, RuntimeClient, clampHappiness, initRuntimeClient } from '../data/gameState';
-import { marketValue, calculateWeeklyHappiness } from '../data/scoring';
+import { ClientProfile, HappinessFactor, Phase, RuntimeClient, clampHappiness, initRuntimeClient } from '../data/gameState';
+import { marketValue, weeklyHappinessBreakdown } from '../data/scoring';
 import { NewsArticle, generateWeeklyNews } from '../data/newsArticles';
 import {
   PriceMap,
@@ -26,7 +26,16 @@ import {
   STARTING_REPUTATION,
   calculateWeeklyReputation,
 } from '../data/reputationSystem';
-import { activeCount, canSignMore, signContract, tickContract } from '../data/contractSystem';
+import {
+  ContractGrade,
+  activeCount,
+  canSignMore,
+  contractBonus,
+  gradeContract,
+  gradeRepBonus,
+  signContract,
+  tickContract,
+} from '../data/contractSystem';
 import {
   ClientMessage,
   MESSAGE_FULFILLED_BONUS,
@@ -67,6 +76,18 @@ export interface PerClientWeekResult {
   concentrationLevel: ConcentrationLevel;
   concentrationPenalty: number; // non-positive happiness hit applied this week
   largestStockPct: number; // 0..1
+  happinessFactors: HappinessFactor[]; // itemized WHY the mood moved
+}
+
+// End-of-contract report card: the 8-week arc's payoff, shown in the summary.
+export interface ContractReport {
+  clientId: string;
+  name: string;
+  grade: ContractGrade;
+  allTimePct: number;
+  happiness: number;
+  bonus: number; // completion bonus paid to the advisor
+  repBonus: number;
 }
 
 export interface PriceMove {
@@ -93,6 +114,7 @@ export interface TransitionInfo {
   blackSwan: BlackSwanEvent | null;
   regime: Regime;
   feeIncome: number; // advisor fees earned this week (returns fees)
+  contractReports: ContractReport[]; // contracts that just finished their final week
 }
 
 interface State {
@@ -298,7 +320,11 @@ function reducer(state: State, action: Action): State {
     case 'DISMISS_EXPIRED': {
       const client = state.clients[action.clientId];
       if (!client) return state;
-      return { ...state, clients: { ...state.clients, [client.id]: { ...client, status: 'dismissed' } } };
+      // Dismissed clients cool off for a month, then return to the pool.
+      return {
+        ...state,
+        clients: { ...state.clients, [client.id]: { ...client, status: 'dismissed', returnsAtWeek: state.currentWeek + 4 } },
+      };
     }
 
     case 'TRANSITION_WEEK': {
@@ -331,6 +357,9 @@ function reducer(state: State, action: Action): State {
       let returnsFeeIncome = 0;
       let totalPositiveGains = 0;
       const feeTxs: AdvisorTransaction[] = [];
+
+      // Contracts finishing their final week get graded (the chapter-end beat).
+      const contractReports: ContractReport[] = [];
 
       Object.values(state.clients)
         .filter((c) => c.status === 'signed')
@@ -365,6 +394,7 @@ function reducer(state: State, action: Action): State {
 
           // Phone requests: fulfilling a buy/add request builds the relationship.
           let msgDelta = 0;
+          const msgFactors: HappinessFactor[] = [];
           pendingMsgs
             .filter((m) => m.clientId === client.id)
             .forEach((m) => {
@@ -372,29 +402,52 @@ function reducer(state: State, action: Action): State {
               const ok = isMessageFulfilled(m, curShares);
               msgResolutions[m.id] = ok;
               msgDelta += ok ? MESSAGE_FULFILLED_BONUS : MESSAGE_IGNORED_PENALTY;
+              msgFactors.push(
+                ok
+                  ? { label: 'Request fulfilled', amount: MESSAGE_FULFILLED_BONUS }
+                  : { label: 'Request ignored', amount: MESSAGE_IGNORED_PENALTY }
+              );
             });
 
           const prevHappiness = client.happiness;
-          const newHappiness = clampHappiness(msgDelta + calculateWeeklyHappiness(
-            prevHappiness,
+          const hb = weeklyHappinessBreakdown(
             returnPct,
             alloc.happinessMatched,
             client.negativeReturnHappinessPenalty,
             conc.happinessPenalty,
             alloc.invested
-          ));
+          );
+          const happinessFactors = [...hb.factors, ...msgFactors];
+          const newHappiness = clampHappiness(prevHappiness + hb.delta + msgDelta);
           const fired = newHappiness <= 0;
           const allTimeDollar = endValue - client.initialCapital;
           const allTimePct = client.initialCapital > 0 ? allTimeDollar / client.initialCapital : 0;
 
+          // Final contract week (and not fired): grade the whole arc.
+          if (!fired && client.contractWeeksRemaining === 1) {
+            const grade = gradeContract(allTimePct, newHappiness);
+            contractReports.push({
+              clientId: client.id,
+              name: client.name,
+              grade,
+              allTimePct,
+              happiness: newHappiness,
+              bonus: contractBonus(client.tier, grade),
+              repBonus: gradeRepBonus(grade),
+            });
+          }
+
           updated[client.id] = {
             ...client,
             status: fired ? 'fired' : client.status,
+            // A fired client storms out — but may reconsider in a couple months.
+            returnsAtWeek: fired ? state.currentWeek + 8 : client.returnsAtWeek,
             // Holdings and cash PERSIST across the week — only valuation changes.
             holdings: client.holdings,
             cash: client.cash,
             portfolioValue: endValue,
             happiness: newHappiness,
+            lastHappinessFactors: happinessFactors,
             lastWeekReturnDollar: returnDollar,
             lastWeekReturnPct: returnPct,
             allTimeReturnDollar: allTimeDollar,
@@ -411,6 +464,7 @@ function reducer(state: State, action: Action): State {
             allTimeDollar, allTimePct, fired,
             concentrationLevel: conc.level, concentrationPenalty: conc.happinessPenalty,
             largestStockPct: conc.largestStockWeight,
+            happinessFactors,
           });
 
           if (fired) firedNames.push(client.name);
@@ -421,9 +475,22 @@ function reducer(state: State, action: Action): State {
 
       const rep = calculateWeeklyReputation(state.reputation, state.milestones, snapshots, firedNames);
 
+      // Contract completions: grade-based reputation and advisor bonuses.
+      let contractRepBonus = 0;
+      let contractBonusTotal = 0;
+      const repChanges = [...rep.changes];
+      contractReports.forEach((r) => {
+        contractBonusTotal += r.bonus;
+        if (r.repBonus > 0) {
+          contractRepBonus += r.repBonus;
+          repChanges.push({ amount: r.repBonus, reason: `Completed ${r.name}'s contract (grade ${r.grade})` });
+        }
+      });
+      const finalReputation = Math.max(0, Math.min(100, rep.newReputation + contractRepBonus));
+
       // Clients that just crossed their reputation unlock threshold.
       const newlyUnlocked = Object.values(state.clients)
-        .filter((c) => c.status === 'unsigned' && c.unlockedAtReputation > state.reputation && c.unlockedAtReputation <= rep.newReputation)
+        .filter((c) => c.status === 'unsigned' && c.unlockedAtReputation > state.reputation && c.unlockedAtReputation <= finalReputation)
         .map((c) => c.name);
 
       // Price movements (start → end) for every stock — all move each week —
@@ -475,13 +542,16 @@ function reducer(state: State, action: Action): State {
         ? Math.round(totalPositiveGains * ASSISTANT_WEEKLY_CUT * 100) / 100
         : 0;
       const weekTxs = [...feeTxs];
+      contractReports.forEach((r) => {
+        if (r.bonus > 0) weekTxs.push({ week: state.currentWeek, label: `${r.name} contract bonus (${r.grade})`, amount: r.bonus });
+      });
       if (assistantCut > 0) weekTxs.push({ week: state.currentWeek, label: 'Assistant salary', amount: -assistantCut });
-      const advisorBalance = Math.max(0, state.advisorBalance + returnsFeeIncome - assistantCut);
+      const advisorBalance = Math.max(0, state.advisorBalance + returnsFeeIncome + contractBonusTotal - assistantCut);
 
       return {
         ...state,
         clients: updated,
-        reputation: rep.newReputation,
+        reputation: finalReputation,
         milestones: rep.milestones,
         phase: 'transition',
         weekEndPrices,
@@ -497,15 +567,16 @@ function reducer(state: State, action: Action): State {
         transition: {
           week: state.currentWeek,
           results,
-          repChanges: rep.changes,
+          repChanges,
           repBefore: state.reputation,
-          repAfter: rep.newReputation,
+          repAfter: finalReputation,
           firedNames,
           newlyUnlocked,
           priceMoves,
           blackSwan,
           regime: state.regime,
           feeIncome: returnsFeeIncome,
+          contractReports,
         },
       };
     }
@@ -516,7 +587,17 @@ function reducer(state: State, action: Action): State {
       if (state.reputation <= 0) return { ...state, phase: 'gameOver', transition: null };
       const nextWeek = state.currentWeek + 1;
       const ticked: Record<string, RuntimeClient> = {};
-      Object.values(state.clients).forEach((c) => (ticked[c.id] = tickContract(c)));
+      Object.values(state.clients).forEach((c) => {
+        let t = tickContract(c);
+        // Fired/dismissed clients eventually reconsider: they rejoin the pool
+        // with a fresh account (reputation gate still applies). This keeps the
+        // roster a renewable resource — losing a client is a wound, not a
+        // permanent amputation of the game's content.
+        if ((t.status === 'fired' || t.status === 'dismissed') && t.returnsAtWeek !== undefined && nextWeek >= t.returnsAtWeek) {
+          t = { ...initRuntimeClient(t), returnsAtWeek: undefined };
+        }
+        ticked[t.id] = t;
+      });
       // Carry this week's ending prices over to become next week's start prices.
       const nextStartPrices = initializeWeekPrices(carryOverPrices(state.weekEndPrices), nextWeek);
       // Clients may text you a buy/add request for the new week.

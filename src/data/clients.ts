@@ -84,7 +84,7 @@ const CLIENTS: ClientProfile[] = [
       'Established entrepreneur with $120k+ to invest. Highly sophisticated about markets, portfolio construction, and risk management. Demands expert-level strategy and precise asset allocation. No patience for guessing.',
     tier: 4,
     recommendedAllocation: { stocks: 0.55, bonds: 0.45 },
-    allocationTolerance: 0.05,
+    allocationTolerance: 0.07,
     negativeReturnHappinessPenalty: -5,
     initialCapital: 120000,
     unlockedAtReputation: 40,

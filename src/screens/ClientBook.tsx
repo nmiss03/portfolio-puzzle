@@ -73,13 +73,15 @@ export default function ClientBook() {
           {firedClients.length > 0 && (
             <>
               <Text style={[styles.section, { color: c.danger }]}>Terminated Relationships</Text>
-              {firedClients.map((c) => (
-                <View key={c.id} style={[styles.card, { opacity: 0.4 }]}>
+              {firedClients.map((fc) => (
+                <View key={fc.id} style={[styles.card, { opacity: 0.4 }]}>
                   <View style={styles.cardRow}>
-                    <PixelCharacter seed={c.id} cell={5} />
+                    <PixelCharacter seed={fc.id} cell={5} />
                     <View style={styles.midCol}>
-                      <Text style={styles.name}>{c.name}</Text>
-                      <Text style={styles.firedNote}>Fired for low satisfaction</Text>
+                      <Text style={styles.name}>{fc.name}</Text>
+                      <Text style={styles.firedNote}>
+                        {fc.returnsAtWeek ? `Fired you — may reconsider around week ${fc.returnsAtWeek}` : 'Fired for low satisfaction'}
+                      </Text>
                     </View>
                   </View>
                 </View>

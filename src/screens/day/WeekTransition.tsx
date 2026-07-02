@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, ScrollView, StyleSheet, Animated, Easing } from 'react-native';
+import { View, Text, Pressable, ScrollView, StyleSheet, Animated, Easing } from 'react-native';
 
 import Button from '../../components/Button';
 import PixelCharacter from '../../components/PixelCharacter';
@@ -40,7 +40,18 @@ export default function WeekTransition({ onContinue }: { onContinue: () => void 
 
   const combinedAllTime = t.results.reduce((s, r) => s + r.allTimeDollar, 0);
 
+  // Tap anywhere to finish the count-up instantly — the 60th week deserves the
+  // same respect for the player's time as the 3rd.
+  const skip = () => {
+    if (done) return;
+    progress.stopAnimation();
+    progress.setValue(1);
+    setFrac(1);
+    setDone(true);
+  };
+
   return (
+    <Pressable style={{ flex: 1 }} onPress={skip}>
     <ScrollView contentContainerStyle={styles.content}>
       <Text style={styles.weekDone}>WEEK {t.week} COMPLETE</Text>
 
@@ -58,6 +69,16 @@ export default function WeekTransition({ onContinue }: { onContinue: () => void 
                 <Text style={{ color: arrowUp ? c.success : c.danger }}>{arrowUp ? '▲' : '▼'}</Text> {r.newHappiness}
                 {r.fired ? '  (fired you!)' : ''}
               </Text>
+              {done && r.happinessFactors.length > 0 && (
+                <Text style={styles.rowWhy} numberOfLines={2}>
+                  {r.happinessFactors
+                    .filter((f) => f.label !== 'Weekly expectations')
+                    .sort((a, b) => Math.abs(b.amount) - Math.abs(a.amount))
+                    .slice(0, 2)
+                    .map((f) => `${f.label} ${f.amount >= 0 ? '+' : ''}${f.amount}`)
+                    .join(' · ')}
+                </Text>
+              )}
             </View>
             <View style={styles.rowRight}>
               <Text style={[styles.rowReturn, { color: positive ? c.success : c.danger }]}>
@@ -93,7 +114,9 @@ export default function WeekTransition({ onContinue }: { onContinue: () => void 
           <Button title="View Week Summary  ›" onPress={onContinue} style={{ marginTop: 24, minWidth: 240 }} />
         </>
       )}
+      {!done && <Text style={styles.skipHint}>tap to skip</Text>}
     </ScrollView>
+    </Pressable>
   );
 }
 
@@ -116,6 +139,8 @@ const useStyles = makeUseStyles((c: Palette) =>
     rowMid: { flex: 1, marginLeft: 14 },
     rowName: { fontFamily: FONT_PIXEL, color: c.text, fontSize: 16, fontWeight: '900' },
     rowHappy: { color: c.textDim, fontSize: 13, fontWeight: '700', marginTop: 4 },
+    rowWhy: { fontFamily: FONT_PIXEL, color: c.muted, fontSize: 10, fontWeight: '700', marginTop: 3 },
+    skipHint: { fontFamily: FONT_PIXEL, color: c.muted, fontSize: 11, marginTop: 16, letterSpacing: 1 },
     rowRight: { alignItems: 'flex-end' },
     rowReturn: { fontFamily: FONT_PIXEL, fontSize: 17, fontWeight: '900' },
     rowPct: { fontFamily: FONT_PIXEL, fontSize: 13, fontWeight: '800', marginTop: 2 },

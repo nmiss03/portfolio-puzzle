@@ -15,6 +15,14 @@ export interface WeekRecord {
 
 export type ClientStatus = 'unsigned' | 'signed' | 'expired' | 'dismissed' | 'fired';
 
+// One labeled component of a week's happiness change ("Losses -4", "Request
+// fulfilled +5"). Computed by scoring.weeklyHappinessBreakdown and surfaced in
+// the UI so mood swings are learnable rather than mysterious.
+export interface HappinessFactor {
+  label: string;
+  amount: number;
+}
+
 export const CONTRACT_WEEKS = 8;
 export const MAX_ACTIVE_CLIENTS = 3;
 
@@ -54,6 +62,11 @@ export interface RuntimeClient extends ClientProfile {
   allTimeReturnPct: number;
   performanceHistory: WeekRecord[];
   fired: boolean;
+  // Week at which a fired/dismissed client will consider working with you again
+  // (they return to the available pool, reputation gate permitting).
+  returnsAtWeek?: number;
+  // Why their mood moved last week — shown in ClientDetail / WeekTransition.
+  lastHappinessFactors?: HappinessFactor[];
 }
 
 export type Phase = 'weekIntro' | 'clientIntro' | 'builder' | 'transition' | 'summary' | 'gameOver';

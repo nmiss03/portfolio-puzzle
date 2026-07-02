@@ -42,6 +42,26 @@ export default function WeekSummaryScreen({ onContinue }: { onContinue: () => vo
     <ScrollView contentContainerStyle={styles.content}>
       <Text style={styles.title}>Week {t.week} Summary</Text>
 
+      {/* Contract report cards — the payoff for a finished 8-week arc. */}
+      {t.contractReports.map((r) => (
+        <View key={r.clientId} style={styles.reportCard}>
+          <View style={styles.reportHead}>
+            <Text style={styles.reportTitle}>📜 CONTRACT COMPLETE — {r.name.toUpperCase()}</Text>
+            <Text style={styles.reportGrade}>{r.grade}</Text>
+          </View>
+          <Text style={styles.reportLine}>
+            8-week return:{' '}
+            <Text style={{ color: r.allTimePct >= 0 ? c.success : c.danger }}>
+              {r.allTimePct >= 0 ? '+' : ''}{(r.allTimePct * 100).toFixed(1)}%
+            </Text>
+            {'   '}Final happiness: {Math.round(r.happiness)}%
+          </Text>
+          {r.bonus > 0 && <Text style={styles.reportBonus}>Completion bonus: +{formatMoney(r.bonus)}</Text>}
+          {r.repBonus > 0 && <Text style={styles.reportRep}>+{r.repBonus} reputation</Text>}
+          <Text style={styles.reportNote}>Find {r.name} in the Client Book to renew or part ways.</Text>
+        </View>
+      ))}
+
       {/* Economic cycle context for the week */}
       <View style={styles.regimeCard}>
         <Text style={styles.regimeLabel}>MARKET: {REGIME_LABEL[t.regime]}</Text>
@@ -186,6 +206,14 @@ const useStyles = makeUseStyles((c: Palette) =>
   screen: { flex: 1, backgroundColor: c.bg, alignItems: 'center', justifyContent: 'center' },
   content: { padding: 20 },
   title: { fontFamily: FONT_PIXEL, color: c.gold, fontSize: 20, fontWeight: '900', textAlign: 'center', marginVertical: 12, letterSpacing: 1, textTransform: 'uppercase' },
+  reportCard: { backgroundColor: c.panel, borderWidth: BORDER_W, borderColor: c.gold, padding: 14, marginBottom: 16 },
+  reportHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  reportTitle: { fontFamily: FONT_PIXEL, color: c.gold, fontSize: 13, fontWeight: '900', letterSpacing: 0.5, flex: 1, marginRight: 8 },
+  reportGrade: { fontFamily: FONT_PIXEL, color: c.gold, fontSize: 28, fontWeight: '900' },
+  reportLine: { fontFamily: FONT_PIXEL, color: c.text, fontSize: 12, fontWeight: '700', marginTop: 8 },
+  reportBonus: { fontFamily: FONT_PIXEL, color: c.success, fontSize: 12, fontWeight: '900', marginTop: 6 },
+  reportRep: { fontFamily: FONT_PIXEL, color: c.success, fontSize: 12, fontWeight: '900', marginTop: 2 },
+  reportNote: { color: c.muted, fontSize: 11, fontStyle: 'italic', marginTop: 8 },
   regimeCard: { backgroundColor: c.panel, borderWidth: BORDER_W, borderColor: c.border, padding: 12, marginBottom: 16 },
   regimeLabel: { fontFamily: FONT_PIXEL, color: c.gold, fontSize: 13, fontWeight: '900', letterSpacing: 0.5 },
   regimeBlurb: { color: c.textDim, fontSize: 12, lineHeight: 17, marginTop: 4 },

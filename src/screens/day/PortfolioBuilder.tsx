@@ -2,6 +2,8 @@ import React, { useMemo, useState } from 'react';
 import { View, Text, TextInput, Pressable, ScrollView, StyleSheet } from 'react-native';
 
 import STOCKS, { Stock, StockLogo, Sector, SECTORS } from '../../data/stocks';
+import MixBar from '../../components/MixBar';
+import { riskPreferenceLabel } from '../../data/gameState';
 import { useGame } from '../../state/GameContext';
 import { formatMoney, formatPrice } from '../../utils/format';
 import { FONT_PIXEL, BORDER_W, Palette } from '../../theme';
@@ -247,6 +249,19 @@ export default function PortfolioBuilder({
       {!embedded && <View style={styles.standNeck} />}
       {!embedded && <View style={styles.standBase} />}
 
+      {/* Current mix — decision support for the allocation game. */}
+      {tradable && (
+        <View style={styles.mixPanel}>
+          <View style={styles.mixHead}>
+            <Text style={styles.mixTitle}>CURRENT MIX</Text>
+            <Text style={styles.mixPref} numberOfLines={1}>
+              {client!.name} is {riskPreferenceLabel(client!.recommendedAllocation).toLowerCase()}
+            </Text>
+          </View>
+          <MixBar holdings={holdings} cash={balance} priceOf={priceOf} />
+        </View>
+      )}
+
       {tradable && hasHoldings && (
         <View style={styles.summary}>
           <Text style={styles.summaryTitle}>{client!.name}'s Holdings</Text>
@@ -357,6 +372,11 @@ const useStyles = makeUseStyles((c: Palette) =>
 
   standNeck: { width: '30%', height: 18, backgroundColor: c.border },
   standBase: { width: '45%', height: 10, backgroundColor: c.border, marginBottom: 16 },
+
+  mixPanel: { width: '100%', backgroundColor: c.panel, borderWidth: BORDER_W, borderColor: c.border, padding: 12, marginBottom: 12 },
+  mixHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
+  mixTitle: { fontFamily: FONT_PIXEL, color: c.gold, fontSize: 12, fontWeight: '900', letterSpacing: 0.5 },
+  mixPref: { fontFamily: FONT_PIXEL, color: c.muted, fontSize: 10, fontWeight: '700', flexShrink: 1, marginLeft: 8 },
 
   summary: { width: '100%', backgroundColor: c.panel, borderWidth: BORDER_W, borderColor: c.border, padding: 12 },
   summaryTitle: { fontFamily: FONT_PIXEL, color: c.gold, fontSize: 14, fontWeight: '800', marginBottom: 8, letterSpacing: 0.5, textTransform: 'uppercase' },

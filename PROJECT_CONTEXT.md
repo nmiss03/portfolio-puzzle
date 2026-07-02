@@ -4,6 +4,9 @@
 > Written for a new AI coding assistant (or human) who has never seen the project.
 > After reading this you should be able to contribute without asking basic questions.
 >
+> **Design companion:** `GAME_DESIGN_AUDIT.md` holds the gameplay/UX audit, the
+> onboarding roadmap, and the phased design backlog. Read it before adding mechanics.
+>
 > **Accuracy note:** the root `README.md` and parts of `app.json` are *stale* — they
 > describe an earlier "3-level allocation-puzzle" concept that no longer exists. This
 > document reflects the **actual current code** (through commit `6ba3e87`). When the
@@ -70,6 +73,13 @@ The game is **fully playable end-to-end** in a single endless career. There is n
   and tilt returns by beta.
 - **Black-swan crashes** — every 15–20 weeks; beta-scaled crash, bonds rally.
 - **Phone messages** — clients text buy/add requests graded at week-end (±happiness).
+- **Contract report cards** — finished contracts are graded S–D, pay a tier×grade
+  completion bonus and small rep, shown atop the week summary.
+- **Roster revival** — fired clients reconsider after 8 weeks, dismissed after 4
+  (removes the shrinking-roster soft-lock).
+- **Happiness legibility** — per-factor breakdown stored per client and surfaced in
+  WeekTransition / ClientDetail; portfolio mix bar (stocks/bonds/cash) in the builder;
+  a next-goal ticker on the dashboard.
 - **Full theming** — light + dark palettes; every screen and shared component is
   theme-reactive; the toggle persists. (`6ba3e87`)
 - **Save system** — full-state autosave to web `localStorage` (in-memory fallback).

@@ -17,6 +17,7 @@ import ShopScreen from './ShopScreen';
 import ReputationBar from '../components/ReputationBar';
 import { useGame } from '../state/GameContext';
 import { REGIME_LABEL } from '../data/economicCycles';
+import { SHOP_ITEMS } from '../data/advisorEconomy';
 import { formatMoney } from '../utils/format';
 import { FONT_PIXEL, BORDER_W, Palette } from '../theme';
 import { makeUseStyles, useTheme } from '../contexts/ThemeContext';
@@ -31,7 +32,7 @@ const LEAF = '#3f8f4f';
 const LEAF_D = '#2f6f3c';
 
 export default function WeekScreen() {
-  const { state, activeClients, availableClients, canSign, maxClients, advisorBalance, setPhase, transitionWeek, advanceWeek, toggleBook, toggleNews, togglePhone, toggleShop } = useGame();
+  const { state, activeClients, availableClients, canSign, maxClients, advisorBalance, upgrades, setPhase, transitionWeek, advanceWeek, toggleBook, toggleNews, togglePhone, toggleShop } = useGame();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const styles = useStyles();
@@ -57,6 +58,17 @@ export default function WeekScreen() {
   if (!state.started) return <View style={styles.screen} />;
 
   const showAlert = !alertSeen && availableClients.length > 0 && canSign && state.phase === 'builder';
+
+  // The pull-forward: always show the player what they're working toward.
+  const nextLocked = Object.values(state.clients)
+    .filter((cl) => cl.status === 'unsigned' && cl.unlockedAtReputation > state.reputation)
+    .sort((a, b) => a.unlockedAtReputation - b.unlockedAtReputation)[0];
+  const nextUpgrade = SHOP_ITEMS.filter((i) => !upgrades[i.id]).sort((a, b) => a.cost - b.cost)[0];
+  const goalText = nextLocked
+    ? `GOAL: ${nextLocked.name.toUpperCase()} SIGNS AT ${nextLocked.unlockedAtReputation} REP — NOW ${Math.round(state.reputation)}`
+    : nextUpgrade && advisorBalance < nextUpgrade.cost
+      ? `GOAL: SAVE ${formatMoney(nextUpgrade.cost)} FOR ${nextUpgrade.name} — ${formatMoney(Math.round(advisorBalance))} SAVED`
+      : null;
 
   let body: React.ReactNode;
   if (state.phase === 'weekIntro') {
@@ -97,6 +109,12 @@ export default function WeekScreen() {
             </Text>
             <View style={styles.alertDot} />
           </Pressable>
+        )}
+
+        {goalText && (
+          <View style={styles.goalBar}>
+            <Text style={styles.goalText} numberOfLines={1}>◆ {goalText}</Text>
+          </View>
         )}
 
         {activeClients.length === 0 && (
@@ -228,6 +246,8 @@ const useStyles = makeUseStyles((c: Palette) =>
   regimeChipText: { fontFamily: FONT_PIXEL, color: c.gold, fontSize: 10, fontWeight: '900' },
   gearBtn: { width: 28, height: 28, marginLeft: 8, borderWidth: 2, borderColor: c.border, backgroundColor: c.panel, alignItems: 'center', justifyContent: 'center' },
   gearText: { fontSize: 16, color: c.text },
+  goalBar: { backgroundColor: c.panelDark, borderBottomWidth: 2, borderBottomColor: c.border, paddingVertical: 6, paddingHorizontal: 12, alignItems: 'center' },
+  goalText: { fontFamily: FONT_PIXEL, color: c.textDim, fontSize: 10, fontWeight: '900', letterSpacing: 0.5 },
   alert: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: c.panel, borderBottomWidth: 2, borderBottomColor: c.gold, paddingVertical: 10 },
   alertText: { fontFamily: FONT_PIXEL, color: c.gold, fontSize: 12, fontWeight: '800', letterSpacing: 0.5 },
   alertDot: { width: 8, height: 8, backgroundColor: c.danger, marginLeft: 8 },

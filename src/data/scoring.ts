@@ -66,12 +66,49 @@ export function computeWeek(client: RuntimeClient, multipliers: Record<string, n
   };
 }
 
-// Per-week happiness change. Base decay, a return-based adjustment whose
-// sharply-negative branch is scaled by the client's tier, an allocation match
-// bonus/penalty, and a tier-scaled concentration-risk penalty.
+export interface HappinessBreakdown {
+  delta: number;
+  factors: { label: string; amount: number }[];
+}
+
+// Per-week happiness change, itemized so the UI can explain WHY a client's
+// mood moved. Base decay, a return-based adjustment whose sharply-negative
+// branch is scaled by the client's tier, an allocation match bonus/penalty,
+// and a tier-scaled concentration-risk penalty.
 // An UNINVESTED (all-cash) client just takes the base decay — their capital
 // sitting idle slowly frustrates them, but they aren't judged on allocation,
 // returns, or concentration they don't have.
+export function weeklyHappinessBreakdown(
+  returnPct: number,
+  allocationMatch: boolean,
+  negativeReturnHappinessPenalty: number,
+  concentrationPenalty = 0,
+  invested = true
+): HappinessBreakdown {
+  const factors: { label: string; amount: number }[] = [];
+  if (!invested) {
+    factors.push({ label: 'Money sitting idle', amount: -3 });
+    return { delta: -3, factors };
+  }
+
+  factors.push({ label: 'Weekly expectations', amount: -3 });
+  if (returnPct >= 0.01) factors.push({ label: 'Great returns', amount: 8 });
+  else if (returnPct >= 0) factors.push({ label: 'Steady week', amount: 4 });
+  else if (returnPct >= -0.005) factors.push({ label: 'Slight dip', amount: -1 });
+  else if (returnPct >= -0.02) factors.push({ label: 'Losses', amount: -2 });
+  else factors.push({ label: 'Heavy losses', amount: negativeReturnHappinessPenalty });
+
+  factors.push(
+    allocationMatch
+      ? { label: 'Portfolio fits their style', amount: 2 }
+      : { label: 'Wrong mix for their style', amount: -5 }
+  );
+  if (concentrationPenalty < 0) factors.push({ label: 'Too concentrated', amount: concentrationPenalty });
+
+  return { delta: factors.reduce((s, f) => s + f.amount, 0), factors };
+}
+
+// Back-compat: the plain delta, derived from the breakdown.
 export function weeklyHappinessDelta(
   returnPct: number,
   allocationMatch: boolean,
@@ -79,16 +116,7 @@ export function weeklyHappinessDelta(
   concentrationPenalty = 0,
   invested = true
 ): number {
-  let d = -3; // base weekly decay
-  if (!invested) return d;
-  if (returnPct >= 0.01) d += 8;
-  else if (returnPct >= 0) d += 4;
-  else if (returnPct >= -0.005) d -= 1;
-  else if (returnPct >= -0.02) d -= 2;
-  else d += negativeReturnHappinessPenalty; // tier-specific (-2 .. -5)
-  d += allocationMatch ? 2 : -5;
-  d += concentrationPenalty; // non-positive; over-concentration in one stock
-  return d;
+  return weeklyHappinessBreakdown(returnPct, allocationMatch, negativeReturnHappinessPenalty, concentrationPenalty, invested).delta;
 }
 
 // New clamped happiness for a client after a week.

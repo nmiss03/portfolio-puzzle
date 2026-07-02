@@ -5,6 +5,7 @@ import PixelCharacter from '../components/PixelCharacter';
 import HappinessMeter from '../components/HappinessMeter';
 import Button from '../components/Button';
 import PortfolioBuilder from './day/PortfolioBuilder';
+import MixBar from '../components/MixBar';
 import STOCKS from '../data/stocks';
 import { RuntimeClient, avgCost, riskPreferenceLabel } from '../data/gameState';
 import { useGame } from '../state/GameContext';
@@ -73,6 +74,9 @@ export default function ClientDetail({ client, onClose }: { client: RuntimeClien
                 <Text style={styles.portCellVal}>{formatMoney(Math.round(holdingsValue))}</Text>
               </View>
             </View>
+            <View style={{ marginTop: 12 }}>
+              <MixBar holdings={client.holdings} cash={cash} priceOf={priceOf} />
+            </View>
             <View style={styles.portGrid}>
               <View style={styles.portCell}>
                 <Text style={styles.portCellLabel}>Weekly P/L</Text>
@@ -91,6 +95,19 @@ export default function ClientDetail({ client, onClose }: { client: RuntimeClien
 
           <View style={styles.happyBox}>
             <HappinessMeter value={client.happiness} height={14} />
+            {client.lastHappinessFactors && client.lastHappinessFactors.length > 0 && (
+              <View style={styles.factorList}>
+                <Text style={styles.factorTitle}>LAST WEEK</Text>
+                {client.lastHappinessFactors.map((f, i) => (
+                  <View key={i} style={styles.factorRow}>
+                    <Text style={styles.factorLabel}>{f.label}</Text>
+                    <Text style={[styles.factorAmt, { color: f.amount >= 0 ? c.success : c.danger }]}>
+                      {f.amount >= 0 ? '+' : ''}{f.amount}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+            )}
           </View>
 
           {/* HOLDINGS TABLE */}
@@ -157,6 +174,11 @@ const useStyles = makeUseStyles((c: Palette) =>
   portCellVal: { fontFamily: FONT_PIXEL, color: c.text, fontSize: 14, fontWeight: '800', marginTop: 2 },
 
   happyBox: { backgroundColor: c.panel, borderWidth: BORDER_W, borderColor: c.border, padding: 16, marginTop: 16 },
+  factorList: { marginTop: 12, borderTopWidth: 1, borderTopColor: c.divider, paddingTop: 8 },
+  factorTitle: { fontFamily: FONT_PIXEL, color: c.muted, fontSize: 9, fontWeight: '900', letterSpacing: 1, marginBottom: 4 },
+  factorRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 2 },
+  factorLabel: { fontFamily: FONT_PIXEL, color: c.textDim, fontSize: 11 },
+  factorAmt: { fontFamily: FONT_PIXEL, fontSize: 11, fontWeight: '900' },
   sectionLabel: { fontFamily: FONT_PIXEL, color: c.gold, fontSize: 13, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.5, marginTop: 18, marginBottom: 8 },
   tableHead: { flexDirection: 'row', paddingBottom: 6, borderBottomWidth: 2, borderBottomColor: c.border },
   th: { fontFamily: FONT_PIXEL, color: c.textDim, fontSize: 11, fontWeight: '800', textTransform: 'uppercase' },
