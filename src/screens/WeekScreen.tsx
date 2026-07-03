@@ -179,6 +179,18 @@ export default function WeekScreen() {
             </View>
           </View>
 
+          {/* Trophy shelf: every funded dream earns a trophy on the desk. */}
+          {state.records.trophies.length > 0 && (
+            <View style={styles.shelfRow}>
+              {state.records.trophies.slice(-4).map((label, i) => (
+                <View key={`${label}-${i}`} style={styles.trophy}>
+                  <Text style={styles.trophyGlyph}>🏆</Text>
+                  <Text style={styles.trophyLabel} numberOfLines={1}>{label.toUpperCase()}</Text>
+                </View>
+              ))}
+            </View>
+          )}
+
           {/* Wooden desk the PC sits on */}
           <View style={styles.desk}>
             <View style={styles.deskEdge} />
@@ -282,6 +294,12 @@ const useStyles = makeUseStyles((c: Palette) =>
   leafMid: { width: 12, height: 16, backgroundColor: LEAF },
   stem: { width: 4, height: 10, backgroundColor: LEAF_D },
   pot: { width: 26, height: 18, backgroundColor: POT, borderWidth: 2, borderColor: WOOD_DARK },
+
+  // Trophy shelf sitting on the desk (funded dreams, newest 4)
+  shelfRow: { flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'flex-end', paddingRight: 10 },
+  trophy: { alignItems: 'center', marginLeft: 10, maxWidth: 76 },
+  trophyGlyph: { fontSize: 18 },
+  trophyLabel: { fontFamily: FONT_PIXEL, color: c.warning, fontSize: 7, fontWeight: '900', letterSpacing: 0.5, marginTop: 1 },
 
   // Wooden desk + advance control
   desk: { height: 26, backgroundColor: WOOD, borderTopWidth: 4, borderTopColor: WOOD_TOP },

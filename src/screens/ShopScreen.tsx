@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { View, Text, Pressable, ScrollView, StyleSheet } from 'react-native';
 
 import { SHOP_ITEMS, ASSISTANT_WEEKLY_CUT } from '../data/advisorEconomy';
+import { careerTitle } from '../data/careerRecords';
 import { useGame } from '../state/GameContext';
 import { useTheme, Palette } from '../contexts/ThemeContext';
 import { MONO } from '../styles/typography';
@@ -95,6 +96,15 @@ export default function ShopScreen() {
               <Text style={styles.cardFine}>Across {allReturns.length} client-week{allReturns.length === 1 ? '' : 's'} of performance.</Text>
             </View>
 
+            <View style={styles.card}>
+              <Text style={styles.finLabel}>CAREER RECORD BOOK — {careerTitle(state.records, state.currentWeek).toUpperCase()}</Text>
+              <RecordRow label="Best week" value={state.records.bestWeekPct > 0 ? `+${(state.records.bestWeekPct * 100).toFixed(2)}% (+${formatMoney(Math.round(state.records.bestWeekDollar))})` : '—'} />
+              <RecordRow label="Green streak" value={`${state.records.greenStreak} now · best ${state.records.bestGreenStreak}`} />
+              <RecordRow label="Black swans survived" value={`${state.records.swansSurvived}`} />
+              <RecordRow label="Contracts completed" value={`${state.records.contractsCompleted} (${state.records.sGrades} S-grade)`} />
+              <RecordRow label="Dreams funded" value={`${state.records.dreamsFunded}`} />
+            </View>
+
             <Text style={styles.sectionLabel}>TRANSACTION HISTORY</Text>
             {txs.length === 0 ? (
               <Text style={styles.empty}>No transactions yet — sign a client to earn your first fee.</Text>
@@ -112,6 +122,17 @@ export default function ShopScreen() {
           </ScrollView>
         )}
       </View>
+    </View>
+  );
+}
+
+function RecordRow({ label, value }: { label: string; value: string }) {
+  const { c } = useTheme();
+  const styles = useMemo(() => makeStyles(c), [c]);
+  return (
+    <View style={styles.recRow}>
+      <Text style={styles.recLabel}>{label}</Text>
+      <Text style={styles.recValue} numberOfLines={1}>{value}</Text>
     </View>
   );
 }
@@ -151,6 +172,9 @@ const makeStyles = (c: Palette) =>
     ownedText: { color: c.success },
 
     finLabel: { fontFamily: MONO, color: c.muted, fontSize: 10, fontWeight: '800', letterSpacing: 1 },
+    recRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 5, borderBottomWidth: 1, borderBottomColor: c.divider },
+    recLabel: { fontFamily: MONO, color: c.textDim, fontSize: 11, fontWeight: '700' },
+    recValue: { fontFamily: MONO, color: c.text, fontSize: 12, fontWeight: '900', marginLeft: 8, flexShrink: 1 },
     finBig: { fontFamily: MONO, fontSize: 26, fontWeight: '900', marginTop: 4 },
     sectionLabel: { fontFamily: MONO, color: c.gold, fontSize: 12, fontWeight: '900', letterSpacing: 1, marginTop: 4, marginBottom: 8 },
     empty: { color: c.muted, fontSize: 13, fontStyle: 'italic' },

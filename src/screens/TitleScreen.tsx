@@ -7,6 +7,7 @@ import PixelCharacter from '../components/PixelCharacter';
 import NewGameIntro from './NewGameIntro';
 import SettingsMenu from './SettingsMenu';
 import { useGame } from '../state/GameContext';
+import { careerTitle } from '../data/careerRecords';
 import { useTheme, Palette } from '../contexts/ThemeContext';
 import { MONO } from '../styles/typography';
 import { BORDER } from '../styles/spacing';
@@ -16,7 +17,8 @@ export default function TitleScreen() {
   const insets = useSafeAreaInsets();
   const { c } = useTheme();
   const styles = useMemo(() => makeStyles(c), [c]);
-  const { canContinue, advisorName, firmName, newGame } = useGame();
+  const { state, canContinue, advisorName, firmName, newGame } = useGame();
+  const title = careerTitle(state.records, state.currentWeek);
 
   const [mode, setMode] = useState<'title' | 'intro'>('title');
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -53,7 +55,7 @@ export default function TitleScreen() {
           >
             <Text style={styles.bubbleText}>CONTINUE GAME</Text>
             <Text style={styles.bubbleSub} numberOfLines={1}>
-              as {advisorName} at {firmName} Inc
+              as {advisorName} · {title} at {firmName} Inc
             </Text>
           </Pressable>
         )}

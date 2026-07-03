@@ -44,6 +44,7 @@ import {
   isMessageFulfilled,
 } from '../data/clientMessages';
 import { BarkEvent, barkLine, gradeQuote, makeClientNote } from '../data/clientVoice';
+import { CareerRecords, WEEKS_PER_YEAR, YearReview, careerTitle, freshRecords, updateRecords } from '../data/careerRecords';
 import { loadJSON, saveJSON } from '../data/persist';
 import { BlackSwanEvent, generateBlackSwanImpact, pickBlackSwan, rollBlackSwanGap } from '../data/blackSwan';
 import { Regime, RegimeState, initialRegime, nextRegime, regimeTilt } from '../data/economicCycles';
@@ -116,6 +117,8 @@ export interface TransitionInfo {
   regime: Regime;
   feeIncome: number; // advisor fees earned this week (returns fees)
   contractReports: ContractReport[]; // contracts that just finished their final week
+  newRecords: string[]; // career records broken this week (★ NEW RECORD beat)
+  yearReview: YearReview | null; // set on every 52nd week — the season beat
 }
 
 interface State {
@@ -156,6 +159,8 @@ interface State {
   advisorTransactions: AdvisorTransaction[];
   upgrades: Upgrades;
   shopOpen: boolean;
+  // Career records & streaks — survive week-to-week, reset on a new career.
+  records: CareerRecords;
 }
 
 type Action =
@@ -211,6 +216,7 @@ function buildInitial(identity?: { advisorName: string; firmName: string }): Sta
     advisorTransactions: [],
     upgrades: { ...NO_UPGRADES },
     shopOpen: false,
+    records: freshRecords(),
   };
 }
 
@@ -219,7 +225,16 @@ function buildInitial(identity?: { advisorName: string; firmName: string }): Sta
 function loadSavedState(): State | null {
   const saved = loadJSON<{ version: number; state: State }>(SAVE_KEY);
   if (!saved || saved.version !== SAVE_VERSION || !saved.state) return null;
-  return { ...saved.state, bookOpen: false, newsOpen: false, phoneOpen: false, shopOpen: false, detailClientId: null };
+  return {
+    ...saved.state,
+    // Saves from before the record book existed get an empty one.
+    records: saved.state.records ?? freshRecords(),
+    bookOpen: false,
+    newsOpen: false,
+    phoneOpen: false,
+    shopOpen: false,
+    detailClientId: null,
+  };
 }
 
 function initialState(): State {
@@ -366,6 +381,10 @@ function reducer(state: State, action: Action): State {
       // max, most dramatic event wins).
       const barks: ClientMessage[] = [];
 
+      // Book-wide aggregates + funded dreams, for the career record book.
+      let totalStartValue = 0;
+      const dreamLabels: string[] = [];
+
       Object.values(state.clients)
         .filter((c) => c.status === 'signed')
         .forEach((client) => {
@@ -378,6 +397,7 @@ function reducer(state: State, action: Action): State {
           const endValue = client.cash + mvEnd; // portfolio value after price moves
           const returnDollar = endValue - startValue; // == mvEnd - mvStart
           const returnPct = startValue > 0 ? returnDollar / startValue : 0;
+          totalStartValue += startValue;
           // How much of the move came from news alone (vs drift/regime).
           const newsGain = marketValue(client.holdings, newsImpact, weekStartPrices) - mvStart;
 
@@ -430,6 +450,7 @@ function reducer(state: State, action: Action): State {
 
           // Did the portfolio just reach the client's dream for the first time?
           const dreamNow = !!client.dream && !client.dreamReached && endValue >= client.dream.target;
+          if (dreamNow) dreamLabels.push(client.dream.label);
 
           // Pick this client's reaction to the week (priority order matters:
           // a goodbye outranks everything; a funded dream outranks a mood dip).
@@ -570,6 +591,44 @@ function reducer(state: State, action: Action): State {
       if (assistantCut > 0) weekTxs.push({ week: state.currentWeek, label: 'Assistant salary', amount: -assistantCut });
       const advisorBalance = Math.max(0, state.advisorBalance + returnsFeeIncome + contractBonusTotal - assistantCut);
 
+      // Fold the week into the career record book (best week, streaks, swans
+      // survived, contracts, S-grades, funded-dream trophies).
+      const bookReturnDollar = results.reduce((s, r) => s + r.returnDollar, 0);
+      const recordsUpdate = updateRecords(state.records, {
+        bookReturnPct: totalStartValue > 0 ? bookReturnDollar / totalStartValue : 0,
+        bookReturnDollar,
+        hadClients: results.length > 0,
+        survivedSwan: !!blackSwan && finalReputation > 0,
+        contractsCompleted: contractReports.length,
+        sGrades: contractReports.filter((r) => r.grade === 'S').length,
+        dreamsFundedLabels: dreamLabels,
+      });
+
+      // Every 52nd week closes a fiscal year: the summary opens with a YEAR IN
+      // REVIEW card and the career title is re-assessed.
+      let yearReview: YearReview | null = null;
+      if (state.currentWeek % WEEKS_PER_YEAR === 0) {
+        const firstWeek = state.currentWeek - WEEKS_PER_YEAR + 1;
+        const yearReturns: number[] = [];
+        Object.values(updated).forEach((cl) =>
+          cl.performanceHistory.forEach((h) => {
+            if (h.week >= firstWeek) yearReturns.push(h.returnPct);
+          })
+        );
+        const firmIncome = [...state.advisorTransactions, ...weekTxs]
+          .filter((tx) => tx.week >= firstWeek && tx.amount > 0)
+          .reduce((s, tx) => s + tx.amount, 0);
+        yearReview = {
+          year: state.currentWeek / WEEKS_PER_YEAR,
+          avgWeeklyReturnPct: yearReturns.length > 0 ? yearReturns.reduce((s, r) => s + r, 0) / yearReturns.length : 0,
+          firmIncome,
+          contractsCompleted: recordsUpdate.records.contractsCompleted,
+          dreamsFunded: recordsUpdate.records.dreamsFunded,
+          bestWeekPct: recordsUpdate.records.bestWeekPct,
+          title: careerTitle(recordsUpdate.records, state.currentWeek + 1),
+        };
+      }
+
       return {
         ...state,
         clients: updated,
@@ -582,6 +641,7 @@ function reducer(state: State, action: Action): State {
         unreadMessageCount: state.unreadMessageCount + barks.length,
         advisorBalance,
         advisorTransactions: [...state.advisorTransactions, ...weekTxs],
+        records: recordsUpdate.records,
         // A black swan shocks the economy into a fresh downturn.
         regime: isBlackSwan ? 'downturn' : state.regime,
         regimeWeeksLeft: isBlackSwan ? 5 : state.regimeWeeksLeft,
@@ -600,6 +660,8 @@ function reducer(state: State, action: Action): State {
           regime: state.regime,
           feeIncome: returnsFeeIncome,
           contractReports,
+          newRecords: recordsUpdate.beats,
+          yearReview,
         },
       };
     }

@@ -3,6 +3,7 @@ import { View, Text, ScrollView, StyleSheet } from 'react-native';
 
 import Button from '../components/Button';
 import { useGame } from '../state/GameContext';
+import { careerTitle } from '../data/careerRecords';
 import { formatMoney } from '../utils/format';
 import { FONT_PIXEL, BORDER_W, Palette } from '../theme';
 import { makeUseStyles } from '../contexts/ThemeContext';
@@ -11,8 +12,9 @@ export default function GameOverScreen() {
   const { state, advisorAllTimeDollar, startGame } = useGame();
   const styles = useStyles();
   const served = Object.values(state.clients).filter((c) => c.status !== 'unsigned').length;
-  const dreamsFunded = Object.values(state.clients).filter((c) => c.dreamReached).length;
   const positive = advisorAllTimeDollar >= 0;
+  const r = state.records;
+  const title = careerTitle(r, state.currentWeek);
 
   return (
     <ScrollView contentContainerStyle={styles.content}>
@@ -25,8 +27,17 @@ export default function GameOverScreen() {
         <Stat label="Weeks managed" value={`${state.currentWeek}`} />
         <Stat label="Clients served" value={`${served}`} />
         <Stat label="Advisor all-time returns" value={`${positive ? '+' : '-'}${formatMoney(Math.abs(Math.round(advisorAllTimeDollar)))}`} />
-        <Stat label="Dreams funded" value={`${dreamsFunded}`} />
         <Stat label="Final reputation" value={`${Math.round(state.reputation)}/100`} />
+      </View>
+
+      <Text style={styles.recordsHead}>CAREER RECORD BOOK — {title.toUpperCase()}</Text>
+      <View style={styles.records}>
+        <Stat label="Dreams funded" value={`${r.dreamsFunded}`} />
+        <Stat label="Contracts completed" value={`${r.contractsCompleted}`} />
+        <Stat label="S-grade contracts" value={`${r.sGrades}`} />
+        <Stat label="Best week" value={r.bestWeekPct > 0 ? `+${(r.bestWeekPct * 100).toFixed(2)}%` : '—'} />
+        <Stat label="Longest green streak" value={`${r.bestGreenStreak} week${r.bestGreenStreak === 1 ? '' : 's'}`} />
+        <Stat label="Black swans survived" value={`${r.swansSurvived}`} />
       </View>
 
       <Button title="Start Over" onPress={startGame} style={{ marginTop: 24 }} />
@@ -50,6 +61,8 @@ const useStyles = makeUseStyles((c: Palette) =>
     title: { fontFamily: FONT_PIXEL, color: c.danger, fontSize: 22, fontWeight: '900', textAlign: 'center', letterSpacing: 1 },
     message: { color: c.textDim, fontSize: 14, lineHeight: 20, textAlign: 'center', marginTop: 12 },
     stats: { backgroundColor: c.panel, borderWidth: BORDER_W, borderColor: c.border, padding: 16, marginTop: 24 },
+    recordsHead: { fontFamily: FONT_PIXEL, color: c.gold, fontSize: 12, fontWeight: '900', letterSpacing: 1, textAlign: 'center', marginTop: 24 },
+    records: { backgroundColor: c.panel, borderWidth: BORDER_W, borderColor: c.gold, padding: 16, marginTop: 8 },
     row: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: c.divider },
     label: { fontFamily: FONT_PIXEL, color: c.muted, fontSize: 12, fontWeight: '700' },
     value: { fontFamily: FONT_PIXEL, color: c.text, fontSize: 14, fontWeight: '900' },

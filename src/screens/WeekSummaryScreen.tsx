@@ -43,6 +43,28 @@ export default function WeekSummaryScreen({ onContinue }: { onContinue: () => vo
     <ScrollView contentContainerStyle={styles.content}>
       <Text style={styles.title}>Week {t.week} Summary</Text>
 
+      {/* Year in review — the season beat, every 52nd week. */}
+      {t.yearReview && (
+        <View style={styles.yearCard}>
+          <Text style={styles.yearTitle}>📅 YEAR {t.yearReview.year} IN REVIEW</Text>
+          <YearRow label="Avg weekly return" value={`${t.yearReview.avgWeeklyReturnPct >= 0 ? '+' : ''}${(t.yearReview.avgWeeklyReturnPct * 100).toFixed(2)}%`} />
+          <YearRow label="Firm income" value={formatMoney(Math.round(t.yearReview.firmIncome))} />
+          <YearRow label="Contracts completed" value={`${t.yearReview.contractsCompleted}`} />
+          <YearRow label="Dreams funded" value={`${t.yearReview.dreamsFunded}`} />
+          <YearRow label="Best week" value={`+${(t.yearReview.bestWeekPct * 100).toFixed(2)}%`} />
+          <Text style={styles.yearTitleLine}>CAREER TITLE: {t.yearReview.title.toUpperCase()}</Text>
+        </View>
+      )}
+
+      {/* Records broken this week. */}
+      {(t.newRecords ?? []).length > 0 && (
+        <View style={styles.recordCard}>
+          {(t.newRecords ?? []).map((line, i) => (
+            <Text key={i} style={styles.recordLine}>★ NEW RECORD — {line}</Text>
+          ))}
+        </View>
+      )}
+
       {/* Contract report cards — the payoff for a finished 8-week arc. */}
       {t.contractReports.map((r) => (
         <View key={r.clientId} style={styles.reportCard}>
@@ -241,9 +263,27 @@ export default function WeekSummaryScreen({ onContinue }: { onContinue: () => vo
   );
 }
 
+function YearRow({ label, value }: { label: string; value: string }) {
+  const styles = useStyles();
+  return (
+    <View style={styles.yearRow}>
+      <Text style={styles.yearLabel}>{label}</Text>
+      <Text style={styles.yearValue}>{value}</Text>
+    </View>
+  );
+}
+
 const useStyles = makeUseStyles((c: Palette) =>
   StyleSheet.create({
   screen: { flex: 1, backgroundColor: c.bg, alignItems: 'center', justifyContent: 'center' },
+  yearCard: { backgroundColor: c.panelDark, borderWidth: BORDER_W, borderColor: c.gold, padding: 14, marginBottom: 16 },
+  yearTitle: { fontFamily: FONT_PIXEL, color: c.gold, fontSize: 15, fontWeight: '900', letterSpacing: 1, marginBottom: 8 },
+  yearRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 4, borderBottomWidth: 1, borderBottomColor: c.divider },
+  yearLabel: { fontFamily: FONT_PIXEL, color: c.muted, fontSize: 11, fontWeight: '700' },
+  yearValue: { fontFamily: FONT_PIXEL, color: c.text, fontSize: 12, fontWeight: '900' },
+  yearTitleLine: { fontFamily: FONT_PIXEL, color: c.gold, fontSize: 13, fontWeight: '900', letterSpacing: 0.5, marginTop: 10 },
+  recordCard: { backgroundColor: c.panel, borderWidth: BORDER_W, borderColor: c.warning, padding: 12, marginBottom: 16 },
+  recordLine: { fontFamily: FONT_PIXEL, color: c.warning, fontSize: 12, fontWeight: '900', letterSpacing: 0.5, marginVertical: 2 },
   content: { padding: 20 },
   title: { fontFamily: FONT_PIXEL, color: c.gold, fontSize: 20, fontWeight: '900', textAlign: 'center', marginVertical: 12, letterSpacing: 1, textTransform: 'uppercase' },
   reportCard: { backgroundColor: c.panel, borderWidth: BORDER_W, borderColor: c.gold, padding: 14, marginBottom: 16 },
