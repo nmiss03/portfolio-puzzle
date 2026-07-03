@@ -53,6 +53,7 @@ import {
 } from '../data/clientMessages';
 import { BarkEvent, barkLine, gradeQuote, makeClientNote, renewalLine } from '../data/clientVoice';
 import { CareerRecords, WEEKS_PER_YEAR, YearReview, careerTitle, freshRecords, updateRecords } from '../data/careerRecords';
+import { checkAchievements } from '../data/achievements';
 import { loadJSON, saveJSON } from '../data/persist';
 import { BlackSwanEvent, generateBlackSwanImpact, pickBlackSwan, rollBlackSwanGap } from '../data/blackSwan';
 import { Regime, RegimeState, initialRegime, nextRegime, regimeTilt } from '../data/economicCycles';
@@ -127,6 +128,7 @@ export interface TransitionInfo {
   contractReports: ContractReport[]; // contracts that just finished their final week
   newRecords: string[]; // career records broken this week (★ NEW RECORD beat)
   yearReview: YearReview | null; // set on every 52nd week — the season beat
+  newAchievements: string[]; // achievement ids earned this week
 }
 
 interface State {
@@ -169,6 +171,8 @@ interface State {
   shopOpen: boolean;
   // Career records & streaks — survive week-to-week, reset on a new career.
   records: CareerRecords;
+  achievements: string[]; // earned achievement ids, never revoked
+  lowestReputation: number; // career floor, for the comeback achievement
 }
 
 type Action =
@@ -227,6 +231,8 @@ function buildInitial(identity?: { advisorName: string; firmName: string }): Sta
     upgrades: { ...NO_UPGRADES },
     shopOpen: false,
     records: freshRecords(),
+    achievements: [],
+    lowestReputation: STARTING_REPUTATION,
   };
 }
 
@@ -239,6 +245,8 @@ function loadSavedState(): State | null {
     ...saved.state,
     // Saves from before the record book existed get an empty one.
     records: saved.state.records ?? freshRecords(),
+    achievements: saved.state.achievements ?? [],
+    lowestReputation: saved.state.lowestReputation ?? saved.state.reputation,
     bookOpen: false,
     newsOpen: false,
     phoneOpen: false,
@@ -380,8 +388,8 @@ function reducer(state: State, action: Action): State {
       const newsImpact = calculateWeeklyPriceImpact(state.weekNews);
       const isBlackSwan = state.currentWeek >= state.nextBlackSwanWeek;
       const blackSwan = isBlackSwan ? pickBlackSwan() : null;
-      const marketDrift = isBlackSwan
-        ? generateBlackSwanImpact()
+      const marketDrift = blackSwan
+        ? generateBlackSwanImpact(blackSwan)
         : combineWeeklyImpact(generateWeeklyMarketDrift(STOCKS.map((s) => s.id)), regimeTilt(state.regime));
       const finalMult = combineWeeklyImpact(marketDrift, newsImpact);
       const weekStartPrices = state.weekStartPrices;
@@ -667,6 +675,18 @@ function reducer(state: State, action: Action): State {
         dreamsFundedLabels: dreamLabels,
       });
 
+      // Achievements: checked against the updated record book and this week's
+      // outcome. Earned once, kept forever.
+      const lowestReputation = Math.min(state.lowestReputation ?? state.reputation, finalReputation);
+      const newAchievements = checkAchievements(state.achievements ?? [], {
+        records: recordsUpdate.records,
+        reputation: finalReputation,
+        lowestReputation,
+        week: state.currentWeek,
+        advisorBalance,
+        activeHappinesses: results.filter((r) => !r.fired).map((r) => r.newHappiness),
+      });
+
       // Every 52nd week closes a fiscal year: the summary opens with a YEAR IN
       // REVIEW card and the career title is re-assessed.
       let yearReview: YearReview | null = null;
@@ -705,6 +725,8 @@ function reducer(state: State, action: Action): State {
         advisorBalance,
         advisorTransactions: [...state.advisorTransactions, ...weekTxs],
         records: recordsUpdate.records,
+        achievements: [...(state.achievements ?? []), ...newAchievements],
+        lowestReputation,
         // A black swan shocks the economy into a fresh downturn.
         regime: isBlackSwan ? 'downturn' : state.regime,
         regimeWeeksLeft: isBlackSwan ? 5 : state.regimeWeeksLeft,
@@ -725,6 +747,7 @@ function reducer(state: State, action: Action): State {
           contractReports,
           newRecords: recordsUpdate.beats,
           yearReview,
+          newAchievements,
         },
       };
     }

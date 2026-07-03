@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { View, Text, Pressable, ScrollView, StyleSheet } from 'react-native';
 
 import { SHOP_ITEMS, ASSISTANT_WEEKLY_CUT } from '../data/advisorEconomy';
+import { ACHIEVEMENTS } from '../data/achievements';
 import { careerTitle } from '../data/careerRecords';
 import { useGame } from '../state/GameContext';
 import { useTheme, Palette } from '../contexts/ThemeContext';
@@ -105,6 +106,27 @@ export default function ShopScreen() {
               <RecordRow label="Dreams funded" value={`${state.records.dreamsFunded}`} />
             </View>
 
+            {(() => {
+              const earned = new Set(state.achievements ?? []);
+              return (
+                <View style={styles.card}>
+                  <Text style={styles.finLabel}>ACHIEVEMENTS — {earned.size}/{ACHIEVEMENTS.length}</Text>
+                  {ACHIEVEMENTS.map((a) => {
+                    const got = earned.has(a.id);
+                    return (
+                      <View key={a.id} style={[styles.achRow, !got && styles.achLocked]}>
+                        <Text style={styles.achIcon}>{got ? a.icon : '🔒'}</Text>
+                        <View style={styles.achBody}>
+                          <Text style={[styles.achName, got && { color: c.gold }]}>{a.name}</Text>
+                          <Text style={styles.achBlurb}>{a.blurb}</Text>
+                        </View>
+                      </View>
+                    );
+                  })}
+                </View>
+              );
+            })()}
+
             <Text style={styles.sectionLabel}>TRANSACTION HISTORY</Text>
             {txs.length === 0 ? (
               <Text style={styles.empty}>No transactions yet — sign a client to earn your first fee.</Text>
@@ -172,6 +194,12 @@ const makeStyles = (c: Palette) =>
     ownedText: { color: c.success },
 
     finLabel: { fontFamily: MONO, color: c.muted, fontSize: 10, fontWeight: '800', letterSpacing: 1 },
+    achRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: c.divider },
+    achLocked: { opacity: 0.45 },
+    achIcon: { fontSize: 16, width: 28 },
+    achBody: { flex: 1 },
+    achName: { fontFamily: MONO, color: c.text, fontSize: 12, fontWeight: '900' },
+    achBlurb: { fontFamily: MONO, color: c.muted, fontSize: 10, marginTop: 1 },
     recRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 5, borderBottomWidth: 1, borderBottomColor: c.divider },
     recLabel: { fontFamily: MONO, color: c.textDim, fontSize: 11, fontWeight: '700' },
     recValue: { fontFamily: MONO, color: c.text, fontSize: 12, fontWeight: '900', marginLeft: 8, flexShrink: 1 },

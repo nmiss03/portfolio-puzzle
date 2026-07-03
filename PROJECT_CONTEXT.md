@@ -59,8 +59,9 @@ The game is **fully playable end-to-end** in a single endless career. There is n
 - **Persistent stock prices** — 22 stocks; prices carry week-to-week, never reset.
 - **Weekly price engine** — natural drift + economic-regime tilt + cumulative news
   impact, all resolved at week-end, floored at −85% so prices can't go negative.
-- **Tiered news** — ~36 authored headlines cycle every week, each rolled to a
-  minor/moderate/major impact band, so effect genuinely varies. (`6ba15b3`)
+- **Tiered news** — ~92 authored headlines (tech, macro, trade, weather, supply
+  chains, corporate drama…) cycle every week, each rolled to a minor/moderate/major
+  impact band, so effect genuinely varies; every one of the 22 stocks is covered.
 - **Reputation system** — starts 22; driven by returns, client-happiness milestones,
   and firings; clamps 0–100; unlocks clients at rep 20/27/34/40.
 - **Tier-aware happiness / allocation / concentration** — four client tiers with
@@ -381,7 +382,13 @@ Files · Maturity · Future.**
 - **Outputs:** `weekNews`, `nextWeekNews`, hidden insider articles, summary attribution.
 - **Dependencies:** `stocks.ts`.
 - **Files:** `data/newsArticles.ts`, `data/exclusiveNews.ts`.
-- **Maturity:** mature. **Future:** more headlines; sector-wide events; article→regime links.
+- **Maturity:** mature (~92 headlines). **Future:** sector storyline chains; article→regime links.
+- **Black swans:** 14 flavors, each with a sector fingerprint layered on the
+  beta-scaled crash (pandemic spares Healthcare, cyberattack lifts `csd`, debt/rate
+  crises break the bond refuge via `bondsRally: false`). See `blackSwan.ts`.
+- **Achievements:** 20 mastery-focused defs in `data/achievements.ts`, checked
+  per resolved week; earned ids persist in state, shown in the summary and the
+  Shop FINANCES tab. Office wall frames in `WeekScreen` hang off the same records.
 
 ### 6.4 Clients, tiers & contracts
 - **Purpose:** who you serve and the rules per client.

@@ -27,12 +27,28 @@ const NEW_STOCK_TEMPLATES = [
   'Hey! I have a friend who just told me about [S]. They work there and say great things about it. Think we could buy some shares?',
   'I was reading about [S] and their new product launch looks promising. Could we get some exposure?',
   'My cousin works in [SECTOR] and says [S] is the real deal. Want to give it a shot?',
+  'Someone at the gym would not stop talking about [S]. Normally I ignore gym advice, but this one stuck. Could we buy a little?',
+  "I keep seeing [S] in the news and now I feel like I'm missing out. Are we missing out? Should we own some?",
+  'My group chat is convinced [S] is about to have a moment. I know, I know. But could we get a small position anyway?',
+  "Watched a documentary about the [SECTOR] business last night and couldn't sleep. [S] seems like the smart way in. Thoughts?",
+  'A guy from my old job swears by [S]. He swears by a lot of things, but this time he had charts. Can we buy some?',
+  "I've been reading up on [SECTOR] — actually reading, like articles — and [S] keeps coming up. Could we add it?",
+  'Honest confession: I just like what [S] does. Is "I like the company" a good enough reason to own a little of it?',
+  "My neighbor won't stop bragging about their [S] shares. I would like to be insufferable too. A few shares, please?",
+  'Heard on the radio that [SECTOR] is where the smart money is going. [S] seems like the sensible way to follow. Can we?',
 ];
 
 const INCREASE_TEMPLATES = [
   "I've been thinking about [S]... could we increase our position? I'm pretty confident about it.",
   '[S] has been solid for us. Want to double down?',
   'My financial advisor mentioned [S]. Since we already own it, could we add more?',
+  "Every time I check the account, [S] is the one I'm happiest about. Should we own more of a good thing?",
+  "I trust [S]. I don't trust much, but I trust [S]. Can we top it up this week?",
+  'Been reading about [S] again. Still like the story. Like it more than our other stuff, honestly. Add some?',
+  "If you had to pick one thing we own to buy more of, would it be [S]? Because I'd like it to be [S].",
+  'Someone tried to talk me OUT of [S] at dinner and it only made me want more. Is that bad investing? Add anyway?',
+  "[S] just makes sense to me in a way the rest of the portfolio doesn't. Could we lean into it a little?",
+  "I did my own research on [S]. It took forty minutes and I'm very proud of it. Conclusion: buy more. Second opinion?",
 ];
 
 function fill(template: string, stockName: string, sector: string): string {

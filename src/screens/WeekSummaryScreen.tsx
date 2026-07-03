@@ -5,7 +5,8 @@ import Button from '../components/Button';
 import BarChart from '../components/BarChart';
 import HappinessMeter from '../components/HappinessMeter';
 import { useGame } from '../state/GameContext';
-import { REGIME_BLURB, REGIME_LABEL } from '../data/economicCycles';
+import { REGIME_LABEL, regimeBlurb } from '../data/economicCycles';
+import { achievementsById } from '../data/achievements';
 import { gradeQuote } from '../data/clientVoice';
 import { formatMoney, formatPrice } from '../utils/format';
 import { FONT_PIXEL, BORDER_W, Palette } from '../theme';
@@ -65,6 +66,25 @@ export default function WeekSummaryScreen({ onContinue }: { onContinue: () => vo
         </View>
       )}
 
+      {/* Achievements earned this week. */}
+      {(t.newAchievements ?? []).length > 0 && (
+        <View style={styles.achCard}>
+          {(t.newAchievements ?? []).map((id) => {
+            const a = achievementsById[id];
+            if (!a) return null;
+            return (
+              <View key={id} style={styles.achRow}>
+                <Text style={styles.achIcon}>{a.icon}</Text>
+                <View style={styles.achBody}>
+                  <Text style={styles.achName}>ACHIEVEMENT — {a.name.toUpperCase()}</Text>
+                  <Text style={styles.achBlurb}>{a.blurb}</Text>
+                </View>
+              </View>
+            );
+          })}
+        </View>
+      )}
+
       {/* Contract report cards — the payoff for a finished 8-week arc. */}
       {t.contractReports.map((r) => (
         <View key={r.clientId} style={styles.reportCard}>
@@ -89,7 +109,7 @@ export default function WeekSummaryScreen({ onContinue }: { onContinue: () => vo
       {/* Economic cycle context for the week */}
       <View style={styles.regimeCard}>
         <Text style={styles.regimeLabel}>MARKET: {REGIME_LABEL[t.regime]}</Text>
-        <Text style={styles.regimeBlurb}>{REGIME_BLURB[t.regime]}</Text>
+        <Text style={styles.regimeBlurb}>{regimeBlurb(t.regime, t.week)}</Text>
         {t.feeIncome > 0 && (
           <Text style={styles.feeLine}>Advisor fees earned this week: +{formatMoney(Math.round(t.feeIncome))}</Text>
         )}
@@ -284,6 +304,12 @@ const useStyles = makeUseStyles((c: Palette) =>
   yearTitleLine: { fontFamily: FONT_PIXEL, color: c.gold, fontSize: 13, fontWeight: '900', letterSpacing: 0.5, marginTop: 10 },
   recordCard: { backgroundColor: c.panel, borderWidth: BORDER_W, borderColor: c.warning, padding: 12, marginBottom: 16 },
   recordLine: { fontFamily: FONT_PIXEL, color: c.warning, fontSize: 12, fontWeight: '900', letterSpacing: 0.5, marginVertical: 2 },
+  achCard: { backgroundColor: c.panelDark, borderWidth: BORDER_W, borderColor: c.gold, padding: 12, marginBottom: 16 },
+  achRow: { flexDirection: 'row', alignItems: 'center', marginVertical: 3 },
+  achIcon: { fontSize: 20, marginRight: 10 },
+  achBody: { flex: 1 },
+  achName: { fontFamily: FONT_PIXEL, color: c.gold, fontSize: 12, fontWeight: '900', letterSpacing: 0.5 },
+  achBlurb: { color: c.textDim, fontSize: 11, marginTop: 2 },
   content: { padding: 20 },
   title: { fontFamily: FONT_PIXEL, color: c.gold, fontSize: 20, fontWeight: '900', textAlign: 'center', marginVertical: 12, letterSpacing: 1, textTransform: 'uppercase' },
   reportCard: { backgroundColor: c.panel, borderWidth: BORDER_W, borderColor: c.gold, padding: 14, marginBottom: 16 },

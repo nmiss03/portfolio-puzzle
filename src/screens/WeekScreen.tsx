@@ -129,6 +129,27 @@ export default function WeekScreen() {
 
         {/* Desk + pixel PC scene */}
         <View style={styles.scene}>
+          {/* Office wall: milestones hang as frames as the career grows. */}
+          {(() => {
+            const r = state.records;
+            const wall: { glyph: string; label: string }[] = [];
+            if (r.contractsCompleted >= 1) wall.push({ glyph: '📜', label: 'LICENSE' });
+            if (r.swansSurvived >= 1) wall.push({ glyph: '🗞', label: 'SURVIVED IT' });
+            if (r.contractsCompleted >= 5) wall.push({ glyph: '🏅', label: '5 CONTRACTS' });
+            if (r.sGrades >= 3) wall.push({ glyph: '⭐', label: 'S-CLASS' });
+            if (state.reputation >= 75) wall.push({ glyph: '🎓', label: 'TOP ADVISOR' });
+            if (wall.length === 0) return null;
+            return (
+              <View style={styles.wallRow}>
+                {wall.slice(0, 5).map((w) => (
+                  <View key={w.label} style={styles.wallFrame}>
+                    <Text style={styles.wallGlyph}>{w.glyph}</Text>
+                    <Text style={styles.wallLabel} numberOfLines={1}>{w.label}</Text>
+                  </View>
+                ))}
+              </View>
+            );
+          })()}
           <View style={styles.roomRow}>
             {/* The PC monitor */}
             <View style={styles.pc}>
@@ -268,6 +289,10 @@ const useStyles = makeUseStyles((c: Palette) =>
 
   // Desk + PC scene
   scene: { flex: 1, backgroundColor: c.bg, paddingHorizontal: 12, paddingTop: 12 },
+  wallRow: { flexDirection: 'row', justifyContent: 'center', marginBottom: 8 },
+  wallFrame: { alignItems: 'center', borderWidth: 2, borderColor: c.border, backgroundColor: c.panel, paddingHorizontal: 6, paddingVertical: 3, marginHorizontal: 4, maxWidth: 78 },
+  wallGlyph: { fontSize: 13 },
+  wallLabel: { fontFamily: FONT_PIXEL, color: c.muted, fontSize: 6, fontWeight: '900', letterSpacing: 0.5, marginTop: 1 },
   roomRow: { flex: 1, flexDirection: 'row' },
   pc: { flex: 1, borderWidth: 10, borderColor: BEZEL, backgroundColor: BEZEL },
   pcTitleBar: { height: 24, backgroundColor: '#2b2b2b', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 8 },

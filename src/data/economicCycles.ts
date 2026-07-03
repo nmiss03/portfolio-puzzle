@@ -68,8 +68,45 @@ export const REGIME_LABEL: Record<Regime, string> = {
   downturn: 'DOWNTURN ▼',
 };
 
-export const REGIME_BLURB: Record<Regime, string> = {
-  expansion: 'Risk appetite is high — high-beta growth names have a tailwind.',
-  steady: 'Calm markets — no cyclical tilt this week.',
-  downturn: 'Investors are defensive — high-beta names face a headwind while bonds and low-beta stocks hold up.',
+// Multiple flavor lines per regime so the market has moods, not just labels.
+// Picked deterministically by week, so the same summary re-renders stably but
+// consecutive weeks in the same regime read differently.
+const REGIME_BLURBS: Record<Regime, string[]> = {
+  expansion: [
+    'Risk appetite is high — high-beta growth names have a tailwind.',
+    'Greed is doing the talking this week. Everything speculative catches a bid; everything careful gets called boring.',
+    'Optimism everywhere: analysts raising targets, taxi drivers sharing tips. High-beta names love it. Veterans get quietly nervous.',
+    'The melt-up mood continues. Money is rotating out of safety and into stories.',
+    'Champagne conditions — growth stocks sprint, bonds sulk, and nobody wants to be the first to sell.',
+    'Animal spirits are loose. The market is paying up for promises and discounting nothing.',
+  ],
+  steady: [
+    'Calm markets — no cyclical tilt this week.',
+    'A quiet tape. Prices drift on their own merits; no macro wind at anyone\'s back.',
+    'Sideways and sleepy — the kind of week where discipline earns its keep unnoticed.',
+    'The market is waiting for a reason. Until it finds one, fundamentals do the driving.',
+    'Caution without fear: volumes thin, moves small, everyone watching everyone else.',
+    'An uneventful stretch. Enjoy it — the market rarely stays polite for long.',
+  ],
+  downturn: [
+    'Investors are defensive — high-beta names face a headwind while bonds and low-beta stocks hold up.',
+    'Fear has the microphone. Rallies get sold, dips get worse, and cash suddenly has many admirers.',
+    'Risk is being rationed. Speculative names bleed while boring, dividend-paying ballast quietly outperforms.',
+    'The mood is grim — every bounce is greeted with suspicion, every headline read twice.',
+    'De-risking continues: portfolios are hiding in bonds and utilities until the sky stops looking like that.',
+    'Capitulation watch. The optimists have gone quiet, which is usually when it gets interesting.',
+  ],
 };
+
+// Kept for compatibility: the first (canonical) blurb per regime.
+export const REGIME_BLURB: Record<Regime, string> = {
+  expansion: REGIME_BLURBS.expansion[0],
+  steady: REGIME_BLURBS.steady[0],
+  downturn: REGIME_BLURBS.downturn[0],
+};
+
+// Week-seeded pick: stable within a week, varied across a regime's run.
+export function regimeBlurb(regime: Regime, week: number): string {
+  const pool = REGIME_BLURBS[regime];
+  return pool[week % pool.length];
+}
