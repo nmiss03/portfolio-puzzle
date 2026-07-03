@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, Pressable, ScrollView, StyleSheet, Animated, Easing } from 'react-native';
 
 import Button from '../../components/Button';
-import PixelCharacter from '../../components/PixelCharacter';
+import PixelCharacter, { moodFor } from '../../components/PixelCharacter';
 import { useGame } from '../../state/GameContext';
 import { formatMoney } from '../../utils/format';
 import { FONT_PIXEL, BORDER_W, Palette } from '../../theme';
@@ -61,7 +61,7 @@ export default function WeekTransition({ onContinue }: { onContinue: () => void 
         const arrowUp = r.newHappiness >= r.prevHappiness;
         return (
           <View key={r.clientId} style={styles.row}>
-            <PixelCharacter seed={r.clientId} cell={4} />
+            <PixelCharacter seed={r.clientId} cell={4} mood={moodFor(r.newHappiness)} />
             <View style={styles.rowMid}>
               <Text style={styles.rowName}>{r.name}</Text>
               <Text style={styles.rowHappy}>

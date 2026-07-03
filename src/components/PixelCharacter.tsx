@@ -31,7 +31,17 @@ function mulberry32(a: number) {
   };
 }
 
-function buildGrid(seed: string): (string | null)[][] {
+export type Mood = 'happy' | 'neutral' | 'sad';
+
+// Map a live happiness value onto a face. The character's expression follows
+// their relationship with you — the Client Book becomes a room you can read.
+export function moodFor(happiness: number): Mood {
+  if (happiness >= 60) return 'happy';
+  if (happiness >= 30) return 'neutral';
+  return 'sad';
+}
+
+function buildGrid(seed: string, moodOverride?: Mood): (string | null)[][] {
   const rng = mulberry32(hashSeed(seed));
   const pick = <T,>(arr: T[]) => arr[Math.floor(rng() * arr.length)];
 
@@ -41,7 +51,8 @@ function buildGrid(seed: string): (string | null)[][] {
   const shirt = pick(SHIRTS);
   const pants = pick(PANTS);
   const hairStyle = Math.floor(rng() * 3); // 0 straight, 1 full, 2 spiky
-  const mood = Math.floor(rng() * 3); // 0 happy, 1 neutral, 2 sad
+  const randomMood = Math.floor(rng() * 3); // 0 happy, 1 neutral, 2 sad
+  const mood = moodOverride ? { happy: 0, neutral: 1, sad: 2 }[moodOverride] : randomMood;
   const sleeve = rng() > 0.5 ? shirt : skin;
   const stripes = rng() > 0.5;
 
@@ -99,8 +110,8 @@ function shade(hex: string): string {
   return `#${((r << 16) | (gg << 8) | b).toString(16).padStart(6, '0')}`;
 }
 
-export default function PixelCharacter({ seed, cell = 7 }: { seed: string; cell?: number }) {
-  const grid = useMemo(() => buildGrid(seed), [seed]);
+export default function PixelCharacter({ seed, cell = 7, mood }: { seed: string; cell?: number; mood?: Mood }) {
+  const grid = useMemo(() => buildGrid(seed, mood), [seed, mood]);
   return (
     <View style={{ width: COLS * cell, height: ROWS * cell }}>
       {grid.map((row, r) => (

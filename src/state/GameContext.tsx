@@ -43,6 +43,7 @@ import {
   generateClientMessages,
   isMessageFulfilled,
 } from '../data/clientMessages';
+import { BarkEvent, barkLine, gradeQuote, makeClientNote } from '../data/clientVoice';
 import { loadJSON, saveJSON } from '../data/persist';
 import { BlackSwanEvent, generateBlackSwanImpact, pickBlackSwan, rollBlackSwanGap } from '../data/blackSwan';
 import { Regime, RegimeState, initialRegime, nextRegime, regimeTilt } from '../data/economicCycles';
@@ -361,6 +362,10 @@ function reducer(state: State, action: Action): State {
       // Contracts finishing their final week get graded (the chapter-end beat).
       const contractReports: ContractReport[] = [];
 
+      // Client reactions to the week, delivered as phone texts (one per client
+      // max, most dramatic event wins).
+      const barks: ClientMessage[] = [];
+
       Object.values(state.clients)
         .filter((c) => c.status === 'signed')
         .forEach((client) => {
@@ -423,6 +428,22 @@ function reducer(state: State, action: Action): State {
           const allTimeDollar = endValue - client.initialCapital;
           const allTimePct = client.initialCapital > 0 ? allTimeDollar / client.initialCapital : 0;
 
+          // Did the portfolio just reach the client's dream for the first time?
+          const dreamNow = !!client.dream && !client.dreamReached && endValue >= client.dream.target;
+
+          // Pick this client's reaction to the week (priority order matters:
+          // a goodbye outranks everything; a funded dream outranks a mood dip).
+          let barkEvent: BarkEvent | null = null;
+          if (fired) barkEvent = 'goodbye';
+          else if (dreamNow) barkEvent = 'dream';
+          else if (prevHappiness > 25 && newHappiness <= 25) barkEvent = 'misery';
+          else if (prevHappiness <= 25 && newHappiness > 25) barkEvent = 'recovery';
+          else if (returnPct <= -0.025 && Math.random() < 0.6) barkEvent = 'loss';
+          else if (returnPct >= 0.025 && Math.random() < 0.5) barkEvent = 'win';
+          if (barkEvent) {
+            barks.push(makeClientNote(client.id, client.name, state.currentWeek, barkLine(client.id, barkEvent)));
+          }
+
           // Final contract week (and not fired): grade the whole arc.
           if (!fired && client.contractWeeksRemaining === 1) {
             const grade = gradeContract(allTimePct, newHappiness);
@@ -448,6 +469,7 @@ function reducer(state: State, action: Action): State {
             portfolioValue: endValue,
             happiness: newHappiness,
             lastHappinessFactors: happinessFactors,
+            dreamReached: client.dreamReached || dreamNow,
             lastWeekReturnDollar: returnDollar,
             lastWeekReturnPct: returnPct,
             allTimeReturnDollar: allTimeDollar,
@@ -556,7 +578,8 @@ function reducer(state: State, action: Action): State {
         phase: 'transition',
         weekEndPrices,
         stockPriceHistory,
-        messages: resolvedMessages,
+        messages: [...barks, ...resolvedMessages],
+        unreadMessageCount: state.unreadMessageCount + barks.length,
         advisorBalance,
         advisorTransactions: [...state.advisorTransactions, ...weekTxs],
         // A black swan shocks the economy into a fresh downturn.

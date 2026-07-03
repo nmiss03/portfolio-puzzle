@@ -29,6 +29,7 @@ export default function AcceptClientModal({
           <Row label="Initial capital" value={formatMoney(client.initialCapital)} />
           <Row label="Risk preference" value={riskPreferenceLabel(client.recommendedAllocation)} />
           <Row label="Your fee" value={feeLabel(client)} />
+          {client.dream && <Row label="Their dream" value={`${client.dream.label} — ${formatMoney(client.dream.target)}`} />}
           <Row label="Your goal" value="Grow their capital in line with how they invest" />
         </View>
 

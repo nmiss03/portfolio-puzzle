@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, Pressable, ScrollView, StyleSheet } from 'react-native';
 
-import PixelCharacter from '../components/PixelCharacter';
+import PixelCharacter, { moodFor } from '../components/PixelCharacter';
 import Sparkline from '../components/Sparkline';
 import Button from '../components/Button';
 import AcceptClientModal from '../components/AcceptClientModal';
@@ -76,7 +76,7 @@ export default function ClientBook() {
               {firedClients.map((fc) => (
                 <View key={fc.id} style={[styles.card, { opacity: 0.4 }]}>
                   <View style={styles.cardRow}>
-                    <PixelCharacter seed={fc.id} cell={5} />
+                    <PixelCharacter seed={fc.id} cell={5} mood="sad" />
                     <View style={styles.midCol}>
                       <Text style={styles.name}>{fc.name}</Text>
                       <Text style={styles.firedNote}>
@@ -115,7 +115,7 @@ function ActiveCard({ client, onPress }: { client: RuntimeClient; onPress: () =>
     <Pressable style={({ pressed }) => [styles.card, pressed && { borderColor: c.gold }]} onPress={onPress}>
       <Text style={styles.contract}>Contract: {client.contractWeeksRemaining} {client.contractWeeksRemaining === 1 ? 'week' : 'weeks'} left</Text>
       <View style={styles.cardRow}>
-        <View style={styles.charCol}><PixelCharacter seed={client.id} cell={7} /></View>
+        <View style={styles.charCol}><PixelCharacter seed={client.id} cell={7} mood={moodFor(client.happiness)} /></View>
         <View style={styles.midCol}>
           <Text style={styles.name}>{client.name} <Text style={styles.age}>· {client.age}</Text></Text>
           <Text style={styles.occupation}>{client.occupation}</Text>

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, Pressable, ScrollView, StyleSheet } from 'react-native';
 
-import PixelCharacter from '../components/PixelCharacter';
+import PixelCharacter, { moodFor } from '../components/PixelCharacter';
 import HappinessMeter from '../components/HappinessMeter';
 import Button from '../components/Button';
 import PortfolioBuilder from './day/PortfolioBuilder';
@@ -50,7 +50,7 @@ export default function ClientDetail({ client, onClose }: { client: RuntimeClien
         <ScrollView contentContainerStyle={{ padding: 16 }}>
           {/* CLIENT PROFILE */}
           <View style={styles.detailTop}>
-            <PixelCharacter seed={client.id} cell={6} />
+            <PixelCharacter seed={client.id} cell={6} mood={moodFor(client.happiness)} />
             <View style={styles.detailInfo}>
               <Text style={styles.detailName}>{client.name}</Text>
               <Text style={styles.detailMeta}>{client.age} · {client.occupation}</Text>
@@ -59,6 +59,21 @@ export default function ClientDetail({ client, onClose }: { client: RuntimeClien
             </View>
           </View>
           <Text style={styles.detailBg}>{client.background}</Text>
+
+          {client.dream && (
+            <View style={styles.dreamCard}>
+              <View style={styles.dreamHead}>
+                <Text style={styles.dreamTitle}>★ {client.dream.label.toUpperCase()}</Text>
+                <Text style={styles.dreamPct}>
+                  {client.dreamReached ? 'FUNDED!' : `${Math.min(100, Math.round((totalValue / client.dream.target) * 100))}%`}
+                </Text>
+              </View>
+              <View style={styles.dreamTrack}>
+                <View style={{ width: `${Math.min(100, (totalValue / client.dream.target) * 100)}%` as any, height: '100%', backgroundColor: client.dreamReached ? c.success : c.gold }} />
+              </View>
+              <Text style={styles.dreamBlurb}>"{client.dream.blurb}" — {formatMoney(client.dream.target)}</Text>
+            </View>
+          )}
 
           {/* PORTFOLIO SUMMARY */}
           <View style={styles.portCard}>
@@ -164,6 +179,12 @@ const useStyles = makeUseStyles((c: Palette) =>
   detailRisk: { color: c.gold, fontSize: 13, fontWeight: '800', marginTop: 4 },
   contract: { fontFamily: FONT_PIXEL, color: c.muted, fontSize: 12, fontWeight: '700', marginTop: 3 },
   detailBg: { color: c.textDim, fontSize: 14, fontStyle: 'italic', lineHeight: 20, marginTop: 14 },
+  dreamCard: { backgroundColor: c.panel, borderWidth: BORDER_W, borderColor: c.gold, padding: 12, marginTop: 14 },
+  dreamHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
+  dreamTitle: { fontFamily: FONT_PIXEL, color: c.gold, fontSize: 12, fontWeight: '900', letterSpacing: 0.5 },
+  dreamPct: { fontFamily: FONT_PIXEL, color: c.gold, fontSize: 12, fontWeight: '900' },
+  dreamTrack: { height: 10, backgroundColor: c.panelDark, borderWidth: 2, borderColor: c.border, overflow: 'hidden' },
+  dreamBlurb: { color: c.muted, fontSize: 11, fontStyle: 'italic', marginTop: 6, lineHeight: 16 },
 
   portCard: { backgroundColor: c.panel, borderWidth: BORDER_W, borderColor: c.border, padding: 16, marginTop: 16 },
   portValueLabel: { fontFamily: FONT_PIXEL, color: c.textDim, fontSize: 10, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.5 },

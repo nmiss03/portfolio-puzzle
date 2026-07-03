@@ -4,6 +4,10 @@
 
 import { ClientProfile } from './gameState';
 
+// Every client has a DREAM — a concrete thing the money is for, with a
+// portfolio target attached. Dialogue states it; report cards and goodbyes
+// reference it. This is the emotional spine of each client.
+
 const CLIENTS: ClientProfile[] = [
   {
     id: 'alex',
@@ -21,11 +25,16 @@ const CLIENTS: ClientProfile[] = [
     unlockedAtReputation: 20,
     signingFee: 250, // small mix: modest signing + modest cut
     returnsFeePct: 0.1,
+    dream: {
+      label: 'Fried & True',
+      blurb: 'Every dollar of this becomes my food truck. Best grilled cheese you will ever have.',
+      target: 16000,
+    },
     dialogue: [
-      'Hey! I just graduated and landed a solid entry-level job.',
-      'I managed to save up about $10k, and I want to actually make it grow.',
-      "I don't really know much about investing yet, but I'm willing to learn.",
-      "Help me out—just make sure my money doesn't sit in a savings account earning nothing.",
+      "Hey!! I'm Alex. First real job, first real paycheck, first real advisor — that's you!",
+      "Okay, so: $10k. Every dollar I've ever saved. No pressure haha. (Some pressure.)",
+      "Here's the plan. This money becomes Fried & True — my food truck. Best grilled cheese you'll ever have.",
+      'Get me to $16k and you get free sandwiches for life. Deal? Deal.',
     ],
   },
   {
@@ -44,11 +53,16 @@ const CLIENTS: ClientProfile[] = [
     unlockedAtReputation: 27,
     signingFee: 0, // percentage-only client
     returnsFeePct: 0.18,
+    dream: {
+      label: 'The studio',
+      blurb: 'One year of runway — quit client work, start my own design studio, make things I actually like.',
+      target: 50000,
+    },
     dialogue: [
-      "I'm a freelancer, so income can be unpredictable—but I've had great years.",
-      "I've saved up about $35k that I want to put to work.",
-      "I'm not super technical, but I understand risk and reward basics.",
-      'I just need solid returns on this capital. Can you help?',
+      "hey. jamie. freelance designer — logos, mostly. some years are great. some years are ramen.",
+      "i've scraped together $35k and i'm honestly a little terrified to touch it.",
+      "the dream is a year of runway: quit client work, start my own studio, make things i actually like.",
+      "$50k is the number. get me there and i'll design your firm a logo that doesn't look like clip art.",
     ],
   },
   {
@@ -67,11 +81,16 @@ const CLIENTS: ClientProfile[] = [
     unlockedAtReputation: 34,
     signingFee: 2000, // fee-heavy client: large upfront, small cut
     returnsFeePct: 0.05,
+    dream: {
+      label: 'The sabbatical',
+      blurb: 'A full year off with my daughter while she still thinks I am cool. $90k makes it real.',
+      target: 90000,
+    },
     dialogue: [
-      "I'm a senior engineer at a major tech company with solid income.",
-      "I've got $65k I want to invest strategically.",
-      "I care about diversification and proper allocation—I've read about portfolio theory.",
-      'Show me you understand how to build a balanced portfolio, not just chase returns.',
+      "Sarah. Senior engineer. I've read three books on portfolio theory, so I'll notice if you're improvising.",
+      "$65,000. I want process, not luck — diversified, risk-adjusted, defensible.",
+      "The goal is a sabbatical fund. $90k means a full year with my daughter while she still thinks I'm cool.",
+      "She turns nine in the fall. The clock is real. Quarterly-grade decisions, please.",
     ],
   },
   {
@@ -90,11 +109,16 @@ const CLIENTS: ClientProfile[] = [
     unlockedAtReputation: 40,
     signingFee: 4000, // executive mix: big signing fee AND a big cut
     returnsFeePct: 0.15,
+    dream: {
+      label: 'Burying Whitmore',
+      blurb: 'My brother-in-law brags about his fund manager at every family dinner. That ends at $170k.',
+      target: 170000,
+    },
     dialogue: [
-      "I've built multiple successful businesses over 20 years.",
-      "I've got $120k to deploy, and I have very specific expectations.",
-      "I understand markets deeply—I've managed portfolios myself.",
-      "I'm hiring you to execute a precise strategy. Can you deliver?",
+      "Marcus. You have four minutes. I've built three companies — I know what competence looks like.",
+      "$120,000. A rounding error for me. A test for you.",
+      "My brother-in-law Whitmore brags about his fund manager at every single family dinner. That ends.",
+      "Get me past $170k and outperform that smug golf shirt. Do that, and we'll talk real money.",
     ],
   },
 ];

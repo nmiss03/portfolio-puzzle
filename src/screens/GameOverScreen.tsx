@@ -11,6 +11,7 @@ export default function GameOverScreen() {
   const { state, advisorAllTimeDollar, startGame } = useGame();
   const styles = useStyles();
   const served = Object.values(state.clients).filter((c) => c.status !== 'unsigned').length;
+  const dreamsFunded = Object.values(state.clients).filter((c) => c.dreamReached).length;
   const positive = advisorAllTimeDollar >= 0;
 
   return (
@@ -24,6 +25,7 @@ export default function GameOverScreen() {
         <Stat label="Weeks managed" value={`${state.currentWeek}`} />
         <Stat label="Clients served" value={`${served}`} />
         <Stat label="Advisor all-time returns" value={`${positive ? '+' : '-'}${formatMoney(Math.abs(Math.round(advisorAllTimeDollar)))}`} />
+        <Stat label="Dreams funded" value={`${dreamsFunded}`} />
         <Stat label="Final reputation" value={`${Math.round(state.reputation)}/100`} />
       </View>
 

@@ -23,6 +23,15 @@ export interface HappinessFactor {
   amount: number;
 }
 
+// What the money is FOR. Every client has a concrete dream with a portfolio
+// target attached — the emotional stake behind the numbers. Reaching it (or
+// destroying it) is what the player remembers.
+export interface ClientDream {
+  label: string; // short name, e.g. "The food truck"
+  blurb: string; // one sentence in the client's own voice
+  target: number; // portfolio value that funds the dream
+}
+
 export const CONTRACT_WEEKS = 8;
 export const MAX_ACTIVE_CLIENTS = 3;
 
@@ -45,6 +54,8 @@ export interface ClientProfile {
   // of positive weekly returns, some a mix. Scales with tier.
   signingFee: number; // one-time, paid on signing (and on renewal)
   returnsFeePct: number; // advisor's share of a positive weekly return, 0..1
+  // The human stake behind the account (see ClientDream).
+  dream: ClientDream;
 }
 
 // Runtime state layered on top of a profile.
@@ -67,6 +78,8 @@ export interface RuntimeClient extends ClientProfile {
   returnsAtWeek?: number;
   // Why their mood moved last week — shown in ClientDetail / WeekTransition.
   lastHappinessFactors?: HappinessFactor[];
+  // Set once the portfolio has ever reached the client's dream target.
+  dreamReached?: boolean;
 }
 
 export type Phase = 'weekIntro' | 'clientIntro' | 'builder' | 'transition' | 'summary' | 'gameOver';

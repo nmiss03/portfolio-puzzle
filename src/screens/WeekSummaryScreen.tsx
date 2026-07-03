@@ -6,6 +6,7 @@ import BarChart from '../components/BarChart';
 import HappinessMeter from '../components/HappinessMeter';
 import { useGame } from '../state/GameContext';
 import { REGIME_BLURB, REGIME_LABEL } from '../data/economicCycles';
+import { gradeQuote } from '../data/clientVoice';
 import { formatMoney, formatPrice } from '../utils/format';
 import { FONT_PIXEL, BORDER_W, Palette } from '../theme';
 import { makeUseStyles, useTheme } from '../contexts/ThemeContext';
@@ -56,6 +57,7 @@ export default function WeekSummaryScreen({ onContinue }: { onContinue: () => vo
             </Text>
             {'   '}Final happiness: {Math.round(r.happiness)}%
           </Text>
+          <Text style={styles.reportQuote}>"{gradeQuote(r.clientId, r.grade)}"</Text>
           {r.bonus > 0 && <Text style={styles.reportBonus}>Completion bonus: +{formatMoney(r.bonus)}</Text>}
           {r.repBonus > 0 && <Text style={styles.reportRep}>+{r.repBonus} reputation</Text>}
           <Text style={styles.reportNote}>Find {r.name} in the Client Book to renew or part ways.</Text>
@@ -71,13 +73,30 @@ export default function WeekSummaryScreen({ onContinue }: { onContinue: () => vo
         )}
       </View>
 
-      {t.blackSwan && (
-        <View style={styles.swanCard}>
-          <Text style={styles.swanTitle}>⚠ BLACK SWAN — {t.blackSwan.name.toUpperCase()}</Text>
-          <Text style={styles.swanBlurb}>{t.blackSwan.blurb}</Text>
-          <Text style={styles.swanNote}>Low-beta defensives and bonds held up best. High-beta names took the brunt.</Text>
-        </View>
-      )}
+      {t.blackSwan && (() => {
+        const mktAvg = t.priceMoves.length > 0 ? t.priceMoves.reduce((s, m) => s + m.pct, 0) / t.priceMoves.length : 0;
+        const bookAvg = t.results.length > 0 ? t.results.reduce((s, r) => s + r.returnPct, 0) / t.results.length : 0;
+        const aftermath =
+          t.results.length === 0
+            ? null
+            : bookAvg > mktAvg + 0.02
+              ? 'The market bled. Your book barely flinched. This is why they pay you.'
+              : bookAvg > mktAvg
+                ? 'You took a hit — but a smaller one than the street. You survived.'
+                : 'The crash found your portfolios. Absorb it, then rebuild.';
+        return (
+          <View style={styles.swanCard}>
+            <Text style={styles.swanTitle}>⚠ BLACK SWAN — {t.blackSwan.name.toUpperCase()}</Text>
+            <Text style={styles.swanBlurb}>{t.blackSwan.blurb}</Text>
+            {t.results.length > 0 && (
+              <Text style={styles.swanCompare}>
+                Market average: {(mktAvg * 100).toFixed(1)}% · Your book: {bookAvg >= 0 ? '+' : ''}{(bookAvg * 100).toFixed(1)}%
+              </Text>
+            )}
+            {aftermath && <Text style={styles.swanAftermath}>{aftermath}</Text>}
+          </View>
+        );
+      })()}
 
       <View style={styles.chartCard}>
         <BarChart data={barData} height={180} />
@@ -192,6 +211,27 @@ export default function WeekSummaryScreen({ onContinue }: { onContinue: () => vo
         {t.repAfter <= 0 && <Text style={styles.dead}>Your reputation hit 0 — your career is over.</Text>}
       </View>
 
+      {(() => {
+        if (t.repAfter <= 0) return null;
+        const teasers: string[] = [];
+        Object.values(state.clients)
+          .filter((cl) => cl.status === 'signed' && cl.contractWeeksRemaining === 2)
+          .forEach((cl) => teasers.push(`${cl.name}'s contract enters its FINAL week — grade pending.`));
+        if (state.regimeWeeksLeft === 1) teasers.push('The market feels like it is about to turn...');
+        Object.values(state.clients)
+          .filter((cl) => cl.status === 'unsigned' && cl.unlockedAtReputation > t.repAfter && cl.unlockedAtReputation - t.repAfter <= 3)
+          .forEach((cl) => teasers.push(`${cl.name} is ${cl.unlockedAtReputation - Math.round(t.repAfter)} rep from signing with you.`));
+        if (teasers.length === 0) return null;
+        return (
+          <View style={styles.teaserCard}>
+            <Text style={styles.teaserTitle}>NEXT WEEK</Text>
+            {teasers.slice(0, 3).map((line, i) => (
+              <Text key={i} style={styles.teaserLine}>› {line}</Text>
+            ))}
+          </View>
+        );
+      })()}
+
       <Button
         title={t.repAfter <= 0 ? 'See Final Result  ›' : `Continue to Week ${t.week + 1}  ›`}
         onPress={onContinue}
@@ -214,6 +254,12 @@ const useStyles = makeUseStyles((c: Palette) =>
   reportBonus: { fontFamily: FONT_PIXEL, color: c.success, fontSize: 12, fontWeight: '900', marginTop: 6 },
   reportRep: { fontFamily: FONT_PIXEL, color: c.success, fontSize: 12, fontWeight: '900', marginTop: 2 },
   reportNote: { color: c.muted, fontSize: 11, fontStyle: 'italic', marginTop: 8 },
+  reportQuote: { color: c.textDim, fontSize: 12, fontStyle: 'italic', lineHeight: 18, marginTop: 8 },
+  swanCompare: { fontFamily: FONT_PIXEL, color: c.text, fontSize: 12, fontWeight: '900', marginTop: 8 },
+  swanAftermath: { color: c.textDim, fontSize: 12, fontStyle: 'italic', lineHeight: 17, marginTop: 6 },
+  teaserCard: { backgroundColor: c.panelDark, borderWidth: BORDER_W, borderColor: c.border, padding: 12, marginTop: 16 },
+  teaserTitle: { fontFamily: FONT_PIXEL, color: c.gold, fontSize: 12, fontWeight: '900', letterSpacing: 1, marginBottom: 6 },
+  teaserLine: { color: c.textDim, fontSize: 12, lineHeight: 18, marginVertical: 1 },
   regimeCard: { backgroundColor: c.panel, borderWidth: BORDER_W, borderColor: c.border, padding: 12, marginBottom: 16 },
   regimeLabel: { fontFamily: FONT_PIXEL, color: c.gold, fontSize: 13, fontWeight: '900', letterSpacing: 0.5 },
   regimeBlurb: { color: c.textDim, fontSize: 12, lineHeight: 17, marginTop: 4 },
