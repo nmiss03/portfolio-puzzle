@@ -28,8 +28,10 @@ libraries — every meter, chart, and pixel character is hand-built from `View`s
 
 ## Systems under the hood
 
-- **Tiered clients** (4 tiers) with tolerance, penalties, dreams, and authored
-  voices; fired clients eventually come back
+- **A 15-person handcrafted roster** across 4 tiers — every career randomly
+  deals 8 of them, each with a dream, a flaw, and a voice you'll recognize
+  before reading the name; relationships deepen across contracts, clients
+  remember crashes and firings, and fired clients eventually come back
 - **Contract report cards** (S–D grades) with completion bonuses and testimonials
 - **Advisor economy & shop**: signing fees, returns fees, upgrades (news
   terminal, assistant, a helpful politician named Bill)

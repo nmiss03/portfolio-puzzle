@@ -32,6 +32,28 @@ export interface ClientDream {
   target: number; // portfolio value that funds the dream
 }
 
+// The history between a client and THIS advisor. It survives contract renewals,
+// firings and returns — it's what lets a client say "remember that crash?"
+// instead of greeting you like a stranger every eight weeks.
+export interface ClientRelationship {
+  contracts: number; // contracts completed together
+  crashes: number; // black-swan weeks weathered while signed
+  timesFired: number; // how often they've walked out on you
+  cameBack: boolean; // returned after firing/dismissal at least once
+  bestWeekPct: number; // best weekly return you ever gave them (fraction)
+}
+
+export function freshRelationship(): ClientRelationship {
+  return { contracts: 0, crashes: 0, timesFired: 0, cameBack: false, bestWeekPct: 0 };
+}
+
+// How deep the relationship runs — drives which dialogue pool a client speaks
+// from. 0 professional · 1 friendly · 2 trusting · 3 close (inside jokes).
+export function relationshipStage(r: ClientRelationship | undefined): number {
+  if (!r) return 0;
+  return Math.min(3, r.contracts);
+}
+
 export const CONTRACT_WEEKS = 8;
 export const MAX_ACTIVE_CLIENTS = 3;
 
@@ -80,6 +102,10 @@ export interface RuntimeClient extends ClientProfile {
   lastHappinessFactors?: HappinessFactor[];
   // Set once the portfolio has ever reached the client's dream target.
   dreamReached?: boolean;
+  dreamReachedWeek?: number; // when it happened — schedules the epilogue text
+  epilogueSent?: boolean; // the one-time "here's what you made real" payoff
+  // Shared history with the advisor (optional for pre-roster save compat).
+  relationship?: ClientRelationship;
 }
 
 export type Phase = 'weekIntro' | 'clientIntro' | 'builder' | 'transition' | 'summary' | 'gameOver';
@@ -131,5 +157,6 @@ export function initRuntimeClient(profile: ClientProfile): RuntimeClient {
     allTimeReturnPct: 0,
     performanceHistory: [],
     fired: false,
+    relationship: freshRelationship(),
   };
 }

@@ -303,8 +303,9 @@ constraint repeated across the project's history ("no external libraries").
 
 ### 5.3 Progression
 
-Reputation is the master progression axis. It **gates clients** (Alex ≥20, Jamie ≥27,
-Sarah ≥34, Marcus ≥40) and rises from good returns + happy-client milestones. The
+Reputation is the master progression axis. It **gates clients** (tier 1 ≈18–22 rep,
+tier 2 ≈26–28, tier 3 ≈33–35, tier 4 ≈40–44; per-profile values in `clients.ts`) and
+rises from good returns + happy-client milestones. The
 **advisor economy** is the second axis: fees accumulate into a spendable balance;
 upgrades unlock capability (more clients, foresight, insider edge). Together they form
 a soft "tech tree": survive → earn → buy leverage → take on harder/more clients.
@@ -384,14 +385,21 @@ Files · Maturity · Future.**
 
 ### 6.4 Clients, tiers & contracts
 - **Purpose:** who you serve and the rules per client.
-- **Responsibilities:** 4 tiered clients (Alex/Jamie/Sarah/Marcus) with capital, target
-  allocation, tolerance, fee structure, unlock threshold; 8-week contracts, cap of 3
-  active (+1 with Assistant), signing/renew/dismiss/expire lifecycle.
+- **Responsibilities:** a 15-client handcrafted roster (4/4/4/3 across tiers), each
+  with capital, target allocation, tolerance, fee structure, unlock threshold, a
+  DREAM (label/blurb/target) and an authored voice. **Every new career deals a
+  random cast of 8 (2 per tier) via `pickCareerCast()`** — no two careers meet the
+  same people. 8-week contracts, cap of 3 active (+1 with Assistant),
+  sign/renew/dismiss/expire lifecycle. A `ClientRelationship` (contracts completed,
+  crashes weathered, times fired, came back, best week) survives renewals, firings
+  and returns; it stages renewal texts and graduates small talk into memories.
 - **Inputs:** reputation, upgrades, current week.
 - **Outputs:** `RuntimeClient` records; available/active/expired/fired partitions.
-- **Files:** `data/clients.ts`, `data/clientTiers.ts`, `data/contractSystem.ts`,
-  `data/gameState.ts` (types + `initRuntimeClient`).
-- **Maturity:** mature for 4 clients. **Future:** the **political tier** (stubbed).
+- **Files:** `data/clients.ts` (roster + cast dealer), `data/clientVoice.ts`
+  (voice packs: win/loss/crash/misery/recovery/dreamClose/dream/epilogue/renewal/
+  goodbye/comeback/idle/idleClose/holiday/grades), `data/clientTiers.ts`,
+  `data/contractSystem.ts`, `data/gameState.ts` (types + `initRuntimeClient`).
+- **Maturity:** mature. **Future:** the **political tier** (stubbed).
 
 ### 6.5 Scoring: returns, happiness, allocation, concentration
 - **Purpose:** grade the player each week.
@@ -473,7 +481,7 @@ Files · Maturity · Future.**
   - *Types/lifecycle:* `gameState.ts` (all core types, `RuntimeClient`, constants like
     `CONTRACT_WEEKS=8`, `MAX_ACTIVE_CLIENTS=3`, `STARTING_HAPPINESS=50`, clamps),
     `contractSystem.ts`.
-  - *Content:* `stocks.ts` (22), `clients.ts` (4), `clientTiers.ts`, `newsArticles.ts`,
+  - *Content:* `stocks.ts` (22), `clients.ts` (15-client roster, 8 dealt per career), `clientTiers.ts`, `newsArticles.ts`,
     `exclusiveNews.ts`.
   - *Calculators/generators:* `priceUpdates.ts`, `scoring.ts`, `clientRelationships.ts`,
     `reputationSystem.ts`, `economicCycles.ts`, `blackSwan.ts`, `clientMessages.ts`,
@@ -689,8 +697,9 @@ negative and holdings/cash persist across weeks.
 - **Reputation** — 0–100 master stat; 0 = game over; gates client unlocks.
 - **Client / RuntimeClient** — a customer you invest for; has `cash`, `holdings`,
   `happiness`, contract weeks, tier, target allocation, fee terms.
-- **Tier (1–4)** — client difficulty band (Alex/Jamie/Sarah/Marcus): higher = more
-  capital, tighter allocation tolerance, harsher penalties, bigger fees.
+- **Tier (1–4)** — client difficulty band: higher = more capital, tighter allocation
+  tolerance, harsher penalties, bigger fees. The 15-person roster spans 4/4/4/3 per
+  tier; each career randomly meets 2 per tier.
 - **Happiness (0–100)** — per-client relationship meter; 0 fires you (−10 rep).
 - **Contract** — an 8-week engagement (`CONTRACT_WEEKS`); expires, can be renewed.
 - **Allocation match** — whether a client's actual stock% is within their tier tolerance

@@ -3,9 +3,17 @@
 
 import React, { createContext, useContext, useEffect, useMemo, useReducer } from 'react';
 
-import CLIENTS from '../data/clients';
+import { pickCareerCast } from '../data/clients';
 import STOCKS, { stocksById } from '../data/stocks';
-import { ClientProfile, HappinessFactor, Phase, RuntimeClient, clampHappiness, initRuntimeClient } from '../data/gameState';
+import {
+  ClientProfile,
+  HappinessFactor,
+  Phase,
+  RuntimeClient,
+  clampHappiness,
+  freshRelationship,
+  initRuntimeClient,
+} from '../data/gameState';
 import { marketValue, weeklyHappinessBreakdown } from '../data/scoring';
 import { NewsArticle, generateWeeklyNews } from '../data/newsArticles';
 import {
@@ -43,7 +51,7 @@ import {
   generateClientMessages,
   isMessageFulfilled,
 } from '../data/clientMessages';
-import { BarkEvent, barkLine, gradeQuote, makeClientNote } from '../data/clientVoice';
+import { BarkEvent, barkLine, gradeQuote, makeClientNote, renewalLine } from '../data/clientVoice';
 import { CareerRecords, WEEKS_PER_YEAR, YearReview, careerTitle, freshRecords, updateRecords } from '../data/careerRecords';
 import { loadJSON, saveJSON } from '../data/persist';
 import { BlackSwanEvent, generateBlackSwanImpact, pickBlackSwan, rollBlackSwanGap } from '../data/blackSwan';
@@ -183,8 +191,10 @@ type Action =
   | { type: 'CLOSE_DETAIL' };
 
 function buildInitial(identity?: { advisorName: string; firmName: string }): State {
+  // Every career deals a random hand from the full roster — no two careers
+  // meet the same people. The cast is fixed for the life of the save.
   const clients: Record<string, RuntimeClient> = {};
-  CLIENTS.forEach((c: ClientProfile) => (clients[c.id] = initRuntimeClient(c)));
+  pickCareerCast().forEach((c: ClientProfile) => (clients[c.id] = initRuntimeClient(c)));
   const startRegime = initialRegime();
   return {
     started: false,
@@ -304,15 +314,20 @@ function reducer(state: State, action: Action): State {
         fee > 0
           ? [...state.advisorTransactions, { week: state.currentWeek, label: `${client.name} signing fee`, amount: fee }]
           : state.advisorTransactions;
+      // A client with shared history doesn't get the first-meeting intro —
+      // you already know each other. (Their comeback text arrived when they
+      // rejoined the pool.)
+      const rel = client.relationship ?? freshRelationship();
+      const knownToYou = rel.contracts > 0 || rel.cameBack;
       return {
         ...state,
         clients: { ...state.clients, [client.id]: signed },
         advisorBalance: state.advisorBalance + fee,
         advisorTransactions,
         focusClientId: client.id,
-        introClientId: client.id,
+        introClientId: knownToYou ? null : client.id,
         bookOpen: false,
-        phase: 'clientIntro',
+        phase: knownToYou ? 'builder' : 'clientIntro',
       };
     }
 
@@ -324,12 +339,23 @@ function reducer(state: State, action: Action): State {
         fee > 0
           ? [...state.advisorTransactions, { week: state.currentWeek, label: `${client.name} renewal fee`, amount: fee }]
           : state.advisorTransactions;
+      // The relationship deepens: their re-signing text is staged by how many
+      // contracts you've already finished together.
+      const rel = client.relationship ?? freshRelationship();
+      const note = makeClientNote(
+        client.id,
+        client.name,
+        state.currentWeek,
+        renewalLine(client.id, Math.max(1, rel.contracts), { advisor: state.advisorName, crashes: rel.crashes, contracts: rel.contracts })
+      );
       return {
         ...state,
         clients: { ...state.clients, [client.id]: signContract(client, state.currentWeek) },
         advisorBalance: state.advisorBalance + fee,
         advisorTransactions,
         focusClientId: client.id,
+        messages: [note, ...state.messages],
+        unreadMessageCount: state.unreadMessageCount + 1,
       };
     }
 
@@ -451,22 +477,56 @@ function reducer(state: State, action: Action): State {
           // Did the portfolio just reach the client's dream for the first time?
           const dreamNow = !!client.dream && !client.dreamReached && endValue >= client.dream.target;
           if (dreamNow) dreamLabels.push(client.dream.label);
+          // ...or first cross 85% of it — the "almost there" beat.
+          const dreamCloseNow =
+            !!client.dream &&
+            !client.dreamReached &&
+            !dreamNow &&
+            startValue < client.dream.target * 0.85 &&
+            endValue >= client.dream.target * 0.85;
+
+          // Shared history grows: crashes weathered, best weeks, firings.
+          const prevRel = client.relationship ?? freshRelationship();
+          const rel = {
+            ...prevRel,
+            crashes: prevRel.crashes + (isBlackSwan ? 1 : 0),
+            bestWeekPct: Math.max(prevRel.bestWeekPct, returnPct),
+            timesFired: prevRel.timesFired + (fired ? 1 : 0),
+          };
+          const voiceCtx = { advisor: state.advisorName, crashes: rel.crashes, contracts: rel.contracts };
 
           // Pick this client's reaction to the week (priority order matters:
-          // a goodbye outranks everything; a funded dream outranks a mood dip).
+          // a goodbye outranks everything; a funded dream outranks a crash).
           let barkEvent: BarkEvent | null = null;
           if (fired) barkEvent = 'goodbye';
           else if (dreamNow) barkEvent = 'dream';
+          else if (dreamCloseNow) barkEvent = 'dreamClose';
+          else if (isBlackSwan && Object.keys(client.holdings).length > 0) barkEvent = 'crash';
           else if (prevHappiness > 25 && newHappiness <= 25) barkEvent = 'misery';
           else if (prevHappiness <= 25 && newHappiness > 25) barkEvent = 'recovery';
           else if (returnPct <= -0.025 && Math.random() < 0.6) barkEvent = 'loss';
           else if (returnPct >= 0.025 && Math.random() < 0.5) barkEvent = 'win';
+          else if (Math.random() < 0.1) barkEvent = 'idle'; // small talk keeps the phone alive
           if (barkEvent) {
-            barks.push(makeClientNote(client.id, client.name, state.currentWeek, barkLine(client.id, barkEvent)));
+            barks.push(makeClientNote(client.id, client.name, state.currentWeek, barkLine(client.id, barkEvent, voiceCtx)));
+          }
+
+          // The dream epilogue: a few weeks after funding, the photo/postcard
+          // arrives — proof of the life the money bought. Always delivered,
+          // even alongside another reaction; it's the payoff.
+          const epilogueNow =
+            !!client.dreamReached &&
+            client.dreamReachedWeek !== undefined &&
+            !client.epilogueSent &&
+            !fired &&
+            state.currentWeek >= client.dreamReachedWeek + 3;
+          if (epilogueNow) {
+            barks.push(makeClientNote(client.id, client.name, state.currentWeek, barkLine(client.id, 'epilogue', voiceCtx)));
           }
 
           // Final contract week (and not fired): grade the whole arc.
           if (!fired && client.contractWeeksRemaining === 1) {
+            rel.contracts += 1; // another chapter of shared history
             const grade = gradeContract(allTimePct, newHappiness);
             contractReports.push({
               clientId: client.id,
@@ -491,6 +551,9 @@ function reducer(state: State, action: Action): State {
             happiness: newHappiness,
             lastHappinessFactors: happinessFactors,
             dreamReached: client.dreamReached || dreamNow,
+            dreamReachedWeek: dreamNow ? state.currentWeek : client.dreamReachedWeek,
+            epilogueSent: client.epilogueSent || epilogueNow,
+            relationship: rel,
             lastWeekReturnDollar: returnDollar,
             lastWeekReturnPct: returnPct,
             allTimeReturnDollar: allTimeDollar,
@@ -672,14 +735,29 @@ function reducer(state: State, action: Action): State {
       if (state.reputation <= 0) return { ...state, phase: 'gameOver', transition: null };
       const nextWeek = state.currentWeek + 1;
       const ticked: Record<string, RuntimeClient> = {};
+      const comebackNotes: ClientMessage[] = [];
       Object.values(state.clients).forEach((c) => {
         let t = tickContract(c);
         // Fired/dismissed clients eventually reconsider: they rejoin the pool
         // with a fresh account (reputation gate still applies). This keeps the
         // roster a renewable resource — losing a client is a wound, not a
-        // permanent amputation of the game's content.
+        // permanent amputation of the game's content. The RELATIONSHIP
+        // survives the reset: they come back remembering everything, and they
+        // text you first — that's the reconciliation beat.
         if ((t.status === 'fired' || t.status === 'dismissed') && t.returnsAtWeek !== undefined && nextWeek >= t.returnsAtWeek) {
-          t = { ...initRuntimeClient(t), returnsAtWeek: undefined };
+          const rel = { ...(t.relationship ?? freshRelationship()), cameBack: true };
+          t = {
+            ...initRuntimeClient(t),
+            returnsAtWeek: undefined,
+            relationship: rel,
+            // A funded dream stays funded — no double trophies, no amnesia.
+            dreamReached: t.dreamReached,
+            dreamReachedWeek: t.dreamReachedWeek,
+            epilogueSent: t.epilogueSent,
+          };
+          comebackNotes.push(
+            makeClientNote(t.id, t.name, nextWeek, barkLine(t.id, 'comeback', { advisor: state.advisorName, crashes: rel.crashes, contracts: rel.contracts }))
+          );
         }
         ticked[t.id] = t;
       });
@@ -690,6 +768,22 @@ function reducer(state: State, action: Action): State {
         nextWeek,
         Object.values(ticked).filter((c) => c.status === 'signed')
       );
+      newMessages.push(...comebackNotes);
+
+      // Once a year — week 51 of the fiscal calendar — clients send holiday
+      // texts. Pure warmth, zero mechanics: the roster feels alive in December.
+      if (nextWeek % 52 === 51) {
+        Object.values(ticked)
+          .filter((c) => c.status === 'signed')
+          .forEach((c) => {
+            if (Math.random() < 0.75) {
+              const r = c.relationship ?? freshRelationship();
+              newMessages.push(
+                makeClientNote(c.id, c.name, nextWeek, barkLine(c.id, 'holiday', { advisor: state.advisorName, crashes: r.crashes, contracts: r.contracts }))
+              );
+            }
+          });
+      }
 
       // The incoming week's news was pre-generated last week (so the News
       // Terminal could preview it); generate the following week's now.
