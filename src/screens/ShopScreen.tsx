@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { View, Text, Pressable, ScrollView, StyleSheet } from 'react-native';
 
+import PixelWindow from '../components/PixelWindow';
 import { SHOP_ITEMS, ASSISTANT_WEEKLY_CUT } from '../data/advisorEconomy';
 import { ACHIEVEMENTS } from '../data/achievements';
 import { careerTitle } from '../data/careerRecords';
@@ -29,20 +30,13 @@ export default function ShopScreen() {
   if (!state.shopOpen) return null;
 
   return (
-    <View style={styles.backdrop}>
-      <View style={styles.panel}>
-        <View style={styles.header}>
-          <Text style={styles.title}>SHOP</Text>
-          <View style={styles.balanceBox}>
-            <Text style={styles.balanceLabel}>BALANCE</Text>
-            <Text style={styles.balanceValue}>{formatMoney(Math.round(state.advisorBalance))}</Text>
-          </View>
-          <Pressable onPress={() => toggleShop(false)} hitSlop={10}>
-            <Text style={styles.close}>X</Text>
-          </Pressable>
-        </View>
+    <PixelWindow title="Shop & Ledger" icon="🛒" onClose={() => toggleShop(false)}>
+      <View style={styles.balanceStrip}>
+        <Text style={styles.balanceLabel}>FIRM BALANCE</Text>
+        <Text style={styles.balanceValue}>{formatMoney(Math.round(state.advisorBalance))}</Text>
+      </View>
 
-        <View style={styles.tabs}>
+      <View style={styles.tabs}>
           {(['upgrades', 'finances'] as Tab[]).map((t) => (
             <Pressable key={t} onPress={() => setTab(t)} style={[styles.tab, tab === t && styles.tabActive]}>
               <Text style={[styles.tabText, tab === t && styles.tabTextActive]}>{t.toUpperCase()}</Text>
@@ -143,8 +137,7 @@ export default function ShopScreen() {
             )}
           </ScrollView>
         )}
-      </View>
-    </View>
+    </PixelWindow>
   );
 }
 
@@ -161,14 +154,9 @@ function RecordRow({ label, value }: { label: string; value: string }) {
 
 const makeStyles = (c: Palette) =>
   StyleSheet.create({
-    backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
-    panel: { height: '90%', backgroundColor: c.bg, borderTopWidth: BORDER * 2, borderColor: c.border, overflow: 'hidden' },
-    header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16, borderBottomWidth: BORDER, borderBottomColor: c.border, backgroundColor: c.panelDark },
-    title: { fontFamily: MONO, color: c.gold, fontSize: 16, fontWeight: '900', letterSpacing: 1 },
-    balanceBox: { alignItems: 'center' },
+    balanceStrip: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 8, paddingHorizontal: 12, backgroundColor: c.panelDark, borderBottomWidth: BORDER, borderBottomColor: c.border },
     balanceLabel: { fontFamily: MONO, color: c.muted, fontSize: 9, fontWeight: '800', letterSpacing: 1 },
     balanceValue: { fontFamily: MONO, color: c.gold, fontSize: 16, fontWeight: '900' },
-    close: { fontFamily: MONO, color: c.gold, fontSize: 16, fontWeight: '800' },
 
     tabs: { flexDirection: 'row', backgroundColor: c.panelDark, borderBottomWidth: BORDER, borderBottomColor: c.border },
     tab: { flex: 1, paddingVertical: 10, alignItems: 'center', borderBottomWidth: 3, borderBottomColor: 'transparent' },

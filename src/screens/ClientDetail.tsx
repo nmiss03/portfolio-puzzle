@@ -37,15 +37,13 @@ export default function ClientDetail({ client, onClose }: { client: RuntimeClien
 
   return (
     <View style={styles.panel}>
-      <View style={styles.header}>
-        <Text style={styles.title}>{client.name}</Text>
-        <Pressable onPress={editing ? () => setEditing(false) : onClose} hitSlop={10}>
-          <Text style={styles.close}>{editing ? 'Done' : '✕'}</Text>
-        </Pressable>
-      </View>
-
       {editing ? (
-        <PortfolioBuilder clientId={client.id} />
+        <>
+          <Pressable onPress={() => setEditing(false)} style={({ pressed }) => [styles.backStrip, pressed && { opacity: 0.8 }]}>
+            <Text style={styles.backText}>◀ DONE — BACK TO {client.name.toUpperCase()}'S PROFILE</Text>
+          </Pressable>
+          <PortfolioBuilder clientId={client.id} />
+        </>
       ) : (
         <ScrollView contentContainerStyle={{ padding: 16 }}>
           {/* CLIENT PROFILE */}
@@ -158,7 +156,7 @@ export default function ClientDetail({ client, onClose }: { client: RuntimeClien
             })
           )}
 
-          <Button title="Manage Portfolio" onPress={() => setEditing(true)} style={{ marginTop: 16 }} />
+          <Button title="✎ Edit Portfolio" onPress={() => setEditing(true)} style={{ marginTop: 16 }} />
           <Button title="Close" onPress={onClose} variant="secondary" style={{ marginTop: 10 }} />
         </ScrollView>
       )}
@@ -168,10 +166,9 @@ export default function ClientDetail({ client, onClose }: { client: RuntimeClien
 
 const useStyles = makeUseStyles((c: Palette) =>
   StyleSheet.create({
-  panel: { height: '88%', backgroundColor: c.bg, borderTopWidth: BORDER_W * 2, borderColor: c.border, overflow: 'hidden' },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16, borderBottomWidth: BORDER_W, borderBottomColor: c.border, backgroundColor: c.panelDark },
-  title: { fontFamily: FONT_PIXEL, color: c.gold, fontSize: 18, fontWeight: '900', letterSpacing: 1, textTransform: 'uppercase' },
-  close: { fontFamily: FONT_PIXEL, color: c.gold, fontSize: 18, fontWeight: '800' },
+  panel: { flex: 1, backgroundColor: c.bg, overflow: 'hidden' },
+  backStrip: { backgroundColor: c.button, borderBottomWidth: BORDER_W, borderBottomColor: c.border, paddingVertical: 9, paddingHorizontal: 12, alignItems: 'center' },
+  backText: { fontFamily: FONT_PIXEL, color: c.ink, fontSize: 10, fontWeight: '900', letterSpacing: 0.5 },
   detailTop: { flexDirection: 'row', alignItems: 'center' },
   detailInfo: { flex: 1, marginLeft: 16 },
   detailName: { fontFamily: FONT_PIXEL, color: c.text, fontSize: 20, fontWeight: '900', letterSpacing: 0.5 },

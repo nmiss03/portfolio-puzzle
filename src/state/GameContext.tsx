@@ -169,6 +169,7 @@ interface State {
   advisorTransactions: AdvisorTransaction[];
   upgrades: Upgrades;
   shopOpen: boolean;
+  terminalOpen: boolean; // the Stock Terminal application window
   // Career records & streaks — survive week-to-week, reset on a new career.
   records: CareerRecords;
   achievements: string[]; // earned achievement ids, never revoked
@@ -189,6 +190,7 @@ type Action =
   | { type: 'TOGGLE_NEWS'; open?: boolean }
   | { type: 'TOGGLE_PHONE'; open?: boolean }
   | { type: 'TOGGLE_SHOP'; open?: boolean }
+  | { type: 'TOGGLE_TERMINAL'; open?: boolean }
   | { type: 'BUY_UPGRADE'; id: UpgradeId }
   | { type: 'NEW_GAME'; advisorName: string; firmName: string }
   | { type: 'OPEN_DETAIL'; clientId: string }
@@ -230,6 +232,7 @@ function buildInitial(identity?: { advisorName: string; firmName: string }): Sta
     advisorTransactions: [],
     upgrades: { ...NO_UPGRADES },
     shopOpen: false,
+    terminalOpen: false,
     records: freshRecords(),
     achievements: [],
     lowestReputation: STARTING_REPUTATION,
@@ -251,6 +254,7 @@ function loadSavedState(): State | null {
     newsOpen: false,
     phoneOpen: false,
     shopOpen: false,
+    terminalOpen: false,
     detailClientId: null,
   };
 }
@@ -848,17 +852,19 @@ function reducer(state: State, action: Action): State {
     }
 
     case 'TOGGLE_BOOK':
-      return { ...state, bookOpen: action.open ?? !state.bookOpen, newsOpen: false, phoneOpen: false, shopOpen: false, detailClientId: null };
+      return { ...state, bookOpen: action.open ?? !state.bookOpen, newsOpen: false, phoneOpen: false, shopOpen: false, terminalOpen: false, detailClientId: null };
     case 'TOGGLE_NEWS':
-      return { ...state, newsOpen: action.open ?? !state.newsOpen, bookOpen: false, phoneOpen: false, shopOpen: false };
+      return { ...state, newsOpen: action.open ?? !state.newsOpen, bookOpen: false, phoneOpen: false, shopOpen: false, terminalOpen: false };
     case 'TOGGLE_PHONE': {
       const open = action.open ?? !state.phoneOpen;
       // Opening the phone marks everything read and clears the badge.
       const messages = open ? state.messages.map((m) => (m.read ? m : { ...m, read: true })) : state.messages;
-      return { ...state, phoneOpen: open, bookOpen: false, newsOpen: false, shopOpen: false, messages, unreadMessageCount: open ? 0 : state.unreadMessageCount };
+      return { ...state, phoneOpen: open, bookOpen: false, newsOpen: false, shopOpen: false, terminalOpen: false, messages, unreadMessageCount: open ? 0 : state.unreadMessageCount };
     }
     case 'TOGGLE_SHOP':
-      return { ...state, shopOpen: action.open ?? !state.shopOpen, bookOpen: false, newsOpen: false, phoneOpen: false };
+      return { ...state, shopOpen: action.open ?? !state.shopOpen, bookOpen: false, newsOpen: false, phoneOpen: false, terminalOpen: false };
+    case 'TOGGLE_TERMINAL':
+      return { ...state, terminalOpen: action.open ?? !state.terminalOpen, bookOpen: false, newsOpen: false, phoneOpen: false, shopOpen: false };
 
     case 'BUY_UPGRADE': {
       const item = shopItemById[action.id];
@@ -920,6 +926,7 @@ interface GameContextValue {
   toggleNews: (open?: boolean) => void;
   togglePhone: (open?: boolean) => void;
   toggleShop: (open?: boolean) => void;
+  toggleTerminal: (open?: boolean) => void;
   buyUpgrade: (id: UpgradeId) => void;
   openDetail: (clientId: string) => void;
   closeDetail: () => void;
@@ -974,6 +981,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       toggleNews: (open?: boolean) => dispatch({ type: 'TOGGLE_NEWS', open }),
       togglePhone: (open?: boolean) => dispatch({ type: 'TOGGLE_PHONE', open }),
       toggleShop: (open?: boolean) => dispatch({ type: 'TOGGLE_SHOP', open }),
+      toggleTerminal: (open?: boolean) => dispatch({ type: 'TOGGLE_TERMINAL', open }),
       buyUpgrade: (id: UpgradeId) => dispatch({ type: 'BUY_UPGRADE', id }),
       openDetail: (clientId: string) => dispatch({ type: 'OPEN_DETAIL', clientId }),
       closeDetail: () => dispatch({ type: 'CLOSE_DETAIL' }),

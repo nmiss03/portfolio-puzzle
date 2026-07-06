@@ -246,9 +246,6 @@ export default function PortfolioBuilder({
         </View>
       </View>
 
-      {!embedded && <View style={styles.standNeck} />}
-      {!embedded && <View style={styles.standBase} />}
-
       {/* Current mix — decision support for the allocation game. */}
       {tradable && (
         <View style={styles.mixPanel}>
@@ -305,7 +302,7 @@ export default function PortfolioBuilder({
 
 const useStyles = makeUseStyles((c: Palette) =>
   StyleSheet.create({
-  content: { padding: 16, alignItems: 'center' },
+  content: { padding: 10, alignItems: 'center' },
   embeddedContent: { padding: 0 },
   embeddedMonitor: { width: '100%', backgroundColor: c.panel },
   monitor: { width: '100%', borderWidth: 6, borderColor: c.border, backgroundColor: c.panel, overflow: 'hidden' },
@@ -369,9 +366,6 @@ const useStyles = makeUseStyles((c: Palette) =>
   available: { color: c.textDim, fontSize: 12, fontWeight: '700', marginTop: 8 },
   ownedTag: { color: c.success, fontSize: 13, fontWeight: '700', marginTop: 6 },
   error: { color: c.danger, fontSize: 13, fontWeight: '700', marginTop: 6 },
-
-  standNeck: { width: '30%', height: 18, backgroundColor: c.border },
-  standBase: { width: '45%', height: 10, backgroundColor: c.border, marginBottom: 16 },
 
   mixPanel: { width: '100%', backgroundColor: c.panel, borderWidth: BORDER_W, borderColor: c.border, padding: 12, marginBottom: 12 },
   mixHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },

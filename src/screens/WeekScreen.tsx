@@ -5,7 +5,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import WeekIntro from './day/WeekIntro';
 import ClientIntro from './day/ClientIntro';
-import PortfolioBuilder from './day/PortfolioBuilder';
 import WeekTransition from './day/WeekTransition';
 import WeekSummaryScreen from './WeekSummaryScreen';
 import GameOverScreen from './GameOverScreen';
@@ -14,32 +13,28 @@ import ClientBook from './ClientBook';
 import PhoneNotifications from './PhoneNotifications';
 import SettingsMenu from './SettingsMenu';
 import ShopScreen from './ShopScreen';
+import StockTerminal from './StockTerminal';
 import ReputationBar from '../components/ReputationBar';
 import { useGame } from '../state/GameContext';
 import { REGIME_LABEL } from '../data/economicCycles';
 import { SHOP_ITEMS } from '../data/advisorEconomy';
+import { careerTitle } from '../data/careerRecords';
 import { formatMoney } from '../utils/format';
 import { FONT_PIXEL, BORDER_W, Palette } from '../theme';
 import { makeUseStyles, useTheme } from '../contexts/ThemeContext';
 
-// Pixel-scene literal colors (a wooden desk + monitor bezel + a little plant).
-const BEZEL = '#3a3a3a';
-const WOOD = '#8a5a2b';
-const WOOD_TOP = '#a06b33';
-const WOOD_DARK = '#6b4420';
-const POT = '#b5651d';
-const LEAF = '#3f8f4f';
-const LEAF_D = '#2f6f3c';
+// The firm's workstation: one persistent retro desktop. The background never
+// changes — applications (Client Book, News, Phone, Terminal, Shop) open as
+// PixelWindows on top of it. HUD above, status bar below, office in between.
 
 export default function WeekScreen() {
-  const { state, activeClients, availableClients, canSign, maxClients, advisorBalance, upgrades, setPhase, transitionWeek, advanceWeek, toggleBook, toggleNews, togglePhone, toggleShop } = useGame();
+  const { state, activeClients, availableClients, canSign, maxClients, advisorBalance, upgrades, setPhase, transitionWeek, advanceWeek, toggleBook, toggleNews, togglePhone, toggleShop, toggleTerminal } = useGame();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const styles = useStyles();
   const { c } = useTheme();
   const [alertSeen, setAlertSeen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [pcView, setPcView] = useState<'desktop' | 'terminal'>('desktop');
 
   // The title screen starts/continues the game. If we somehow land here without
   // a game in progress, go back to the title rather than auto-starting a
@@ -49,15 +44,24 @@ export default function WeekScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.started]);
 
-  // Reset the alert and return the PC to its desktop each new week.
+  // Reset the new-clients alert each week.
   useEffect(() => {
     setAlertSeen(false);
-    setPcView('desktop');
   }, [state.currentWeek]);
 
   if (!state.started) return <View style={styles.screen} />;
 
   const showAlert = !alertSeen && availableClients.length > 0 && canSign && state.phase === 'builder';
+
+  const week = state.currentWeek;
+  const fiscalYear = Math.floor((week - 1) / 52) + 1;
+  const quarter = Math.floor(((week - 1) % 52) / 13) + 1;
+  const rank = careerTitle(state.records, week);
+
+  // Last resolved week's advisor cash flow — the WEEKLY P/L readout.
+  const weeklyProfit = state.advisorTransactions
+    .filter((tx) => tx.week === week - 1)
+    .reduce((s, tx) => s + tx.amount, 0);
 
   // The pull-forward: always show the player what they're working toward.
   const nextLocked = Object.values(state.clients)
@@ -84,15 +88,11 @@ export default function WeekScreen() {
   } else {
     body = (
       <View style={styles.screen}>
-        <View style={[styles.topBar, { paddingTop: insets.top + 8 }]}>
+        {/* ── TOP HUD ─────────────────────────────────────────────────── */}
+        <View style={[styles.topBar, { paddingTop: insets.top + 6 }]}>
           <View style={styles.hudLeft}>
-            <Text style={styles.weekText}>WEEK {state.currentWeek}</Text>
-            <View style={styles.clientChip}>
-              <Text style={styles.clientChipText}>♟ {activeClients.length}/{maxClients}</Text>
-            </View>
-            <View style={styles.regimeChip}>
-              <Text style={styles.regimeChipText}>{REGIME_LABEL[state.regime]}</Text>
-            </View>
+            <Text style={styles.weekText}>WEEK {week}</Text>
+            <Text style={styles.dateText}>Q{quarter} · YR{fiscalYear}</Text>
           </View>
           <View style={styles.hudRight}>
             <ReputationBar reputation={state.reputation} />
@@ -101,35 +101,46 @@ export default function WeekScreen() {
             </Pressable>
           </View>
         </View>
-
-        {showAlert && (
-          <Pressable style={styles.alert} onPress={() => { setAlertSeen(true); toggleBook(true); }}>
-            <Text style={styles.alertText}>
-              📋 {availableClients.length} Available Client{availableClients.length > 1 ? 's' : ''} — tap to view
-            </Text>
-            <View style={styles.alertDot} />
-          </Pressable>
-        )}
-
+        <View style={styles.rankBar}>
+          <Text style={styles.rankText} numberOfLines={1}>{rank.toUpperCase()} · {state.firmName ? `${state.firmName.toUpperCase()} INC` : 'THE FIRM'}</Text>
+          <View style={styles.regimeChip}>
+            <Text style={styles.regimeChipText}>{REGIME_LABEL[state.regime]}</Text>
+          </View>
+        </View>
         {goalText && (
           <View style={styles.goalBar}>
             <Text style={styles.goalText} numberOfLines={1}>◆ {goalText}</Text>
           </View>
         )}
 
-        {activeClients.length === 0 && (
-          <Pressable style={styles.manageHint} onPress={() => toggleBook(true)}>
-            <Text style={styles.manageHintText}>
-              {availableClients.length > 0
-                ? 'Open the Client Book to sign your first client.'
-                : 'No active clients — open the Client Book to manage portfolios.'}
+        {/* Notification toast: new clients waiting */}
+        {showAlert && (
+          <Pressable style={styles.alert} onPress={() => { setAlertSeen(true); toggleBook(true); }}>
+            <Text style={styles.alertText}>
+              📋 {availableClients.length} CLIENT{availableClients.length > 1 ? 'S' : ''} WAITING — TAP TO REVIEW
+            </Text>
+            <View style={styles.alertDot} />
+          </Pressable>
+        )}
+        {activeClients.length === 0 && !showAlert && (
+          <Pressable style={styles.alert} onPress={() => toggleBook(true)}>
+            <Text style={styles.alertText}>
+              {availableClients.length > 0 ? '📋 OPEN THE CLIENT BOOK TO SIGN YOUR FIRST CLIENT' : '📋 NO ACTIVE CLIENTS — OPEN THE CLIENT BOOK'}
             </Text>
           </Pressable>
         )}
 
-        {/* Desk + pixel PC scene */}
-        <View style={styles.scene}>
-          {/* Office wall: milestones hang as frames as the career grows. */}
+        {/* ── DESKTOP ─────────────────────────────────────────────────── */}
+        <View style={styles.desktop}>
+          <View style={styles.iconGrid}>
+            <DesktopIcon label="CLIENT BOOK" icon="📖" onPress={() => toggleBook(true)} />
+            <DesktopIcon label="TELEPHONE" icon="☎" onPress={() => togglePhone(true)} badge={state.unreadMessageCount} />
+            <DesktopIcon label="MARKET NEWS" icon="📰" onPress={() => toggleNews(true)} />
+            <DesktopIcon label="STOCK TERMINAL" icon="📈" onPress={() => toggleTerminal(true)} />
+            <DesktopIcon label="SHOP" icon="🛒" onPress={() => toggleShop(true)} />
+          </View>
+
+          {/* Office shelf: wall milestones + funded-dream trophies */}
           {(() => {
             const r = state.records;
             const wall: { glyph: string; label: string }[] = [];
@@ -138,91 +149,45 @@ export default function WeekScreen() {
             if (r.contractsCompleted >= 5) wall.push({ glyph: '🏅', label: '5 CONTRACTS' });
             if (r.sGrades >= 3) wall.push({ glyph: '⭐', label: 'S-CLASS' });
             if (state.reputation >= 75) wall.push({ glyph: '🎓', label: 'TOP ADVISOR' });
-            if (wall.length === 0) return null;
+            const trophies = r.trophies.slice(-4);
+            if (wall.length === 0 && trophies.length === 0) return null;
             return (
-              <View style={styles.wallRow}>
-                {wall.slice(0, 5).map((w) => (
-                  <View key={w.label} style={styles.wallFrame}>
-                    <Text style={styles.wallGlyph}>{w.glyph}</Text>
-                    <Text style={styles.wallLabel} numberOfLines={1}>{w.label}</Text>
-                  </View>
-                ))}
+              <View style={styles.shelf}>
+                <View style={styles.shelfRow}>
+                  {wall.slice(0, 4).map((w) => (
+                    <View key={w.label} style={styles.wallFrame}>
+                      <Text style={styles.wallGlyph}>{w.glyph}</Text>
+                      <Text style={styles.wallLabel} numberOfLines={1}>{w.label}</Text>
+                    </View>
+                  ))}
+                  {trophies.map((label, i) => (
+                    <View key={`${label}-${i}`} style={styles.wallFrame}>
+                      <Text style={styles.wallGlyph}>🏆</Text>
+                      <Text style={[styles.wallLabel, { color: c.warning }]} numberOfLines={1}>{label.toUpperCase()}</Text>
+                    </View>
+                  ))}
+                </View>
+                <View style={styles.shelfPlank} />
               </View>
             );
           })()}
-          <View style={styles.roomRow}>
-            {/* The PC monitor */}
-            <View style={styles.pc}>
-              <View style={styles.pcTitleBar}>
-                {pcView === 'terminal' ? (
-                  <Pressable onPress={() => setPcView('desktop')} hitSlop={8}>
-                    <Text style={styles.pcBack}>◀ DESKTOP</Text>
-                  </Pressable>
-                ) : (
-                  <Text style={styles.pcTitle} numberOfLines={1}>
-                    {state.firmName ? `${state.firmName.toUpperCase()} OS` : 'ADVISOR OS'}
-                  </Text>
-                )}
-                <View style={styles.pcDots}>
-                  <View style={[styles.pcDot, { backgroundColor: c.success }]} />
-                  <View style={[styles.pcDot, { backgroundColor: c.warning }]} />
-                  <View style={[styles.pcDot, { backgroundColor: c.danger }]} />
-                </View>
-              </View>
-
-              <View style={styles.pcScreen}>
-                {pcView === 'desktop' ? (
-                  <View style={styles.desktop}>
-                    <DesktopIcon label="CLIENT BOOK" icon="📖" onPress={() => toggleBook(true)} />
-                    <DesktopIcon label="TELEPHONE" icon="☎" onPress={() => togglePhone(true)} badge={state.unreadMessageCount} />
-                    <DesktopIcon label="NEWS" icon="📰" onPress={() => toggleNews(true)} />
-                    <DesktopIcon label="STOCK TERMINAL" icon="📈" onPress={() => setPcView('terminal')} />
-                    <DesktopIcon label="SHOP" icon="🛒" onPress={() => toggleShop(true)} />
-                  </View>
-                ) : (
-                  <PortfolioBuilder analysisOnly embedded />
-                )}
-              </View>
-            </View>
-
-            {/* Little pixel plant beside the monitor (never over the screen) */}
-            <View style={styles.plantCol}>
-              <View style={styles.plant}>
-                <View style={styles.leafTop} />
-                <View style={styles.leafRow}>
-                  <View style={styles.leafSide} />
-                  <View style={styles.leafMid} />
-                  <View style={styles.leafSide} />
-                </View>
-                <View style={styles.stem} />
-                <View style={styles.pot} />
-              </View>
-            </View>
-          </View>
-
-          {/* Trophy shelf: every funded dream earns a trophy on the desk. */}
-          {state.records.trophies.length > 0 && (
-            <View style={styles.shelfRow}>
-              {state.records.trophies.slice(-4).map((label, i) => (
-                <View key={`${label}-${i}`} style={styles.trophy}>
-                  <Text style={styles.trophyGlyph}>🏆</Text>
-                  <Text style={styles.trophyLabel} numberOfLines={1}>{label.toUpperCase()}</Text>
-                </View>
-              ))}
-            </View>
-          )}
-
-          {/* Wooden desk the PC sits on */}
-          <View style={styles.desk}>
-            <View style={styles.deskEdge} />
-          </View>
         </View>
 
-        {/* Advance control + advisor funds — on the desk, outside the PC */}
-        <View style={[styles.nextBar, { paddingBottom: insets.bottom + 10 }]}>
-          <View style={styles.deskFunds}>
-            <Text style={styles.deskFundsLabel}>FUNDS</Text>
-            <Text style={styles.deskFundsVal} numberOfLines={1}>{formatMoney(Math.round(advisorBalance))}</Text>
+        {/* ── BOTTOM HUD / STATUS BAR ─────────────────────────────────── */}
+        <View style={[styles.statusBar, { paddingBottom: insets.bottom + 8 }]}>
+          <View style={styles.statusCell}>
+            <Text style={styles.statusLabel}>CASH</Text>
+            <Text style={styles.statusValue} numberOfLines={1}>{formatMoney(Math.round(advisorBalance))}</Text>
+          </View>
+          <View style={styles.statusCell}>
+            <Text style={styles.statusLabel}>CLIENTS</Text>
+            <Text style={styles.statusValue}>{activeClients.length}/{maxClients}</Text>
+          </View>
+          <View style={styles.statusCell}>
+            <Text style={styles.statusLabel}>WKLY P/L</Text>
+            <Text style={[styles.statusValue, { color: weeklyProfit > 0 ? c.success : weeklyProfit < 0 ? c.danger : c.text }]} numberOfLines={1}>
+              {weeklyProfit === 0 ? '—' : `${weeklyProfit > 0 ? '+' : '-'}${formatMoney(Math.abs(Math.round(weeklyProfit)))}`}
+            </Text>
           </View>
           <Pressable
             onPress={transitionWeek}
@@ -243,6 +208,7 @@ export default function WeekScreen() {
       <NewsPopup />
       <PhoneNotifications />
       <ShopScreen />
+      <StockTerminal />
       <SettingsMenu visible={settingsOpen} onClose={() => setSettingsOpen(false)} />
     </View>
   );
@@ -268,74 +234,54 @@ function DesktopIcon({ label, icon, onPress, badge }: { label: string; icon: str
 const useStyles = makeUseStyles((c: Palette) =>
   StyleSheet.create({
   root: { flex: 1, backgroundColor: c.bg },
-  screen: { flex: 1, backgroundColor: c.bg },
-  topBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingBottom: 10, backgroundColor: c.panelDark, borderBottomWidth: BORDER_W, borderBottomColor: c.border },
-  hudLeft: { flexDirection: 'row', alignItems: 'center' },
+  screen: { flex: 1, backgroundColor: c.bgDeep },
+
+  // Top HUD
+  topBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 12, paddingBottom: 8, backgroundColor: c.panelDark, borderBottomWidth: BORDER_W, borderBottomColor: c.border },
+  hudLeft: { flexDirection: 'row', alignItems: 'baseline' },
   hudRight: { flexDirection: 'row', alignItems: 'center' },
-  weekText: { fontFamily: FONT_PIXEL, color: c.gold, fontSize: 18, fontWeight: '900', letterSpacing: 1 },
-  clientChip: { backgroundColor: c.panel, borderWidth: 2, borderColor: c.border, paddingHorizontal: 8, paddingVertical: 4, marginLeft: 8 },
-  clientChipText: { fontFamily: FONT_PIXEL, color: c.text, fontSize: 11, fontWeight: '800' },
-  regimeChip: { backgroundColor: c.panel, borderWidth: 2, borderColor: c.gold, paddingHorizontal: 8, paddingVertical: 4, marginLeft: 8 },
-  regimeChipText: { fontFamily: FONT_PIXEL, color: c.gold, fontSize: 10, fontWeight: '900' },
+  weekText: { fontFamily: FONT_PIXEL, color: c.gold, fontSize: 17, fontWeight: '900', letterSpacing: 1 },
+  dateText: { fontFamily: FONT_PIXEL, color: c.muted, fontSize: 10, fontWeight: '800', marginLeft: 8, letterSpacing: 0.5 },
   gearBtn: { width: 28, height: 28, marginLeft: 8, borderWidth: 2, borderColor: c.border, backgroundColor: c.panel, alignItems: 'center', justifyContent: 'center' },
   gearText: { fontSize: 16, color: c.text },
-  goalBar: { backgroundColor: c.panelDark, borderBottomWidth: 2, borderBottomColor: c.border, paddingVertical: 6, paddingHorizontal: 12, alignItems: 'center' },
-  goalText: { fontFamily: FONT_PIXEL, color: c.textDim, fontSize: 10, fontWeight: '900', letterSpacing: 0.5 },
-  alert: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: c.panel, borderBottomWidth: 2, borderBottomColor: c.gold, paddingVertical: 10 },
-  alertText: { fontFamily: FONT_PIXEL, color: c.gold, fontSize: 12, fontWeight: '800', letterSpacing: 0.5 },
-  alertDot: { width: 8, height: 8, backgroundColor: c.danger, marginLeft: 8 },
-  manageHint: { backgroundColor: c.panel, borderBottomWidth: 2, borderBottomColor: c.gold, paddingVertical: 9, paddingHorizontal: 16 },
-  manageHintText: { color: c.gold, fontSize: 12, fontWeight: '700', textAlign: 'center' },
+  rankBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: c.panelDark, borderBottomWidth: 2, borderBottomColor: c.border, paddingVertical: 4, paddingHorizontal: 12 },
+  rankText: { fontFamily: FONT_PIXEL, color: c.textDim, fontSize: 9, fontWeight: '900', letterSpacing: 1, flex: 1, marginRight: 8 },
+  regimeChip: { borderWidth: 2, borderColor: c.gold, paddingHorizontal: 6, paddingVertical: 2, backgroundColor: c.panel },
+  regimeChipText: { fontFamily: FONT_PIXEL, color: c.gold, fontSize: 9, fontWeight: '900' },
+  goalBar: { backgroundColor: c.panelDark, borderBottomWidth: 2, borderBottomColor: c.border, paddingVertical: 5, paddingHorizontal: 12, alignItems: 'center' },
+  goalText: { fontFamily: FONT_PIXEL, color: c.textDim, fontSize: 9, fontWeight: '900', letterSpacing: 0.5 },
 
-  // Desk + PC scene
-  scene: { flex: 1, backgroundColor: c.bg, paddingHorizontal: 12, paddingTop: 12 },
-  wallRow: { flexDirection: 'row', justifyContent: 'center', marginBottom: 8 },
-  wallFrame: { alignItems: 'center', borderWidth: 2, borderColor: c.border, backgroundColor: c.panel, paddingHorizontal: 6, paddingVertical: 3, marginHorizontal: 4, maxWidth: 78 },
-  wallGlyph: { fontSize: 13 },
-  wallLabel: { fontFamily: FONT_PIXEL, color: c.muted, fontSize: 6, fontWeight: '900', letterSpacing: 0.5, marginTop: 1 },
-  roomRow: { flex: 1, flexDirection: 'row' },
-  pc: { flex: 1, borderWidth: 10, borderColor: BEZEL, backgroundColor: BEZEL },
-  pcTitleBar: { height: 24, backgroundColor: '#2b2b2b', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 8 },
-  pcTitle: { fontFamily: FONT_PIXEL, color: '#dddddd', fontSize: 11, fontWeight: '800', letterSpacing: 1, flex: 1, marginRight: 8 },
-  pcBack: { fontFamily: FONT_PIXEL, color: c.gold, fontSize: 11, fontWeight: '900', letterSpacing: 1 },
-  pcDots: { flexDirection: 'row' },
-  pcDot: { width: 8, height: 8, marginLeft: 5 },
-  pcScreen: { flex: 1, backgroundColor: c.panelDark },
-  desktop: { flex: 1, flexDirection: 'row', flexWrap: 'wrap', padding: 10, alignContent: 'flex-start' },
-  icon: { width: '50%', alignItems: 'center', paddingVertical: 14 },
-  iconPressed: { opacity: 0.7 },
-  iconGlyphBox: { width: 52, height: 52, borderWidth: 2, borderColor: c.border, backgroundColor: c.panel, alignItems: 'center', justifyContent: 'center' },
+  alert: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: c.panel, borderBottomWidth: 2, borderBottomColor: c.gold, paddingVertical: 9, paddingHorizontal: 10 },
+  alertText: { fontFamily: FONT_PIXEL, color: c.gold, fontSize: 10, fontWeight: '800', letterSpacing: 0.5 },
+  alertDot: { width: 8, height: 8, backgroundColor: c.danger, marginLeft: 8 },
+
+  // Desktop surface
+  desktop: { flex: 1, paddingHorizontal: 14, paddingTop: 16 },
+  iconGrid: { flexDirection: 'row', flexWrap: 'wrap', alignContent: 'flex-start', flex: 1 },
+  icon: { width: '33.33%', alignItems: 'center', paddingVertical: 14 },
+  iconPressed: { opacity: 0.7, transform: [{ translateY: 1 }] },
+  iconGlyphBox: { width: 54, height: 54, borderWidth: 2, borderColor: c.border, backgroundColor: c.panel, alignItems: 'center', justifyContent: 'center' },
   iconGlyph: { fontSize: 26 },
-  iconLabel: { fontFamily: FONT_PIXEL, color: c.text, fontSize: 10, fontWeight: '800', letterSpacing: 0.5, marginTop: 6, textAlign: 'center' },
-  iconBadge: { position: 'absolute', top: 10, right: '24%', minWidth: 18, height: 18, paddingHorizontal: 3, backgroundColor: c.danger, borderWidth: 2, borderColor: c.border, alignItems: 'center', justifyContent: 'center' },
+  iconLabel: { fontFamily: FONT_PIXEL, color: c.text, fontSize: 8, fontWeight: '800', letterSpacing: 0.5, marginTop: 6, textAlign: 'center' },
+  iconBadge: { position: 'absolute', top: 8, right: '22%', minWidth: 18, height: 18, paddingHorizontal: 3, backgroundColor: c.danger, borderWidth: 2, borderColor: c.border, alignItems: 'center', justifyContent: 'center' },
   iconBadgeText: { fontFamily: FONT_PIXEL, color: c.white, fontSize: 10, fontWeight: '900' },
 
-  // Plant beside the monitor
-  plantCol: { width: 44, justifyContent: 'flex-end', alignItems: 'center', paddingLeft: 8, paddingBottom: 0 },
-  plant: { alignItems: 'center', marginBottom: 2 },
-  leafTop: { width: 10, height: 10, backgroundColor: LEAF },
-  leafRow: { flexDirection: 'row' },
-  leafSide: { width: 8, height: 12, backgroundColor: LEAF_D },
-  leafMid: { width: 12, height: 16, backgroundColor: LEAF },
-  stem: { width: 4, height: 10, backgroundColor: LEAF_D },
-  pot: { width: 26, height: 18, backgroundColor: POT, borderWidth: 2, borderColor: WOOD_DARK },
+  // Office shelf (milestones + trophies)
+  shelf: { marginBottom: 10 },
+  shelfRow: { flexDirection: 'row', justifyContent: 'center', flexWrap: 'wrap' },
+  wallFrame: { alignItems: 'center', borderWidth: 2, borderColor: c.border, backgroundColor: c.panel, paddingHorizontal: 6, paddingVertical: 3, marginHorizontal: 3, marginBottom: 4, maxWidth: 78 },
+  wallGlyph: { fontSize: 13 },
+  wallLabel: { fontFamily: FONT_PIXEL, color: c.muted, fontSize: 6, fontWeight: '900', letterSpacing: 0.5, marginTop: 1 },
+  shelfPlank: { height: 5, backgroundColor: c.border, marginHorizontal: 30 },
 
-  // Trophy shelf sitting on the desk (funded dreams, newest 4)
-  shelfRow: { flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'flex-end', paddingRight: 10 },
-  trophy: { alignItems: 'center', marginLeft: 10, maxWidth: 76 },
-  trophyGlyph: { fontSize: 18 },
-  trophyLabel: { fontFamily: FONT_PIXEL, color: c.warning, fontSize: 7, fontWeight: '900', letterSpacing: 0.5, marginTop: 1 },
-
-  // Wooden desk + advance control
-  desk: { height: 26, backgroundColor: WOOD, borderTopWidth: 4, borderTopColor: WOOD_TOP },
-  deskEdge: { position: 'absolute', bottom: 0, left: 0, right: 0, height: 6, backgroundColor: WOOD_DARK },
-  nextBar: { flexDirection: 'row', backgroundColor: WOOD, paddingTop: 10, paddingHorizontal: 12, alignItems: 'center', justifyContent: 'center' },
-  deskFunds: { backgroundColor: WOOD_DARK, borderWidth: 2, borderColor: '#3a2a14', paddingVertical: 6, paddingHorizontal: 10, marginRight: 10, alignItems: 'center', maxWidth: 130 },
-  deskFundsLabel: { fontFamily: FONT_PIXEL, color: '#e8d5b5', fontSize: 8, fontWeight: '900', letterSpacing: 1 },
-  deskFundsVal: { fontFamily: FONT_PIXEL, color: '#FFD36B', fontSize: 13, fontWeight: '900' },
-  nextBtn: { flex: 1, maxWidth: 460, backgroundColor: c.button, borderWidth: BORDER_W, borderColor: c.border, paddingVertical: 14, alignItems: 'center' },
+  // Bottom status bar
+  statusBar: { flexDirection: 'row', alignItems: 'center', backgroundColor: c.panelDark, borderTopWidth: BORDER_W, borderTopColor: c.border, paddingTop: 8, paddingHorizontal: 10 },
+  statusCell: { flex: 1, alignItems: 'center', borderRightWidth: 1, borderRightColor: c.divider, paddingHorizontal: 4 },
+  statusLabel: { fontFamily: FONT_PIXEL, color: c.muted, fontSize: 7, fontWeight: '900', letterSpacing: 1 },
+  statusValue: { fontFamily: FONT_PIXEL, color: c.gold, fontSize: 12, fontWeight: '900', marginTop: 2 },
+  nextBtn: { flex: 1.6, backgroundColor: c.button, borderWidth: BORDER_W, borderColor: c.border, paddingVertical: 12, alignItems: 'center', marginLeft: 8 },
   nextBtnDisabled: { opacity: 0.4 },
   nextBtnPressed: { transform: [{ translateY: 1 }] },
-  nextText: { fontFamily: FONT_PIXEL, color: c.ink, fontSize: 15, fontWeight: '900', letterSpacing: 1 },
+  nextText: { fontFamily: FONT_PIXEL, color: c.ink, fontSize: 13, fontWeight: '900', letterSpacing: 1 },
   })
 );

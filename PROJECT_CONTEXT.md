@@ -286,11 +286,15 @@ constraint repeated across the project's history ("no external libraries").
 
 1. **Week intro** — a "WEEK N" splash.
 2. **(Optional) client intro** — if you just signed someone, read their dialogue.
-3. **Builder / desk** — the main screen: a pixel PC on a wooden desk. From the PC you
-   open **Client Book** (sign clients, manage each portfolio: buy/sell), **Telephone**
-   (client requests / insider tips), **News** (interpret headlines), **Stock Terminal**
-   (analysis-only price view), and **Shop** (spend fees on upgrades). The **NEXT WEEK**
-   button sits on the desk (outside the PC).
+3. **Builder / desktop** — the main screen: one persistent retro workstation
+   (`WeekScreen`). Top HUD (week/quarter/year, office rank, regime, goal, rep meter);
+   desktop icon grid; office shelf (milestone frames + dream trophies); bottom status
+   bar (CASH · CLIENTS · WKLY P/L · **NEXT WEEK**). Every application opens as a
+   floating **`PixelWindow`** (title bar + ✕ + pixel shadow + recessed bevel) over the
+   desktop — the background never changes: **Client Book** (dense roster → dossier →
+   portfolio editor), **Telephone** (NEEDS ACTION + message log), **Market News** ("The
+   Weekly Ledger" headline list, tap to unfold), **Stock Terminal** (ticker board +
+   profile + related headlines, analysis-only), **Shop & Ledger**.
 4. **Transition** — prices resolve, returns/happiness/reputation/fees compute.
 5. **Summary** — regime context, black-swan banner, per-client results, concentration
    warnings, filtered price movements, and reputation changes.

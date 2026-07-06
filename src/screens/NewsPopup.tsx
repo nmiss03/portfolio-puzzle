@@ -1,9 +1,14 @@
+// The Market News application: a financial newspaper. Headlines run as a
+// dense ■-bulleted list under a masthead; tapping one unfolds the article
+// inline. Terminal owners get next week's edition early.
+
 import React, { useMemo, useState } from 'react';
 import { View, Text, Pressable, ScrollView, StyleSheet } from 'react-native';
 
+import PixelWindow from '../components/PixelWindow';
 import { stocksById } from '../data/stocks';
 import { useGame } from '../state/GameContext';
-import { FONT_PIXEL, BORDER_W, Palette } from '../theme';
+import { FONT_PIXEL, Palette } from '../theme';
 import { makeUseStyles } from '../contexts/ThemeContext';
 
 type FilterMode = 'All' | 'Industry' | 'Specific Stock';
@@ -14,6 +19,7 @@ export default function NewsPopup() {
   const styles = useStyles();
   const [filter, setFilter] = useState<FilterMode>('All');
   const [weekTab, setWeekTab] = useState<WeekTab>('this');
+  const [openId, setOpenId] = useState<string | null>(null);
 
   const hasTerminal = upgrades.newsTerminal;
 
@@ -28,117 +34,135 @@ export default function NewsPopup() {
 
   if (!state.newsOpen) return null;
 
-  const visibleThisWeek = state.weekNews.some((a) => !a.insider && (!a.exclusive || hasTerminal));
-
   return (
-    <View style={styles.backdrop}>
-      <View style={styles.panel}>
-        <View style={styles.header}>
-          <Text style={styles.title}>Market News</Text>
-          <Pressable onPress={() => toggleNews(false)} hitSlop={10}>
-            <Text style={styles.close}>✕</Text>
-          </Pressable>
+    <PixelWindow title="Market News" icon="📰" onClose={() => toggleNews(false)}>
+      {hasTerminal && (
+        <View style={styles.weekTabs}>
+          {(['this', 'next'] as WeekTab[]).map((t) => (
+            <Pressable key={t} onPress={() => { setWeekTab(t); setOpenId(null); }} style={[styles.weekTab, weekTab === t && styles.weekTabActive]}>
+              <Text style={[styles.weekTabText, weekTab === t && styles.weekTabTextActive]}>
+                {t === 'this' ? `WEEK ${state.currentWeek}` : `WEEK ${state.currentWeek + 1} PREVIEW`}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
+      )}
+
+      <ScrollView contentContainerStyle={styles.paper}>
+        {/* Masthead */}
+        <View style={styles.masthead}>
+          <Text style={styles.mastTitle}>THE WEEKLY LEDGER</Text>
+          <Text style={styles.mastSub}>
+            {weekTab === 'next' ? `EARLY EDITION — WEEK ${state.currentWeek + 1}` : `MARKET NEWS — WEEK ${state.currentWeek}`}
+          </Text>
+          <View style={styles.mastRule} />
         </View>
 
-        {hasTerminal && (
-          <View style={styles.weekTabs}>
-            {(['this', 'next'] as WeekTab[]).map((t) => (
-              <Pressable key={t} onPress={() => setWeekTab(t)} style={[styles.weekTab, weekTab === t && styles.weekTabActive]}>
-                <Text style={[styles.weekTabText, weekTab === t && styles.weekTabTextActive]}>
-                  {t === 'this' ? `WEEK ${state.currentWeek}` : `WEEK ${state.currentWeek + 1} PREVIEW`}
-                </Text>
-              </Pressable>
-            ))}
-          </View>
-        )}
+        {/* Filter chips */}
+        <View style={styles.controls}>
+          {(['All', 'Industry', 'Specific Stock'] as FilterMode[]).map((f) => (
+            <Pressable key={f} onPress={() => setFilter(f)} style={[styles.chip, filter === f && styles.chipActive]}>
+              <Text style={[styles.chipText, filter === f && styles.chipTextActive]}>
+                {f === 'Specific Stock' ? 'STOCKS' : f.toUpperCase()}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
 
-        {weekTab === 'this' && !visibleThisWeek ? (
+        {articles.length === 0 ? (
           <View style={styles.empty}>
-            <Text style={styles.emptyTitle}>Quiet markets this week.</Text>
-            <Text style={styles.emptyText}>No major headlines. Trade on the fundamentals.</Text>
+            <Text style={styles.emptyTitle}>Quiet markets.</Text>
+            <Text style={styles.emptyText}>No headlines here. Trade on the fundamentals.</Text>
           </View>
         ) : (
-          <>
-            <View style={styles.controls}>
-              {(['All', 'Industry', 'Specific Stock'] as FilterMode[]).map((f) => (
-                <Pressable key={f} onPress={() => setFilter(f)} style={[styles.chip, filter === f && styles.chipActive]}>
-                  <Text style={[styles.chipText, filter === f && styles.chipTextActive]}>
-                    {f === 'Specific Stock' ? 'Stocks' : f}
+          articles.map((a) => {
+            const open = openId === a.id;
+            return (
+              <View key={a.id}>
+                <Pressable
+                  onPress={() => setOpenId(open ? null : a.id)}
+                  style={({ pressed }) => [styles.headlineRow, pressed && styles.headlinePressed, open && styles.headlineOpen]}
+                >
+                  <Text style={[styles.bullet, a.exclusive && styles.bulletExclusive]}>■</Text>
+                  <Text style={[styles.headline, open && styles.headlineActive]} numberOfLines={open ? undefined : 2}>
+                    {a.exclusive ? '★ ' : ''}{a.headline}
                   </Text>
+                  <Text style={styles.fold}>{open ? '▾' : '▸'}</Text>
                 </Pressable>
-              ))}
-            </View>
-
-            <Text style={styles.hint}>
-              {weekTab === 'next'
-                ? 'Terminal preview: these stories break next week. Position yourself before the crowd reads them.'
-                : "Read the headlines and decide for yourself. Then buy what you think will rise and sell what you think will fall — the results land at week's end."}
-            </Text>
-
-            <ScrollView contentContainerStyle={styles.list}>
-              {articles.map((a) => (
-                <View key={a.id} style={[styles.card, a.exclusive && styles.cardExclusive]}>
-                  {a.exclusive && (
-                    <View style={styles.exclusiveTag}>
-                      <Text style={styles.exclusiveTagText}>★ EXCLUSIVE · TIER {a.exclusiveTier}</Text>
+                {open && (
+                  <View style={styles.article}>
+                    <View style={styles.metaRow}>
+                      <View style={styles.badge}>
+                        <Text style={styles.badgeText}>
+                          {a.category === 'Industry' ? 'INDUSTRY' : (stocksById[a.affects[0]]?.ticker || a.affects[0]).toUpperCase()}
+                        </Text>
+                      </View>
+                      {a.exclusive && (
+                        <View style={[styles.badge, styles.badgeGold]}>
+                          <Text style={[styles.badgeText, styles.badgeTextInk]}>★ EXCLUSIVE T{a.exclusiveTier}</Text>
+                        </View>
+                      )}
+                      <Text style={styles.metaText}>{a.source}</Text>
                     </View>
-                  )}
-                  <Text style={styles.headline}>{a.headline}</Text>
-                  <View style={styles.metaRow}>
-                    <View style={styles.badge}>
-                      <Text style={styles.badgeText}>
-                        {a.category === 'Industry'
-                          ? 'Industry'
-                          : `Stock: ${stocksById[a.affects[0]]?.name || a.affects[0]}`}
-                      </Text>
-                    </View>
-                    <Text style={styles.metaText}>{a.source} · {a.publicationDate}</Text>
+                    <Text style={styles.body}>{a.articleText}</Text>
                   </View>
-                  <Text style={styles.body}>{a.articleText}</Text>
-                </View>
-              ))}
-              {articles.length === 0 && (
-                <Text style={styles.emptyText}>Nothing matching this filter.</Text>
-              )}
-            </ScrollView>
-          </>
+                )}
+              </View>
+            );
+          })
         )}
-      </View>
-    </View>
+
+        <Text style={styles.hint}>
+          {weekTab === 'next'
+            ? 'Terminal preview: these stories break next week. Position yourself before the crowd reads them.'
+            : 'Read, interpret, position. Results land at week-end.'}
+        </Text>
+      </ScrollView>
+    </PixelWindow>
   );
 }
 
 const useStyles = makeUseStyles((c: Palette) =>
   StyleSheet.create({
-  backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(10,16,16,0.6)', justifyContent: 'flex-end' },
-  panel: { height: '90%', backgroundColor: c.bg, borderTopWidth: BORDER_W * 2, borderColor: c.border, overflow: 'hidden' },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16, borderBottomWidth: BORDER_W, borderBottomColor: c.border, backgroundColor: c.panelDark },
-  title: { fontFamily: FONT_PIXEL, color: c.gold, fontSize: 18, fontWeight: '900', letterSpacing: 1, textTransform: 'uppercase' },
-  close: { fontFamily: FONT_PIXEL, color: c.gold, fontSize: 18, fontWeight: '800' },
   weekTabs: { flexDirection: 'row', backgroundColor: c.panelDark, borderBottomWidth: 2, borderBottomColor: c.border },
-  weekTab: { flex: 1, paddingVertical: 9, alignItems: 'center', borderBottomWidth: 3, borderBottomColor: 'transparent' },
+  weekTab: { flex: 1, paddingVertical: 8, alignItems: 'center', borderBottomWidth: 3, borderBottomColor: 'transparent' },
   weekTabActive: { borderBottomColor: c.gold },
-  weekTabText: { fontFamily: FONT_PIXEL, color: c.muted, fontSize: 11, fontWeight: '800', letterSpacing: 0.5 },
+  weekTabText: { fontFamily: FONT_PIXEL, color: c.muted, fontSize: 10, fontWeight: '800', letterSpacing: 0.5 },
   weekTabTextActive: { color: c.gold },
-  cardExclusive: { borderColor: c.gold },
-  exclusiveTag: { alignSelf: 'flex-start', backgroundColor: c.gold, paddingHorizontal: 6, paddingVertical: 2, marginBottom: 8 },
-  exclusiveTagText: { fontFamily: FONT_PIXEL, color: c.ink, fontSize: 10, fontWeight: '900', letterSpacing: 0.5 },
-  controls: { flexDirection: 'row', alignItems: 'center', padding: 10, backgroundColor: c.panelDark, borderBottomWidth: 2, borderBottomColor: c.border },
-  chip: { borderWidth: 2, borderColor: c.border, paddingHorizontal: 10, paddingVertical: 5, marginRight: 6, backgroundColor: c.panel },
-  chipActive: { backgroundColor: c.button, borderColor: c.border },
-  chipText: { fontFamily: FONT_PIXEL, color: c.textDim, fontSize: 11, fontWeight: '700' },
+
+  paper: { padding: 12 },
+  masthead: { alignItems: 'center', marginBottom: 8 },
+  mastTitle: { fontFamily: FONT_PIXEL, color: c.text, fontSize: 18, fontWeight: '900', letterSpacing: 2 },
+  mastSub: { fontFamily: FONT_PIXEL, color: c.muted, fontSize: 9, fontWeight: '800', letterSpacing: 1, marginTop: 3 },
+  mastRule: { height: 3, alignSelf: 'stretch', backgroundColor: c.border, marginTop: 8 },
+
+  controls: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
+  chip: { borderWidth: 2, borderColor: c.border, paddingHorizontal: 8, paddingVertical: 4, marginRight: 6, backgroundColor: c.panel },
+  chipActive: { backgroundColor: c.button },
+  chipText: { fontFamily: FONT_PIXEL, color: c.textDim, fontSize: 9, fontWeight: '800' },
   chipTextActive: { color: c.ink },
-  hint: { color: c.textDim, fontSize: 12, fontStyle: 'italic', padding: 12, paddingBottom: 0 },
-  list: { padding: 12 },
-  card: { backgroundColor: c.panel, borderWidth: BORDER_W, borderColor: c.border, padding: 14, marginBottom: 10 },
-  headline: { fontFamily: FONT_PIXEL, color: c.text, fontSize: 14, fontWeight: '800', lineHeight: 20 },
-  metaRow: { flexDirection: 'row', alignItems: 'center', marginTop: 6 },
-  badge: { backgroundColor: c.panelDark, borderWidth: 1, borderColor: c.border, paddingHorizontal: 6, paddingVertical: 2, marginRight: 8 },
-  badgeText: { fontFamily: FONT_PIXEL, color: c.gold, fontSize: 10, fontWeight: '800' },
-  metaText: { color: c.muted, fontSize: 11 },
-  body: { color: c.textDim, fontSize: 13, lineHeight: 19, marginTop: 8 },
-  empty: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 30 },
-  emptyTitle: { fontFamily: FONT_PIXEL, color: c.gold, fontSize: 16, fontWeight: '800' },
-  emptyText: { color: c.textDim, fontSize: 13, marginTop: 6, textAlign: 'center' },
+
+  headlineRow: { flexDirection: 'row', alignItems: 'flex-start', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: c.divider },
+  headlinePressed: { backgroundColor: c.panel },
+  headlineOpen: { borderBottomWidth: 0 },
+  bullet: { color: c.gold, fontSize: 11, marginRight: 8, marginTop: 2 },
+  bulletExclusive: { color: c.warning },
+  headline: { fontFamily: FONT_PIXEL, color: c.text, fontSize: 12, fontWeight: '800', lineHeight: 18, flex: 1 },
+  headlineActive: { color: c.gold },
+  fold: { fontFamily: FONT_PIXEL, color: c.muted, fontSize: 11, marginLeft: 8, marginTop: 2 },
+
+  article: { backgroundColor: c.panel, borderWidth: 2, borderColor: c.border, padding: 10, marginBottom: 10 },
+  metaRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 6 },
+  badge: { backgroundColor: c.panelDark, borderWidth: 1, borderColor: c.border, paddingHorizontal: 5, paddingVertical: 2, marginRight: 6 },
+  badgeGold: { backgroundColor: c.gold, borderColor: c.border },
+  badgeText: { fontFamily: FONT_PIXEL, color: c.gold, fontSize: 8, fontWeight: '900' },
+  badgeTextInk: { color: c.ink },
+  metaText: { color: c.muted, fontSize: 10 },
+  body: { color: c.textDim, fontSize: 12, lineHeight: 18 },
+
+  hint: { color: c.muted, fontSize: 10, fontStyle: 'italic', marginTop: 12, textAlign: 'center' },
+  empty: { alignItems: 'center', padding: 24 },
+  emptyTitle: { fontFamily: FONT_PIXEL, color: c.gold, fontSize: 14, fontWeight: '800' },
+  emptyText: { color: c.textDim, fontSize: 12, marginTop: 6, textAlign: 'center' },
   })
 );
