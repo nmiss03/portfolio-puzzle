@@ -17,6 +17,7 @@ import StockTerminal from './StockTerminal';
 import ReputationBar from '../components/ReputationBar';
 import { useGame } from '../state/GameContext';
 import STOCKS from '../data/stocks';
+import { RuntimeClient } from '../data/gameState';
 import { REGIME_LABEL } from '../data/economicCycles';
 import { SHOP_ITEMS } from '../data/advisorEconomy';
 import { careerTitle } from '../data/careerRecords';
@@ -27,9 +28,42 @@ import { makeUseStyles, useTheme } from '../contexts/ThemeContext';
 // The firm's workstation: one persistent retro desktop. The background never
 // changes — applications (Client Book, News, Phone, Terminal, Shop) open as
 // PixelWindows on top of it. HUD above, status bar below, office in between.
+// The desktop itself is an OPERATIONS DASHBOARD: it answers "what should I do
+// this week?" before anything is opened.
+
+// Triage one client for the dashboard: a colored dot, a one-line status, and
+// (when urgent) a THIS WEEK checklist entry. Red = act now, yellow = watch,
+// green = healthy.
+function clientAttention(cl: RuntimeClient): {
+  level: 2 | 1 | 0;
+  note: string;
+  priority?: string;
+} {
+  const invested = Object.values(cl.holdings).some((h) => h.shares > 0);
+  if (cl.happiness <= 30) {
+    return { level: 2, note: 'unhappy — portfolio review due', priority: `Repair ${cl.name}'s portfolio — they're close to walking` };
+  }
+  if (cl.contractWeeksRemaining <= 1) {
+    return { level: 2, note: 'contract ends THIS WEEK', priority: `${cl.name}'s contract ends this week — finish strong` };
+  }
+  if (!invested) {
+    return { level: 1, note: 'cash sitting idle', priority: `Invest ${cl.name}'s idle cash` };
+  }
+  if (cl.contractWeeksRemaining <= 2) {
+    return { level: 1, note: 'contract ends in 2 weeks' };
+  }
+  if (cl.happiness < 60) {
+    return { level: 1, note: 'relationship needs care' };
+  }
+  const hist = cl.performanceHistory;
+  if (hist.length >= 2 && hist[hist.length - 1].happiness > hist[hist.length - 2].happiness) {
+    return { level: 0, note: 'relationship improving' };
+  }
+  return { level: 0, note: 'on track' };
+}
 
 export default function WeekScreen() {
-  const { state, activeClients, availableClients, canSign, maxClients, advisorBalance, upgrades, setPhase, transitionWeek, advanceWeek, toggleBook, toggleNews, togglePhone, toggleShop, toggleTerminal } = useGame();
+  const { state, activeClients, availableClients, expiredClients, canSign, maxClients, advisorBalance, upgrades, priceOf, setPhase, transitionWeek, advanceWeek, toggleBook, toggleNews, togglePhone, toggleShop, toggleTerminal } = useGame();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const styles = useStyles();
@@ -134,125 +168,216 @@ export default function WeekScreen() {
         {/* ── DESKTOP: the firm's departments ─────────────────────────── */}
         <ScrollView style={styles.desktop} contentContainerStyle={styles.desktopContent}>
           {(() => {
-            // Live readouts so the desk feels staffed without opening anything.
-            const endingSoon = activeClients.some((cl) => cl.contractWeeksRemaining === 1);
-            let mover: { ticker: string; pct: number } | null = null;
-            let movers = 0;
+            // ── Live intelligence for the operations dashboard ──────────
+            // Market tape from last week's resolved prices.
+            let gainer: { ticker: string; pct: number } | null = null;
+            let loser: { ticker: string; pct: number } | null = null;
+            let ups = 0;
+            let downs = 0;
             STOCKS.forEach((s) => {
               const hist = state.stockPriceHistory[s.id];
               if (!hist || hist.length === 0) return;
               const last = hist[hist.length - 1];
               const p = last.startPrice > 0 ? (last.endPrice - last.startPrice) / last.startPrice : 0;
-              if (Math.abs(p) >= 0.02) movers++;
-              if (!mover || Math.abs(p) > Math.abs(mover.pct)) mover = { ticker: s.ticker, pct: p };
+              if (p > 0) ups++;
+              else if (p < 0) downs++;
+              if (p > 0 && (!gainer || p > gainer.pct)) gainer = { ticker: s.ticker, pct: p };
+              if (p < 0 && (!loser || p < loser.pct)) loser = { ticker: s.ticker, pct: p };
             });
-            const headlines = state.weekNews.filter((a) => !a.insider && (!a.exclusive || upgrades.newsTerminal)).length;
+            const g = gainer as { ticker: string; pct: number } | null;
+            const l = loser as { ticker: string; pct: number } | null;
+
+            // News: lead with the biggest story actually visible to the player.
+            const visibleNews = state.weekNews.filter((a) => !a.insider && (!a.exclusive || upgrades.newsTerminal));
+            const lead = visibleNews.find((a) => a.impactLevel === 'major') ?? visibleNews[0] ?? null;
+
             const pendingCalls = state.messages.filter((m) => !m.resolved && m.weekIssued === week).length;
-            const upgradesLeft = SHOP_ITEMS.filter((i) => !upgrades[i.id]);
+            const upgradesLeft = SHOP_ITEMS.filter((i) => !upgrades[i.id]).sort((a, b) => a.cost - b.cost);
             const affordable = upgradesLeft.filter((i) => advisorBalance >= i.cost).length;
-            const m = mover as { ticker: string; pct: number } | null;
+
+            // Assets under management: every active client's cash + holdings.
+            const aum = activeClients.reduce(
+              (sum, cl) => sum + cl.cash + Object.entries(cl.holdings).reduce((s, [id, h]) => s + h.shares * priceOf(id), 0),
+              0
+            );
+
+            // Client triage rows, most urgent first.
+            const triage = activeClients
+              .map((cl) => ({ cl, ...clientAttention(cl) }))
+              .sort((a, b) => b.level - a.level);
+
+            // THIS WEEK: the auto-generated checklist (max 4 items).
+            const priorities: string[] = [];
+            triage.filter((t) => t.priority).slice(0, 2).forEach((t) => priorities.push(t.priority!));
+            expiredClients.forEach((cl) => priorities.push(`Decide on ${cl.name} — renew or part ways`));
+            if (availableClients.length > 0 && canSign) priorities.push(`${availableClients.length} client${availableClients.length === 1 ? '' : 's'} waiting to be signed`);
+            if (pendingCalls > 0) priorities.push(`Answer ${pendingCalls} phone request${pendingCalls === 1 ? '' : 's'} by week-end`);
+            if (visibleNews.length > 0) priorities.push(`Interpret ${visibleNews.length} market headline${visibleNews.length === 1 ? '' : 's'}`);
+            const shortGoal = nextLocked
+              ? `Reach ${nextLocked.unlockedAtReputation} rep — ${nextLocked.name} signs`
+              : nextUpgrade && advisorBalance < nextUpgrade.cost
+                ? `Save ${formatMoney(nextUpgrade.cost)} for ${nextUpgrade.name}`
+                : null;
+
+            const dotColor = (level: number) => (level >= 2 ? c.danger : level === 1 ? c.warning : c.success);
 
             return (
               <>
-                <View style={styles.deptRow}>
-                  {/* CLIENTS department */}
-                  <View style={styles.dept}>
-                    <Text style={styles.deptTitle}>▪ CLIENTS</Text>
-                    <AppCard
-                      big
-                      icon="📖"
-                      title="CLIENT BOOK"
-                      desc="Sign clients & manage their portfolios."
-                      stat={`👥 ${activeClients.length} ACTIVE`}
-                      stat2={`⭐ ${availableClients.length} WAITING`}
-                      statColor={availableClients.length > 0 ? c.gold : c.muted}
-                      warn={endingSoon ? '⚠ CONTRACT ENDS THIS WEEK' : undefined}
-                      onPress={() => toggleBook(true)}
-                    />
-                    <AppCard
-                      icon="☎"
-                      title="TELEPHONE"
-                      desc="Requests, tips & client texts."
-                      stat={
-                        state.unreadMessageCount > 0
-                          ? `✉ ${state.unreadMessageCount} UNREAD`
-                          : pendingCalls > 0
-                            ? `☎ ${pendingCalls} NEED ACTION`
-                            : 'NO NEW CALLS'
-                      }
-                      statColor={state.unreadMessageCount > 0 || pendingCalls > 0 ? c.gold : c.muted}
-                      badge={state.unreadMessageCount}
-                      onPress={() => togglePhone(true)}
-                    />
-                  </View>
-
-                  {/* MARKET department */}
-                  <View style={styles.dept}>
-                    <Text style={styles.deptTitle}>▪ MARKET</Text>
-                    <AppCard
-                      big
-                      icon="📈"
-                      title="STOCK TERMINAL"
-                      desc="Prices, movers & company research."
-                      stat={m ? `${m.pct >= 0 ? '▲' : '▼'} ${m.ticker} ${m.pct >= 0 ? '+' : ''}${(m.pct * 100).toFixed(1)}%` : `${STOCKS.length} LISTED`}
-                      stat2={m ? `${movers} MOVER${movers === 1 ? '' : 'S'} LAST WEEK` : undefined}
-                      statColor={m ? (m.pct >= 0 ? c.success : c.danger) : c.muted}
-                      onPress={() => toggleTerminal(true)}
-                    />
-                    <AppCard
-                      icon="📰"
-                      title="MARKET NEWS"
-                      desc="This week's headlines to interpret."
-                      stat={headlines > 0 ? `■ ${headlines} HEADLINE${headlines === 1 ? '' : 'S'}` : 'QUIET WEEK'}
-                      statColor={headlines > 0 ? c.gold : c.muted}
-                      onPress={() => toggleNews(true)}
-                    />
-                  </View>
+                {/* THIS WEEK — the checklist */}
+                <View style={styles.panelStatic}>
+                  <Text style={styles.deptTitle}>▪ THIS WEEK</Text>
+                  {priorities.length === 0 ? (
+                    <Text style={styles.priorityLine}>▸ Quiet desk. Hunt for an edge in the terminal.</Text>
+                  ) : (
+                    priorities.slice(0, 4).map((p, i) => (
+                      <Text key={i} style={styles.priorityLine} numberOfLines={1}>▸ {p}</Text>
+                    ))
+                  )}
                 </View>
 
-                {/* OFFICE department: shop + firm overview */}
-                <View style={styles.officeRow}>
-                  <View style={styles.officeCol}>
-                    <Text style={styles.deptTitle}>▪ OFFICE</Text>
-                    <AppCard
-                      small
-                      icon="🛒"
-                      title="SHOP"
-                      desc=""
-                      stat={
-                        upgradesLeft.length === 0
-                          ? 'FULLY UPGRADED'
-                          : affordable > 0
-                            ? `${affordable} AFFORDABLE`
-                            : `${upgradesLeft.length} UPGRADE${upgradesLeft.length === 1 ? '' : 'S'}`
-                      }
-                      statColor={affordable > 0 ? c.success : c.muted}
-                      onPress={() => toggleShop(true)}
-                    />
-                    {/* Desk clutter: decorative only */}
-                    <View style={styles.deskClutter}>
-                      <View style={styles.deskChip}>
-                        <Text style={styles.deskChipText}>📅 WK {week}</Text>
+                {/* CLIENT BOOK — the flagship panel with per-client triage */}
+                <Pressable onPress={() => toggleBook(true)} style={({ pressed }) => [styles.panel, pressed && styles.panelPressed]}>
+                  <View style={styles.panelHead}>
+                    <Text style={styles.panelIcon}>📖</Text>
+                    <Text style={styles.panelTitle}>CLIENT BOOK</Text>
+                    <Text style={styles.panelHint}>OPEN ›</Text>
+                  </View>
+                  {triage.length === 0 ? (
+                    <Text style={styles.clientEmpty}>No active clients — the waiting room has {availableClients.length || 'no'} candidate{availableClients.length === 1 ? '' : 's'}.</Text>
+                  ) : (
+                    triage.map(({ cl, level, note }) => (
+                      <View key={cl.id} style={styles.clientRow}>
+                        <View style={[styles.dot, { backgroundColor: dotColor(level) }]} />
+                        <Text style={styles.clientName} numberOfLines={1}>{cl.name}</Text>
+                        <Text style={[styles.clientNote, level >= 2 && { color: c.danger }, level === 1 && { color: c.warning }]} numberOfLines={1}>
+                          {note}
+                        </Text>
                       </View>
-                      <Text style={styles.deskDecor}>☕</Text>
-                      <Text style={styles.deskDecor}>🪴</Text>
-                      <Text style={styles.deskDecor}>🗄</Text>
+                    ))
+                  )}
+                  {availableClients.length > 0 && (
+                    <View style={styles.clientRow}>
+                      <View style={[styles.dot, { backgroundColor: c.gold }]} />
+                      <Text style={[styles.clientNote, { color: c.gold, flex: 1 }]} numberOfLines={1}>
+                        ⭐ {availableClients.length} new client{availableClients.length === 1 ? '' : 's'} in the waiting room
+                      </Text>
+                    </View>
+                  )}
+                </Pressable>
+
+                {/* STOCK TERMINAL — market snapshot */}
+                <Pressable onPress={() => toggleTerminal(true)} style={({ pressed }) => [styles.panel, pressed && styles.panelPressed]}>
+                  <View style={styles.panelHead}>
+                    <Text style={styles.panelIcon}>📈</Text>
+                    <Text style={styles.panelTitle}>STOCK TERMINAL</Text>
+                    <View style={styles.snapRegime}>
+                      <Text style={styles.snapRegimeText}>{REGIME_LABEL[state.regime]}</Text>
                     </View>
                   </View>
+                  {g || l ? (
+                    <View style={styles.snapGrid}>
+                      <View style={styles.snapCell}>
+                        <Text style={styles.snapLabel}>TOP GAINER</Text>
+                        <Text style={[styles.snapValue, { color: c.success }]}>{g ? `${g.ticker} +${(g.pct * 100).toFixed(1)}%` : '—'}</Text>
+                      </View>
+                      <View style={styles.snapCell}>
+                        <Text style={styles.snapLabel}>TOP LOSER</Text>
+                        <Text style={[styles.snapValue, { color: c.danger }]}>{l ? `${l.ticker} ${(l.pct * 100).toFixed(1)}%` : '—'}</Text>
+                      </View>
+                      <View style={styles.snapCell}>
+                        <Text style={styles.snapLabel}>UP / DOWN</Text>
+                        <Text style={styles.snapValue}>
+                          <Text style={{ color: c.success }}>▲{ups}</Text>  <Text style={{ color: c.danger }}>▼{downs}</Text>
+                        </Text>
+                      </View>
+                    </View>
+                  ) : (
+                    <Text style={styles.clientEmpty}>{STOCKS.length} stocks listed — first tape prints at week-end.</Text>
+                  )}
+                </Pressable>
 
-                  <View style={styles.firmPanel}>
-                    <Text style={styles.deptTitle}>▪ FIRM STATUS</Text>
-                    <FirmRow label="Cash" value={formatMoney(Math.round(advisorBalance))} />
-                    <FirmRow label="Clients" value={`${activeClients.length} / ${maxClients}`} />
-                    <FirmRow
-                      label="Weekly P/L"
-                      value={weeklyProfit === 0 ? '—' : `${weeklyProfit > 0 ? '+' : '-'}${formatMoney(Math.abs(Math.round(weeklyProfit)))}`}
-                      color={weeklyProfit > 0 ? c.success : weeklyProfit < 0 ? c.danger : undefined}
-                    />
-                    <FirmRow label="Reputation" value={`${Math.round(state.reputation)}/100`} />
-                    <FirmRow label="Rank" value={rank} />
-                    <FirmRow label="Market" value={REGIME_LABEL[state.regime]} />
+                {/* MARKET NEWS — the lead headline */}
+                <Pressable onPress={() => toggleNews(true)} style={({ pressed }) => [styles.panel, pressed && styles.panelPressed]}>
+                  <View style={styles.panelHead}>
+                    <Text style={styles.panelIcon}>📰</Text>
+                    <Text style={styles.panelTitle}>MARKET NEWS</Text>
+                    <Text style={styles.panelHint}>{visibleNews.length > 0 ? `${visibleNews.length} STOR${visibleNews.length === 1 ? 'Y' : 'IES'} ›` : ''}</Text>
                   </View>
+                  {lead ? (
+                    <View style={styles.newsRow}>
+                      {lead.impactLevel === 'major' && (
+                        <View style={styles.breakingTag}><Text style={styles.breakingText}>BREAKING</Text></View>
+                      )}
+                      <Text style={styles.newsHeadline} numberOfLines={2}>■ {lead.headline}</Text>
+                    </View>
+                  ) : (
+                    <Text style={styles.clientEmpty}>Quiet markets — no stories this week.</Text>
+                  )}
+                </Pressable>
+
+                {/* Utility row: Telephone + Shop */}
+                <View style={styles.utilRow}>
+                  <UtilityCard
+                    icon="☎"
+                    title="TELEPHONE"
+                    stat={
+                      state.unreadMessageCount > 0
+                        ? `✉ ${state.unreadMessageCount} UNREAD`
+                        : pendingCalls > 0
+                          ? `☎ ${pendingCalls} NEED ACTION`
+                          : 'NO NEW CALLS'
+                    }
+                    statColor={state.unreadMessageCount > 0 || pendingCalls > 0 ? c.gold : c.muted}
+                    badge={state.unreadMessageCount}
+                    onPress={() => togglePhone(true)}
+                  />
+                  <UtilityCard
+                    icon="🛒"
+                    title="SHOP"
+                    stat={
+                      upgradesLeft.length === 0
+                        ? 'FULLY UPGRADED'
+                        : affordable > 0
+                          ? `${affordable} AFFORDABLE`
+                          : `NEXT: ${upgradesLeft[0].name.toUpperCase()}`
+                    }
+                    statColor={affordable > 0 ? c.success : c.muted}
+                    onPress={() => toggleShop(true)}
+                  />
+                </View>
+
+                {/* FIRM STATUS — the CEO dashboard */}
+                <View style={styles.panelStatic}>
+                  <Text style={styles.deptTitle}>▪ FIRM STATUS</Text>
+                  <View style={styles.firmGrid}>
+                    <View style={styles.firmCol}>
+                      <FirmRow label="Cash" value={formatMoney(Math.round(advisorBalance))} />
+                      <FirmRow label="AUM" value={formatMoney(Math.round(aum))} />
+                      <FirmRow label="Clients" value={`${activeClients.length} / ${maxClients}`} />
+                      <FirmRow
+                        label="Wkly P/L"
+                        value={weeklyProfit === 0 ? '—' : `${weeklyProfit > 0 ? '+' : '-'}${formatMoney(Math.abs(Math.round(weeklyProfit)))}`}
+                        color={weeklyProfit > 0 ? c.success : weeklyProfit < 0 ? c.danger : undefined}
+                      />
+                    </View>
+                    <View style={styles.firmCol}>
+                      <FirmRow label="Reputation" value={`${Math.round(state.reputation)}/100`} />
+                      <FirmRow label="Rank" value={rank} />
+                      <FirmRow label="Market" value={REGIME_LABEL[state.regime]} />
+                      <FirmRow label="Week" value={`${week} · Q${quarter} Y${fiscalYear}`} />
+                    </View>
+                  </View>
+                  {shortGoal && <FirmRow label="Goal" value={shortGoal} color={c.gold} />}
+                </View>
+
+                {/* Desk clutter: decorative only */}
+                <View style={styles.deskClutter}>
+                  <View style={styles.deskChip}>
+                    <Text style={styles.deskChipText}>📅 WK {week}</Text>
+                  </View>
+                  <Text style={styles.deskDecor}>☕</Text>
+                  <Text style={styles.deskDecor}>🪴</Text>
+                  <Text style={styles.deskDecor}>🗄</Text>
                 </View>
               </>
             );
@@ -332,55 +457,31 @@ export default function WeekScreen() {
   );
 }
 
-// A workstation module: framed shortcut card with icon, blurb and one live
-// readout. `big` = flagship apps (Client Book, Terminal); `small` = utility
-// row (Shop).
-function AppCard({
+// Compact utility module: icon + title + one live readout (Telephone, Shop).
+function UtilityCard({
   icon,
   title,
-  desc,
   stat,
-  stat2,
   statColor,
-  warn,
   badge,
-  big = false,
-  small = false,
   onPress,
 }: {
   icon: string;
   title: string;
-  desc: string;
   stat: string;
-  stat2?: string;
   statColor?: string;
-  warn?: string;
   badge?: number;
-  big?: boolean;
-  small?: boolean;
   onPress: () => void;
 }) {
   const styles = useStyles();
   const { c } = useTheme();
-  if (small) {
-    return (
-      <Pressable onPress={onPress} style={({ pressed }) => [styles.cardSmall, pressed && styles.cardPressed]}>
-        <Text style={styles.cardIconSmall}>{icon}</Text>
-        <View style={styles.cardSmallBody}>
-          <Text style={styles.cardTitle}>{title}</Text>
-          <Text style={[styles.cardStat, { color: statColor ?? c.gold }]} numberOfLines={1}>{stat}</Text>
-        </View>
-      </Pressable>
-    );
-  }
   return (
-    <Pressable onPress={onPress} style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}>
-      <Text style={big ? styles.cardIconBig : styles.cardIcon}>{icon}</Text>
-      <Text style={styles.cardTitle} numberOfLines={1}>{title}</Text>
-      <Text style={styles.cardDesc} numberOfLines={2}>{desc}</Text>
-      <Text style={[styles.cardStat, { color: statColor ?? c.gold }]} numberOfLines={1}>{stat}</Text>
-      {stat2 ? <Text style={[styles.cardStat, { color: statColor ?? c.gold, marginTop: 2 }]} numberOfLines={1}>{stat2}</Text> : null}
-      {warn ? <Text style={styles.cardWarn} numberOfLines={1}>{warn}</Text> : null}
+    <Pressable onPress={onPress} style={({ pressed }) => [styles.cardSmall, pressed && styles.panelPressed]}>
+      <Text style={styles.cardIconSmall}>{icon}</Text>
+      <View style={styles.cardSmallBody}>
+        <Text style={styles.cardTitle}>{title}</Text>
+        <Text style={[styles.cardStat, { color: statColor ?? c.gold }]} numberOfLines={1}>{stat}</Text>
+      </View>
       {badge ? (
         <View style={styles.cardBadge} pointerEvents="none">
           <Text style={styles.cardBadgeText}>{badge}</Text>
@@ -426,40 +527,67 @@ const useStyles = makeUseStyles((c: Palette) =>
   alertText: { fontFamily: FONT_PIXEL, color: c.gold, fontSize: 10, fontWeight: '800', letterSpacing: 0.5 },
   alertDot: { width: 8, height: 8, backgroundColor: c.danger, marginLeft: 8 },
 
-  // Desktop surface: department panels + workstation cards
+  // Desktop surface: the operations dashboard
   desktop: { flex: 1 },
   desktopContent: { padding: 10, paddingBottom: 6, flexGrow: 1 },
-  deptRow: { flexDirection: 'row' },
-  dept: { flex: 1, borderWidth: 2, borderColor: c.border, backgroundColor: c.panelDark, padding: 9, marginHorizontal: 3, marginBottom: 8 },
   deptTitle: { fontFamily: FONT_PIXEL, color: c.muted, fontSize: 9, fontWeight: '900', letterSpacing: 1, marginBottom: 6 },
 
-  card: { backgroundColor: c.panel, borderWidth: 2, borderColor: c.border, paddingVertical: 14, paddingHorizontal: 10, marginBottom: 9, alignItems: 'center' },
-  cardPressed: { borderColor: c.gold, transform: [{ translateY: 1 }] },
-  cardIconBig: { fontSize: 50, lineHeight: 58 },
-  cardIcon: { fontSize: 38, lineHeight: 44 },
-  cardTitle: { fontFamily: FONT_PIXEL, color: c.text, fontSize: 11, fontWeight: '900', letterSpacing: 0.5, marginTop: 7, textAlign: 'center' },
-  cardDesc: { color: c.muted, fontSize: 10, lineHeight: 14, textAlign: 'center', marginTop: 4, minHeight: 28 },
-  cardStat: { fontFamily: FONT_PIXEL, fontSize: 9, fontWeight: '900', letterSpacing: 0.3, marginTop: 7, textAlign: 'center' },
-  cardWarn: { fontFamily: FONT_PIXEL, color: c.danger, fontSize: 7, fontWeight: '900', marginTop: 3 },
-  cardBadge: { position: 'absolute', top: 5, right: 5, minWidth: 18, height: 18, paddingHorizontal: 3, backgroundColor: c.danger, borderWidth: 2, borderColor: c.border, alignItems: 'center', justifyContent: 'center' },
+  // Interactive application panels
+  panel: { backgroundColor: c.panel, borderWidth: 2, borderColor: c.border, padding: 10, marginBottom: 8 },
+  panelPressed: { borderColor: c.gold, transform: [{ translateY: 1 }] },
+  panelStatic: { backgroundColor: c.panelDark, borderWidth: 2, borderColor: c.border, padding: 10, marginBottom: 8 },
+  panelHead: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
+  panelIcon: { fontSize: 20, marginRight: 8 },
+  panelTitle: { fontFamily: FONT_PIXEL, color: c.text, fontSize: 12, fontWeight: '900', letterSpacing: 0.5, flex: 1 },
+  panelHint: { fontFamily: FONT_PIXEL, color: c.muted, fontSize: 8, fontWeight: '900', letterSpacing: 0.5 },
+
+  // THIS WEEK checklist
+  priorityLine: { fontFamily: FONT_PIXEL, color: c.textDim, fontSize: 10, fontWeight: '800', lineHeight: 17 },
+
+  // Client triage rows
+  clientRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 5, borderTopWidth: 1, borderTopColor: c.divider },
+  dot: { width: 8, height: 8, marginRight: 8 },
+  clientName: { fontFamily: FONT_PIXEL, color: c.text, fontSize: 11, fontWeight: '900', width: 86 },
+  clientNote: { fontFamily: FONT_PIXEL, color: c.muted, fontSize: 9, fontWeight: '800', flex: 1 },
+  clientEmpty: { color: c.muted, fontSize: 11, fontStyle: 'italic' },
+
+  // Market snapshot grid
+  snapRegime: { borderWidth: 2, borderColor: c.gold, paddingHorizontal: 6, paddingVertical: 2, backgroundColor: c.panelDark },
+  snapRegimeText: { fontFamily: FONT_PIXEL, color: c.gold, fontSize: 8, fontWeight: '900' },
+  snapGrid: { flexDirection: 'row' },
+  snapCell: { flex: 1, borderWidth: 1, borderColor: c.divider, backgroundColor: c.panelDark, paddingVertical: 6, paddingHorizontal: 6, marginRight: 4 },
+  snapLabel: { fontFamily: FONT_PIXEL, color: c.muted, fontSize: 7, fontWeight: '900', letterSpacing: 0.5 },
+  snapValue: { fontFamily: FONT_PIXEL, color: c.text, fontSize: 10, fontWeight: '900', marginTop: 3 },
+
+  // News lead headline
+  newsRow: {},
+  breakingTag: { alignSelf: 'flex-start', backgroundColor: c.danger, paddingHorizontal: 5, paddingVertical: 2, marginBottom: 5 },
+  breakingText: { fontFamily: FONT_PIXEL, color: c.white, fontSize: 8, fontWeight: '900', letterSpacing: 1 },
+  newsHeadline: { fontFamily: FONT_PIXEL, color: c.text, fontSize: 11, fontWeight: '800', lineHeight: 16 },
+
+  // Utility cards (Telephone / Shop)
+  utilRow: { flexDirection: 'row', marginBottom: 8 },
+  cardSmall: { flex: 1, flexDirection: 'row', alignItems: 'center', backgroundColor: c.panel, borderWidth: 2, borderColor: c.border, padding: 10, marginHorizontal: 2 },
+  cardIconSmall: { fontSize: 22, marginRight: 8 },
+  cardSmallBody: { flex: 1 },
+  cardTitle: { fontFamily: FONT_PIXEL, color: c.text, fontSize: 10, fontWeight: '900', letterSpacing: 0.5 },
+  cardStat: { fontFamily: FONT_PIXEL, fontSize: 8, fontWeight: '900', letterSpacing: 0.3, marginTop: 3 },
+  cardBadge: { position: 'absolute', top: 4, right: 4, minWidth: 18, height: 18, paddingHorizontal: 3, backgroundColor: c.danger, borderWidth: 2, borderColor: c.border, alignItems: 'center', justifyContent: 'center' },
   cardBadgeText: { fontFamily: FONT_PIXEL, color: c.white, fontSize: 10, fontWeight: '900' },
 
-  cardSmall: { flexDirection: 'row', alignItems: 'center', backgroundColor: c.panel, borderWidth: 2, borderColor: c.border, padding: 11 },
-  cardIconSmall: { fontSize: 24, marginRight: 8 },
-  cardSmallBody: { flex: 1 },
+  // Firm status grid
+  firmGrid: { flexDirection: 'row' },
+  firmCol: { flex: 1, marginRight: 8 },
+  firmRow: { flexDirection: 'row', alignItems: 'flex-end', paddingVertical: 3.5 },
+  firmLabel: { fontFamily: FONT_PIXEL, color: c.textDim, fontSize: 9, fontWeight: '800' },
+  firmDots: { flex: 1, borderBottomWidth: 1, borderBottomColor: c.divider, borderStyle: 'dotted' as any, marginHorizontal: 4, marginBottom: 3 },
+  firmValue: { fontFamily: FONT_PIXEL, color: c.gold, fontSize: 9, fontWeight: '900', maxWidth: '62%' },
 
-  officeRow: { flexDirection: 'row', alignItems: 'stretch' },
-  officeCol: { flex: 1, borderWidth: 2, borderColor: c.border, backgroundColor: c.panelDark, padding: 8, marginHorizontal: 3 },
-  deskClutter: { flexDirection: 'row', alignItems: 'center', marginTop: 12 },
+  // Desk clutter
+  deskClutter: { flexDirection: 'row', alignItems: 'center', marginTop: 2, marginBottom: 4 },
   deskChip: { borderWidth: 2, borderColor: c.border, backgroundColor: c.panel, paddingHorizontal: 6, paddingVertical: 3, marginRight: 8 },
   deskChipText: { fontFamily: FONT_PIXEL, color: c.textDim, fontSize: 8, fontWeight: '900' },
   deskDecor: { fontSize: 17, marginRight: 9, opacity: 0.85 },
-
-  firmPanel: { flex: 1.15, borderWidth: 2, borderColor: c.border, backgroundColor: c.panelDark, padding: 8, marginHorizontal: 3 },
-  firmRow: { flexDirection: 'row', alignItems: 'flex-end', paddingVertical: 4.5 },
-  firmLabel: { fontFamily: FONT_PIXEL, color: c.textDim, fontSize: 10, fontWeight: '800' },
-  firmDots: { flex: 1, borderBottomWidth: 1, borderBottomColor: c.divider, borderStyle: 'dotted' as any, marginHorizontal: 4, marginBottom: 3 },
-  firmValue: { fontFamily: FONT_PIXEL, color: c.gold, fontSize: 10, fontWeight: '900', maxWidth: '55%' },
 
   // Office shelf (milestones + trophies)
   shelf: { marginTop: 6, marginBottom: 4 },
