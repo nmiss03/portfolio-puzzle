@@ -31,7 +31,7 @@ export default function ClientBook() {
 
   if (detailClient) {
     return (
-      <PixelWindow title={detailClient.name} icon="👤" onClose={closeDetail}>
+      <PixelWindow title={detailClient.name} icon="👤" onClose={closeDetail} maxWidth={1100}>
         <ClientDetail client={detailClient} onClose={closeDetail} />
       </PixelWindow>
     );
@@ -39,7 +39,7 @@ export default function ClientBook() {
 
   return (
     <>
-      <PixelWindow title="Client Book" icon="📖" onClose={() => toggleBook(false)}>
+      <PixelWindow title="Client Book" icon="📖" onClose={() => toggleBook(false)} maxWidth={1100}>
         <ScrollView contentContainerStyle={styles.list}>
           <Text style={styles.section}>ACTIVE CONTRACTS · {activeClients.length}/{maxClients}</Text>
           {activeClients.length === 0 && <Text style={styles.emptyNote}>No active clients. Sign one below.</Text>}
@@ -106,7 +106,7 @@ function ActiveRow({ client, onPress }: { client: RuntimeClient; onPress: () => 
   const hasHistory = client.performanceHistory.length > 0;
   const stage = STAGE_LABEL[relationshipStage(client.relationship)];
   return (
-    <Pressable style={({ pressed }) => [styles.row, pressed && styles.rowPressed]} onPress={onPress}>
+    <Pressable style={(st: any) => [styles.row, st.hovered && styles.rowHovered, st.pressed && styles.rowPressed]} onPress={onPress}>
       <PixelCharacter seed={client.id} cell={5} mood={moodFor(client.happiness)} />
       <View style={styles.rowMid}>
         <Text style={styles.rowName} numberOfLines={1}>
@@ -183,6 +183,7 @@ const useStyles = makeUseStyles((c: Palette) =>
 
   // Compact roster rows
   row: { flexDirection: 'row', alignItems: 'center', backgroundColor: c.panel, borderWidth: 2, borderColor: c.border, padding: 8, marginBottom: 6 },
+  rowHovered: { borderColor: c.goldDim },
   rowPressed: { borderColor: c.gold, transform: [{ translateY: 1 }] },
   rowMid: { flex: 1, marginLeft: 10 },
   rowName: { fontFamily: FONT_PIXEL, color: c.text, fontSize: 13, fontWeight: '900' },

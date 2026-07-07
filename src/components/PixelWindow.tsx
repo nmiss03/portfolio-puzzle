@@ -16,17 +16,19 @@ export default function PixelWindow({
   onClose,
   children,
   height = '88%',
+  maxWidth = 560,
 }: {
   title: string;
   icon?: string;
   onClose: () => void;
   children: React.ReactNode;
   height?: number | `${number}%`;
+  maxWidth?: number; // desktop windows pass wider caps (Client Book ~1100)
 }) {
   const styles = useStyles();
   return (
     <View style={styles.backdrop}>
-      <View style={[styles.windowWrap, { height }]}>
+      <View style={[styles.windowWrap, { height, maxWidth }]}>
         <View style={styles.shadow} pointerEvents="none" />
         <View style={styles.frame}>
           <View style={styles.titleBar}>
@@ -37,7 +39,7 @@ export default function PixelWindow({
             <Pressable
               onPress={onClose}
               hitSlop={10}
-              style={({ pressed }) => [styles.closeBtn, pressed && styles.closePressed]}
+              style={(s: any) => [styles.closeBtn, s.hovered && styles.closeHovered, s.pressed && styles.closePressed]}
             >
               <Text style={styles.closeText}>✕</Text>
             </Pressable>
@@ -59,7 +61,7 @@ const useStyles = makeUseStyles((c: Palette) =>
       padding: 10,
       zIndex: 40,
     },
-    windowWrap: { width: '96%', maxWidth: 560 },
+    windowWrap: { width: '96%' },
     shadow: {
       position: 'absolute',
       top: 7,
@@ -97,6 +99,7 @@ const useStyles = makeUseStyles((c: Palette) =>
       alignItems: 'center',
       justifyContent: 'center',
     },
+    closeHovered: { borderColor: c.gold },
     closePressed: { transform: [{ translateY: 1 }], backgroundColor: c.panelLite },
     closeText: { fontFamily: FONT_PIXEL, color: c.gold, fontSize: 13, fontWeight: '900', lineHeight: 15 },
     // Recessed interior: dark bevel top/left, light bevel bottom/right.

@@ -9,6 +9,7 @@ import MixBar from '../components/MixBar';
 import STOCKS from '../data/stocks';
 import { RuntimeClient, avgCost, riskPreferenceLabel } from '../data/gameState';
 import { useGame } from '../state/GameContext';
+import { useIsWide } from '../utils/layout';
 import { formatMoney, formatPrice } from '../utils/format';
 import { FONT_PIXEL, BORDER_W, Palette } from '../theme';
 import { makeUseStyles, useTheme } from '../contexts/ThemeContext';
@@ -25,6 +26,7 @@ export default function ClientDetail({ client, onClose }: { client: RuntimeClien
   const styles = useStyles();
   const { c } = useTheme();
   const [editing, setEditing] = useState(false);
+  const isWide = useIsWide();
   const hasHistory = client.performanceHistory.length > 0;
   const ownedStocks = STOCKS.filter((s) => (client.holdings[s.id]?.shares || 0) > 0);
 
@@ -46,6 +48,9 @@ export default function ClientDetail({ client, onClose }: { client: RuntimeClien
         </>
       ) : (
         <ScrollView contentContainerStyle={{ padding: 16 }}>
+          {/* Desktop: dossier splits into profile (left) and money (right). */}
+          <View style={isWide ? styles.cols : undefined}>
+          <View style={isWide ? styles.colL : undefined}>
           {/* CLIENT PROFILE */}
           <View style={styles.detailTop}>
             <PixelCharacter seed={client.id} cell={6} mood={moodFor(client.happiness)} />
@@ -72,6 +77,8 @@ export default function ClientDetail({ client, onClose }: { client: RuntimeClien
               <Text style={styles.dreamBlurb}>"{client.dream.blurb}" — {formatMoney(client.dream.target)}</Text>
             </View>
           )}
+          </View>
+          <View style={isWide ? styles.colR : undefined}>
 
           {/* PORTFOLIO SUMMARY */}
           <View style={styles.portCard}>
@@ -122,6 +129,8 @@ export default function ClientDetail({ client, onClose }: { client: RuntimeClien
               </View>
             )}
           </View>
+          </View>
+          </View>
 
           {/* HOLDINGS TABLE */}
           <Text style={styles.sectionLabel}>Holdings</Text>
@@ -167,6 +176,9 @@ export default function ClientDetail({ client, onClose }: { client: RuntimeClien
 const useStyles = makeUseStyles((c: Palette) =>
   StyleSheet.create({
   panel: { flex: 1, backgroundColor: c.bg, overflow: 'hidden' },
+  cols: { flexDirection: 'row', alignItems: 'flex-start' },
+  colL: { flex: 1, marginRight: 16 },
+  colR: { flex: 1 },
   backStrip: { backgroundColor: c.button, borderBottomWidth: BORDER_W, borderBottomColor: c.border, paddingVertical: 9, paddingHorizontal: 12, alignItems: 'center' },
   backText: { fontFamily: FONT_PIXEL, color: c.ink, fontSize: 10, fontWeight: '900', letterSpacing: 0.5 },
   detailTop: { flexDirection: 'row', alignItems: 'center' },

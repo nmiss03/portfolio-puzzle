@@ -9,6 +9,7 @@ import { View, Text, Pressable, ScrollView, StyleSheet } from 'react-native';
 import PixelWindow from '../components/PixelWindow';
 import STOCKS, { Sector, SECTORS } from '../data/stocks';
 import { useGame } from '../state/GameContext';
+import { useIsWide } from '../utils/layout';
 import { formatPrice } from '../utils/format';
 import { FONT_PIXEL, BORDER_W, Palette } from '../theme';
 import { makeUseStyles, useTheme } from '../contexts/ThemeContext';
@@ -21,6 +22,7 @@ export default function StockTerminal() {
   const { c } = useTheme();
   const [selectedId, setSelectedId] = useState(STOCKS[0].id);
   const [filter, setFilter] = useState<Filter>('All');
+  const isWide = useIsWide();
 
   const stocks = useMemo(() => (filter === 'All' ? STOCKS : STOCKS.filter((s) => s.sector === filter)), [filter]);
   const stock = STOCKS.find((s) => s.id === selectedId) ?? STOCKS[0];
@@ -43,7 +45,7 @@ export default function StockTerminal() {
   const move = lastMove(stock.id);
 
   return (
-    <PixelWindow title="Stock Terminal" icon="📈" onClose={() => toggleTerminal(false)}>
+    <PixelWindow title="Stock Terminal" icon="📈" onClose={() => toggleTerminal(false)} maxWidth={1100}>
       {/* Sector filter strip */}
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterStrip} contentContainerStyle={styles.filterContent}>
         {(['All', ...SECTORS] as Filter[]).map((f) => (
@@ -53,8 +55,9 @@ export default function StockTerminal() {
         ))}
       </ScrollView>
 
-      {/* Ticker board */}
-      <View style={styles.board}>
+      {/* Desktop: ticker board and profile sit side by side; narrow stacks. */}
+      <View style={[styles.split, isWide && styles.splitWide]}>
+      <View style={[styles.board, isWide && styles.boardWide]}>
         <ScrollView>
           {stocks.map((s) => {
             const m = lastMove(s.id);
@@ -64,7 +67,7 @@ export default function StockTerminal() {
               <Pressable
                 key={s.id}
                 onPress={() => setSelectedId(s.id)}
-                style={({ pressed }) => [styles.row, active && styles.rowActive, pressed && !active && styles.rowPressed]}
+                style={(st: any) => [styles.row, active && styles.rowActive, st.hovered && !active && styles.rowPressed, st.pressed && !active && styles.rowPressed]}
               >
                 <View style={[styles.sectorPip, { backgroundColor: s.sectorColor }]} />
                 <Text style={[styles.rowTicker, active && { color: c.ink }]}>{s.ticker}</Text>
@@ -121,6 +124,7 @@ export default function StockTerminal() {
         )}
         <Text style={styles.footNote}>Analysis only — trade from a client's account in the Client Book.</Text>
       </ScrollView>
+      </View>
     </PixelWindow>
   );
 }
@@ -144,7 +148,10 @@ const useStyles = makeUseStyles((c: Palette) =>
     filterText: { fontFamily: FONT_PIXEL, color: c.textDim, fontSize: 9, fontWeight: '800', letterSpacing: 0.5 },
     filterTextActive: { color: c.ink },
 
+    split: { flex: 1 },
+    splitWide: { flexDirection: 'row' },
     board: { height: '38%', borderBottomWidth: BORDER_W, borderBottomColor: c.border, backgroundColor: c.panelDark },
+    boardWide: { height: '100%', width: 380, borderBottomWidth: 0, borderRightWidth: BORDER_W, borderRightColor: c.border },
     row: { flexDirection: 'row', alignItems: 'center', paddingVertical: 7, paddingHorizontal: 8, borderBottomWidth: 1, borderBottomColor: c.divider },
     rowActive: { backgroundColor: c.button },
     rowPressed: { backgroundColor: c.panelLite },

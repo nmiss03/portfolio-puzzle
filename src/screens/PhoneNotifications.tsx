@@ -27,7 +27,7 @@ export default function PhoneNotifications() {
   if (!state.phoneOpen) return null;
 
   return (
-    <PixelWindow title="Telephone" icon="☎" onClose={() => togglePhone(false)}>
+    <PixelWindow title="Telephone" icon="☎" onClose={() => togglePhone(false)} maxWidth={780}>
       {sorted.length === 0 ? (
         <View style={styles.empty}>
           <Text style={styles.emptyTitle}>No messages yet.</Text>

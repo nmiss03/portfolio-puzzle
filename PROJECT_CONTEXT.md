@@ -287,7 +287,13 @@ constraint repeated across the project's history ("no external libraries").
 1. **Week intro** — a "WEEK N" splash.
 2. **(Optional) client intro** — if you just signed someone, read their dialogue.
 3. **Builder / desktop** — the main screen: one persistent retro workstation
-   (`WeekScreen`). Top HUD (week/quarter/year, office rank, regime, goal, rep meter);
+   (`WeekScreen`). **Desktop-first browser sim:** at ≥1000px (`useIsWide`,
+   `src/utils/layout.ts`) the desk becomes a full 3-column operations grid
+   (Client Center | Market Terminal | Firm Status, then Telephone | News Desk |
+   Quick Actions) with a single-strip HUD; below the breakpoint it falls back to
+   the stacked layout. App windows take wider caps on desktop (Client Book 1100,
+   Terminal 1100 w/ side-by-side ticker board + profile, News 900); ClientDetail
+   splits into a two-column dossier. Top HUD (week/quarter/year, office rank, regime, goal, rep meter);
    desktop icon grid; office shelf (milestone frames + dream trophies); bottom status
    bar (CASH · CLIENTS · WKLY P/L · **NEXT WEEK**). Every application opens as a
    floating **`PixelWindow`** (title bar + ✕ + pixel shadow + recessed bevel) over the

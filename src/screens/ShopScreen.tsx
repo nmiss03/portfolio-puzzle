@@ -30,7 +30,7 @@ export default function ShopScreen() {
   if (!state.shopOpen) return null;
 
   return (
-    <PixelWindow title="Shop & Ledger" icon="🛒" onClose={() => toggleShop(false)}>
+    <PixelWindow title="Shop & Ledger" icon="🛒" onClose={() => toggleShop(false)} maxWidth={900}>
       <View style={styles.balanceStrip}>
         <Text style={styles.balanceLabel}>FIRM BALANCE</Text>
         <Text style={styles.balanceValue}>{formatMoney(Math.round(state.advisorBalance))}</Text>

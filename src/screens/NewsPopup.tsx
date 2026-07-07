@@ -35,7 +35,7 @@ export default function NewsPopup() {
   if (!state.newsOpen) return null;
 
   return (
-    <PixelWindow title="Market News" icon="📰" onClose={() => toggleNews(false)}>
+    <PixelWindow title="Market News" icon="📰" onClose={() => toggleNews(false)} maxWidth={900}>
       {hasTerminal && (
         <View style={styles.weekTabs}>
           {(['this', 'next'] as WeekTab[]).map((t) => (

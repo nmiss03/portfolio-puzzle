@@ -4,7 +4,7 @@
     "slug": "portfolio-puzzle",
     "scheme": "portfoliopuzzle",
     "version": "1.0.0",
-    "orientation": "portrait",
+    "orientation": "default",
     "userInterfaceStyle": "automatic",
     "backgroundColor": "#1a1a1a",
     "splash": {

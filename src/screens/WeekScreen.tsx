@@ -15,9 +15,12 @@ import SettingsMenu from './SettingsMenu';
 import ShopScreen from './ShopScreen';
 import StockTerminal from './StockTerminal';
 import ReputationBar from '../components/ReputationBar';
+import PixelCharacter, { moodFor } from '../components/PixelCharacter';
 import { useGame } from '../state/GameContext';
 import STOCKS from '../data/stocks';
+import { ACHIEVEMENTS } from '../data/achievements';
 import { RuntimeClient } from '../data/gameState';
+import { useIsWide } from '../utils/layout';
 import { REGIME_LABEL } from '../data/economicCycles';
 import { SHOP_ITEMS } from '../data/advisorEconomy';
 import { careerTitle } from '../data/careerRecords';
@@ -70,6 +73,7 @@ export default function WeekScreen() {
   const { c } = useTheme();
   const [alertSeen, setAlertSeen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const isWide = useIsWide();
 
   // The title screen starts/continues the game. If we somehow land here without
   // a game in progress, go back to the title rather than auto-starting a
@@ -124,28 +128,55 @@ export default function WeekScreen() {
     body = (
       <View style={styles.screen}>
         {/* ── TOP HUD ─────────────────────────────────────────────────── */}
-        <View style={[styles.topBar, { paddingTop: insets.top + 6 }]}>
-          <View style={styles.hudLeft}>
-            <Text style={styles.weekText}>WEEK {week}</Text>
-            <Text style={styles.dateText}>Q{quarter} · YR{fiscalYear}</Text>
+        {isWide ? (
+          // Desktop: everything on one command strip.
+          <View style={[styles.topBar, { paddingTop: insets.top + 6 }]}>
+            <View style={styles.hudLeft}>
+              <Text style={styles.weekText}>WEEK {week}</Text>
+              <Text style={styles.dateText}>Q{quarter} · YR{fiscalYear}</Text>
+              <Text style={styles.hudRank} numberOfLines={1}>
+                {rank.toUpperCase()} · {state.firmName ? `${state.firmName.toUpperCase()} INC` : 'THE FIRM'}
+              </Text>
+            </View>
+            {goalText && <Text style={[styles.goalText, styles.hudGoal]} numberOfLines={1}>◆ {goalText}</Text>}
+            <View style={styles.hudRight}>
+              <View style={styles.regimeChip}>
+                <Text style={styles.regimeChipText}>{REGIME_LABEL[state.regime]}</Text>
+              </View>
+              <View style={{ marginLeft: 10 }}>
+                <ReputationBar reputation={state.reputation} />
+              </View>
+              <Pressable onPress={() => setSettingsOpen(true)} style={styles.gearBtn} hitSlop={8}>
+                <Text style={styles.gearText}>⚙</Text>
+              </Pressable>
+            </View>
           </View>
-          <View style={styles.hudRight}>
-            <ReputationBar reputation={state.reputation} />
-            <Pressable onPress={() => setSettingsOpen(true)} style={styles.gearBtn} hitSlop={8}>
-              <Text style={styles.gearText}>⚙</Text>
-            </Pressable>
-          </View>
-        </View>
-        <View style={styles.rankBar}>
-          <Text style={styles.rankText} numberOfLines={1}>{rank.toUpperCase()} · {state.firmName ? `${state.firmName.toUpperCase()} INC` : 'THE FIRM'}</Text>
-          <View style={styles.regimeChip}>
-            <Text style={styles.regimeChipText}>{REGIME_LABEL[state.regime]}</Text>
-          </View>
-        </View>
-        {goalText && (
-          <View style={styles.goalBar}>
-            <Text style={styles.goalText} numberOfLines={1}>◆ {goalText}</Text>
-          </View>
+        ) : (
+          <>
+            <View style={[styles.topBar, { paddingTop: insets.top + 6 }]}>
+              <View style={styles.hudLeft}>
+                <Text style={styles.weekText}>WEEK {week}</Text>
+                <Text style={styles.dateText}>Q{quarter} · YR{fiscalYear}</Text>
+              </View>
+              <View style={styles.hudRight}>
+                <ReputationBar reputation={state.reputation} />
+                <Pressable onPress={() => setSettingsOpen(true)} style={styles.gearBtn} hitSlop={8}>
+                  <Text style={styles.gearText}>⚙</Text>
+                </Pressable>
+              </View>
+            </View>
+            <View style={styles.rankBar}>
+              <Text style={styles.rankText} numberOfLines={1}>{rank.toUpperCase()} · {state.firmName ? `${state.firmName.toUpperCase()} INC` : 'THE FIRM'}</Text>
+              <View style={styles.regimeChip}>
+                <Text style={styles.regimeChipText}>{REGIME_LABEL[state.regime]}</Text>
+              </View>
+            </View>
+            {goalText && (
+              <View style={styles.goalBar}>
+                <Text style={styles.goalText} numberOfLines={1}>◆ {goalText}</Text>
+              </View>
+            )}
+          </>
         )}
 
         {/* Notification toast: new clients waiting */}
@@ -174,6 +205,7 @@ export default function WeekScreen() {
             let loser: { ticker: string; pct: number } | null = null;
             let ups = 0;
             let downs = 0;
+            const sectorMoves: Record<string, { sum: number; n: number }> = {};
             STOCKS.forEach((s) => {
               const hist = state.stockPriceHistory[s.id];
               if (!hist || hist.length === 0) return;
@@ -183,7 +215,14 @@ export default function WeekScreen() {
               else if (p < 0) downs++;
               if (p > 0 && (!gainer || p > gainer.pct)) gainer = { ticker: s.ticker, pct: p };
               if (p < 0 && (!loser || p < loser.pct)) loser = { ticker: s.ticker, pct: p };
+              const sm = (sectorMoves[s.sector] = sectorMoves[s.sector] || { sum: 0, n: 0 });
+              sm.sum += Math.abs(p);
+              sm.n += 1;
             });
+            // Most active sector: biggest average absolute move last week.
+            const activeSector = Object.entries(sectorMoves)
+              .map(([sector, v]) => ({ sector, avg: v.sum / v.n }))
+              .sort((a, b) => b.avg - a.avg)[0] ?? null;
             const g = gainer as { ticker: string; pct: number } | null;
             const l = loser as { ticker: string; pct: number } | null;
 
@@ -220,6 +259,208 @@ export default function WeekScreen() {
                 : null;
 
             const dotColor = (level: number) => (level >= 2 ? c.danger : level === 1 ? c.warning : c.success);
+
+            // ── DESKTOP-FIRST: 3-column operations grid on wide screens ──
+            if (isWide) {
+              const moreNews = visibleNews.filter((a) => a !== lead).slice(0, 3);
+              const latestMsgs = state.messages.slice(0, 2);
+              const moodGlyph = (h: number) => (moodFor(h) === 'happy' ? '😊' : moodFor(h) === 'neutral' ? '😐' : '☹️');
+              const earned = (state.achievements ?? []).length;
+              const pressable = (extra: object) => (s: any) => [styles.panel, extra, s.hovered && styles.panelHovered, s.pressed && styles.panelPressed];
+              return (
+                <>
+                  <View style={styles.gridRow}>
+                    {/* CLIENT CENTER — the heart of the dashboard */}
+                    <Pressable onPress={() => toggleBook(true)} style={pressable(styles.colClients)}>
+                      <View style={styles.panelHead}>
+                        <Text style={styles.panelIcon}>📖</Text>
+                        <Text style={styles.panelTitle}>CLIENT CENTER</Text>
+                        <Text style={styles.panelHint}>OPEN ›</Text>
+                      </View>
+                      {priorities.length > 0 && (
+                        <View style={styles.alertBox}>
+                          {priorities.slice(0, 3).map((p, i) => (
+                            <Text key={i} style={styles.priorityLine} numberOfLines={1}>▸ {p}</Text>
+                          ))}
+                        </View>
+                      )}
+                      {triage.length === 0 ? (
+                        <Text style={styles.clientEmpty}>No active clients — {availableClients.length || 'no'} candidate{availableClients.length === 1 ? '' : 's'} in the waiting room.</Text>
+                      ) : (
+                        triage.map(({ cl, level, note }) => {
+                          const value = cl.cash + Object.entries(cl.holdings).reduce((s, [id, h]) => s + h.shares * priceOf(id), 0);
+                          const wkPct = cl.lastWeekReturnPct;
+                          return (
+                            <View key={cl.id} style={styles.clientRowWide}>
+                              <View style={[styles.dot, { backgroundColor: dotColor(level) }]} />
+                              <PixelCharacter seed={cl.id} cell={3} mood={moodFor(cl.happiness)} />
+                              <View style={styles.cwName}>
+                                <Text style={styles.clientName} numberOfLines={1}>{cl.name}</Text>
+                                <Text style={styles.cwOcc} numberOfLines={1}>{cl.occupation}</Text>
+                              </View>
+                              <Text style={styles.cwValue}>{formatMoney(Math.round(value))}</Text>
+                              <Text style={[styles.cwPct, { color: wkPct == null ? c.muted : wkPct >= 0 ? c.success : c.danger }]}>
+                                {wkPct == null ? 'new' : `${wkPct >= 0 ? '+' : ''}${(wkPct * 100).toFixed(1)}%`}
+                              </Text>
+                              <Text style={styles.cwMood}>{moodGlyph(cl.happiness)} {Math.round(cl.happiness)}</Text>
+                              <Text style={styles.cwWeeks}>{cl.contractWeeksRemaining}wk</Text>
+                              <Text style={[styles.cwNote, level >= 2 && { color: c.danger }, level === 1 && { color: c.warning }]} numberOfLines={1}>
+                                {note}
+                              </Text>
+                            </View>
+                          );
+                        })
+                      )}
+                      {availableClients.length > 0 && (
+                        <Text style={[styles.cwWaiting]} numberOfLines={1}>⭐ {availableClients.length} new client{availableClients.length === 1 ? '' : 's'} in the waiting room</Text>
+                      )}
+                    </Pressable>
+
+                    {/* MARKET TERMINAL */}
+                    <Pressable onPress={() => toggleTerminal(true)} style={pressable(styles.colMarket)}>
+                      <View style={styles.panelHead}>
+                        <Text style={styles.panelIcon}>📈</Text>
+                        <Text style={styles.panelTitle}>MARKET TERMINAL</Text>
+                        <View style={styles.snapRegime}>
+                          <Text style={styles.snapRegimeText}>{REGIME_LABEL[state.regime]}</Text>
+                        </View>
+                      </View>
+                      {g || l ? (
+                        <>
+                          <View style={styles.snapGrid}>
+                            <View style={styles.snapCell}>
+                              <Text style={styles.snapLabel}>TOP GAINER</Text>
+                              <Text style={[styles.snapValue, { color: c.success }]}>{g ? `${g.ticker} +${(g.pct * 100).toFixed(1)}%` : '—'}</Text>
+                            </View>
+                            <View style={styles.snapCell}>
+                              <Text style={styles.snapLabel}>TOP LOSER</Text>
+                              <Text style={[styles.snapValue, { color: c.danger }]}>{l ? `${l.ticker} ${(l.pct * 100).toFixed(1)}%` : '—'}</Text>
+                            </View>
+                          </View>
+                          <View style={[styles.snapGrid, { marginTop: 4 }]}>
+                            <View style={styles.snapCell}>
+                              <Text style={styles.snapLabel}>UP / DOWN</Text>
+                              <Text style={styles.snapValue}>
+                                <Text style={{ color: c.success }}>▲{ups}</Text>  <Text style={{ color: c.danger }}>▼{downs}</Text>
+                              </Text>
+                            </View>
+                            <View style={styles.snapCell}>
+                              <Text style={styles.snapLabel}>ACTIVE SECTOR</Text>
+                              <Text style={styles.snapValue} numberOfLines={1}>{activeSector ? activeSector.sector : '—'}</Text>
+                            </View>
+                          </View>
+                        </>
+                      ) : (
+                        <Text style={styles.clientEmpty}>{STOCKS.length} stocks listed — first tape prints at week-end.</Text>
+                      )}
+                      {lead && (
+                        <>
+                          <Text style={styles.subHead}>TOP HEADLINES</Text>
+                          <Text style={styles.wireLine} numberOfLines={1}>■ {lead.headline}</Text>
+                          {moreNews.slice(0, 2).map((a) => (
+                            <Text key={a.id} style={styles.wireLine} numberOfLines={1}>■ {a.headline}</Text>
+                          ))}
+                        </>
+                      )}
+                    </Pressable>
+
+                    {/* FIRM STATUS */}
+                    <View style={[styles.panelStatic, styles.colFirm]}>
+                      <Text style={styles.deptTitle}>▪ FIRM STATUS</Text>
+                      <FirmRow label="Cash" value={formatMoney(Math.round(advisorBalance))} />
+                      <FirmRow label="AUM" value={formatMoney(Math.round(aum))} />
+                      <FirmRow label="Clients" value={`${activeClients.length} / ${maxClients}`} />
+                      <FirmRow label="Slots free" value={`${Math.max(0, maxClients - activeClients.length)}`} />
+                      <FirmRow
+                        label="Wkly P/L"
+                        value={weeklyProfit === 0 ? '—' : `${weeklyProfit > 0 ? '+' : '-'}${formatMoney(Math.abs(Math.round(weeklyProfit)))}`}
+                        color={weeklyProfit > 0 ? c.success : weeklyProfit < 0 ? c.danger : undefined}
+                      />
+                      <FirmRow label="Reputation" value={`${Math.round(state.reputation)}/100`} />
+                      <FirmRow label="Rank" value={rank} />
+                      <FirmRow label="Market" value={REGIME_LABEL[state.regime]} />
+                      <FirmRow label="Week" value={`${week} · Q${quarter} Y${fiscalYear}`} />
+                      {shortGoal && <FirmRow label="Goal" value={shortGoal} color={c.gold} />}
+                    </View>
+                  </View>
+
+                  <View style={styles.gridRow}>
+                    {/* TELEPHONE */}
+                    <Pressable onPress={() => togglePhone(true)} style={pressable(styles.colClients)}>
+                      <View style={styles.panelHead}>
+                        <Text style={styles.panelIcon}>☎</Text>
+                        <Text style={styles.panelTitle}>TELEPHONE</Text>
+                        <Text style={[styles.panelHint, (state.unreadMessageCount > 0 || pendingCalls > 0) && { color: c.gold }]}>
+                          {state.unreadMessageCount > 0
+                            ? `${state.unreadMessageCount} UNREAD ›`
+                            : pendingCalls > 0
+                              ? `${pendingCalls} NEED ACTION ›`
+                              : 'NO NEW CALLS'}
+                        </Text>
+                      </View>
+                      {latestMsgs.length === 0 ? (
+                        <Text style={styles.clientEmpty}>The line is quiet. Clients call when they need you.</Text>
+                      ) : (
+                        latestMsgs.map((m) => (
+                          <Text key={m.id} style={styles.wireLine} numberOfLines={1}>
+                            <Text style={{ color: c.gold }}>{m.clientName}:</Text> {m.messageText}
+                          </Text>
+                        ))
+                      )}
+                    </Pressable>
+
+                    {/* NEWS */}
+                    <Pressable onPress={() => toggleNews(true)} style={pressable(styles.colMarket)}>
+                      <View style={styles.panelHead}>
+                        <Text style={styles.panelIcon}>📰</Text>
+                        <Text style={styles.panelTitle}>NEWS DESK</Text>
+                        <Text style={styles.panelHint}>{visibleNews.length > 0 ? `${visibleNews.length} STOR${visibleNews.length === 1 ? 'Y' : 'IES'} ›` : ''}</Text>
+                      </View>
+                      {lead ? (
+                        <View style={styles.newsRow}>
+                          {lead.impactLevel === 'major' && (
+                            <View style={styles.breakingTag}><Text style={styles.breakingText}>BREAKING</Text></View>
+                          )}
+                          <Text style={styles.newsHeadline} numberOfLines={2}>■ {lead.headline}</Text>
+                          {moreNews.map((a) => (
+                            <Text key={a.id} style={styles.wireLine} numberOfLines={1}>■ {a.headline}</Text>
+                          ))}
+                        </View>
+                      ) : (
+                        <Text style={styles.clientEmpty}>Quiet markets — no stories this week.</Text>
+                      )}
+                    </Pressable>
+
+                    {/* QUICK ACTIONS */}
+                    <View style={[styles.panelStatic, styles.colFirm]}>
+                      <Text style={styles.deptTitle}>▪ QUICK ACTIONS</Text>
+                      <Pressable onPress={() => toggleShop(true)} style={(s: any) => [styles.qaBtn, s.hovered && styles.panelHovered, s.pressed && styles.panelPressed]}>
+                        <Text style={styles.qaBtnText}>🛒 SHOP</Text>
+                        <Text style={[styles.qaBtnStat, { color: affordable > 0 ? c.success : c.muted }]} numberOfLines={1}>
+                          {upgradesLeft.length === 0 ? 'FULLY UPGRADED' : affordable > 0 ? `${affordable} AFFORDABLE` : `NEXT: ${upgradesLeft[0].name.toUpperCase()}`}
+                        </Text>
+                      </Pressable>
+                      <Pressable onPress={() => setSettingsOpen(true)} style={(s: any) => [styles.qaBtn, s.hovered && styles.panelHovered, s.pressed && styles.panelPressed]}>
+                        <Text style={styles.qaBtnText}>⚙ SETTINGS</Text>
+                      </Pressable>
+                      <View style={styles.qaInfo}>
+                        <Text style={styles.qaInfoLine}>🏅 {earned}/{ACHIEVEMENTS.length} achievements</Text>
+                        <Text style={styles.qaInfoLine}>🏆 {state.records.dreamsFunded} dream{state.records.dreamsFunded === 1 ? '' : 's'} funded</Text>
+                        <Text style={styles.qaInfoLine}>📜 {state.records.contractsCompleted} contract{state.records.contractsCompleted === 1 ? '' : 's'} closed</Text>
+                      </View>
+                      <View style={styles.deskClutter}>
+                        <View style={styles.deskChip}>
+                          <Text style={styles.deskChipText}>📅 WK {week}</Text>
+                        </View>
+                        <Text style={styles.deskDecor}>☕</Text>
+                        <Text style={styles.deskDecor}>🪴</Text>
+                        <Text style={styles.deskDecor}>🗄</Text>
+                      </View>
+                    </View>
+                  </View>
+                </>
+              );
+            }
 
             return (
               <>
@@ -534,7 +775,33 @@ const useStyles = makeUseStyles((c: Palette) =>
 
   // Interactive application panels
   panel: { backgroundColor: c.panel, borderWidth: 2, borderColor: c.border, padding: 10, marginBottom: 8 },
+  panelHovered: { borderColor: c.goldDim },
   panelPressed: { borderColor: c.gold, transform: [{ translateY: 1 }] },
+
+  // ── Desktop (wide) operations grid ──
+  gridRow: { flexDirection: 'row', alignItems: 'stretch', flex: 1, minHeight: 240 },
+  colClients: { flex: 1.25, marginRight: 8, marginBottom: 0 },
+  colMarket: { flex: 1.15, marginRight: 8 },
+  colFirm: { flex: 0.85 },
+  alertBox: { backgroundColor: c.panelDark, borderWidth: 1, borderColor: c.divider, padding: 7, marginBottom: 8 },
+  subHead: { fontFamily: FONT_PIXEL, color: c.muted, fontSize: 8, fontWeight: '900', letterSpacing: 1, marginTop: 10, marginBottom: 4 },
+  wireLine: { fontFamily: FONT_PIXEL, color: c.textDim, fontSize: 10, fontWeight: '800', lineHeight: 17 },
+  clientRowWide: { flexDirection: 'row', alignItems: 'center', paddingVertical: 6, borderTopWidth: 1, borderTopColor: c.divider },
+  cwName: { width: 130, marginLeft: 8 },
+  cwOcc: { fontFamily: FONT_PIXEL, color: c.muted, fontSize: 8, marginTop: 2 },
+  cwValue: { fontFamily: FONT_PIXEL, color: c.gold, fontSize: 11, fontWeight: '900', width: 82, textAlign: 'right' },
+  cwPct: { fontFamily: FONT_PIXEL, fontSize: 10, fontWeight: '900', width: 56, textAlign: 'right' },
+  cwMood: { fontFamily: FONT_PIXEL, color: c.textDim, fontSize: 10, fontWeight: '800', width: 56, textAlign: 'right' },
+  cwWeeks: { fontFamily: FONT_PIXEL, color: c.muted, fontSize: 10, fontWeight: '800', width: 42, textAlign: 'right' },
+  cwNote: { fontFamily: FONT_PIXEL, color: c.muted, fontSize: 9, fontWeight: '800', flex: 1, textAlign: 'right' },
+  cwWaiting: { fontFamily: FONT_PIXEL, color: c.gold, fontSize: 10, fontWeight: '900', marginTop: 8 },
+  qaBtn: { backgroundColor: c.panel, borderWidth: 2, borderColor: c.border, padding: 9, marginBottom: 7 },
+  qaBtnText: { fontFamily: FONT_PIXEL, color: c.text, fontSize: 11, fontWeight: '900', letterSpacing: 0.5 },
+  qaBtnStat: { fontFamily: FONT_PIXEL, fontSize: 8, fontWeight: '900', marginTop: 3 },
+  qaInfo: { borderTopWidth: 1, borderTopColor: c.divider, paddingTop: 7, marginTop: 2 },
+  qaInfoLine: { fontFamily: FONT_PIXEL, color: c.textDim, fontSize: 9, fontWeight: '800', lineHeight: 16 },
+  hudRank: { fontFamily: FONT_PIXEL, color: c.textDim, fontSize: 10, fontWeight: '900', letterSpacing: 1, marginLeft: 14 },
+  hudGoal: { flex: 1, textAlign: 'center', marginHorizontal: 12 },
   panelStatic: { backgroundColor: c.panelDark, borderWidth: 2, borderColor: c.border, padding: 10, marginBottom: 8 },
   panelHead: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
   panelIcon: { fontSize: 20, marginRight: 8 },
