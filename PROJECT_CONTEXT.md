@@ -83,7 +83,14 @@ The game is **fully playable end-to-end** in a single endless career. There is n
   a next-goal ticker on the dashboard.
 - **Full theming** — light + dark palettes; every screen and shared component is
   theme-reactive; the toggle persists. (`6ba3e87`)
-- **Save system** — full-state autosave to web `localStorage` (in-memory fallback).
+- **Save system** — full-state autosave to web `localStorage` (in-memory fallback),
+  versioned (`SAVE_VERSION`). `probeSave()` classifies the stored blob as
+  ok/none/corrupt/outdated so the title screen recovers gracefully (offering
+  *Delete Save & Start Fresh*) instead of crashing or silently discarding.
+  Autosave is toggleable via `data/settings.ts` (persisted player settings).
+  Deployment: static export (`npm run build` → `dist`), Vercel-ready via
+  `vercel.json` (SPA rewrite so refresh restores in place). Public version lives
+  in `src/version.ts` (shown on title, settings, and the desktop HUD).
 
 ### Partially implemented / stubbed
 

@@ -54,7 +54,8 @@ import {
 import { BarkEvent, barkLine, gradeQuote, makeClientNote, renewalLine } from '../data/clientVoice';
 import { CareerRecords, WEEKS_PER_YEAR, YearReview, careerTitle, freshRecords, updateRecords } from '../data/careerRecords';
 import { checkAchievements } from '../data/achievements';
-import { loadJSON, saveJSON } from '../data/persist';
+import { loadJSON, loadRaw, removeKey, saveJSON } from '../data/persist';
+import { getSettings } from '../data/settings';
 import { BlackSwanEvent, generateBlackSwanImpact, pickBlackSwan, rollBlackSwanGap } from '../data/blackSwan';
 import { Regime, RegimeState, initialRegime, nextRegime, regimeTilt } from '../data/economicCycles';
 import {
@@ -193,6 +194,7 @@ type Action =
   | { type: 'TOGGLE_TERMINAL'; open?: boolean }
   | { type: 'BUY_UPGRADE'; id: UpgradeId }
   | { type: 'NEW_GAME'; advisorName: string; firmName: string }
+  | { type: 'HARD_RESET' }
   | { type: 'OPEN_DETAIL'; clientId: string }
   | { type: 'CLOSE_DETAIL' };
 
@@ -239,24 +241,56 @@ function buildInitial(identity?: { advisorName: string; firmName: string }): Sta
   };
 }
 
+// Classify the stored save so the title screen can recover gracefully rather
+// than crash or silently discard: 'ok' loads, 'none' is a clean slate,
+// 'corrupt' won't parse, 'outdated' is from an incompatible older build.
+export type SaveStatus = 'ok' | 'none' | 'corrupt' | 'outdated';
+
+export function probeSave(): SaveStatus {
+  const raw = loadRaw(SAVE_KEY);
+  if (!raw) return 'none';
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    return 'corrupt';
+  }
+  const p = parsed as { version?: number; state?: unknown } | null;
+  if (!p || typeof p !== 'object' || !p.state) return 'corrupt';
+  if (p.version !== SAVE_VERSION) return 'outdated';
+  return 'ok';
+}
+
+// Wipe the stored save (recovery / hard reset).
+export function clearSave(): void {
+  removeKey(SAVE_KEY);
+}
+
 // Hydrate the last autosaved game (if any) so the title screen can "Continue".
 // Transient UI fields are reset so a reload never reopens a modal mid-view.
+// Any problem (missing / corrupt / outdated) resolves to null → a fresh, unstarted
+// game, and the raw blob is left untouched so recovery options can act on it.
 function loadSavedState(): State | null {
+  if (probeSave() !== 'ok') return null;
   const saved = loadJSON<{ version: number; state: State }>(SAVE_KEY);
-  if (!saved || saved.version !== SAVE_VERSION || !saved.state) return null;
-  return {
-    ...saved.state,
-    // Saves from before the record book existed get an empty one.
-    records: saved.state.records ?? freshRecords(),
-    achievements: saved.state.achievements ?? [],
-    lowestReputation: saved.state.lowestReputation ?? saved.state.reputation,
-    bookOpen: false,
-    newsOpen: false,
-    phoneOpen: false,
-    shopOpen: false,
-    terminalOpen: false,
-    detailClientId: null,
-  };
+  if (!saved || !saved.state) return null;
+  try {
+    return {
+      ...saved.state,
+      // Saves from before the record book existed get an empty one.
+      records: saved.state.records ?? freshRecords(),
+      achievements: saved.state.achievements ?? [],
+      lowestReputation: saved.state.lowestReputation ?? saved.state.reputation,
+      bookOpen: false,
+      newsOpen: false,
+      phoneOpen: false,
+      shopOpen: false,
+      terminalOpen: false,
+      detailClientId: null,
+    };
+  } catch {
+    return null;
+  }
 }
 
 function initialState(): State {
@@ -885,6 +919,10 @@ function reducer(state: State, action: Action): State {
         unreadMessageCount: welcome ? state.unreadMessageCount + 1 : state.unreadMessageCount,
       };
     }
+    case 'HARD_RESET':
+      // Recovery / delete-save: return to a blank, unstarted game so the title
+      // screen shows a clean New Game.
+      return buildInitial();
     case 'OPEN_DETAIL':
       return { ...state, detailClientId: action.clientId };
     case 'CLOSE_DETAIL':
@@ -907,6 +945,8 @@ interface GameContextValue {
   advisorName: string;
   firmName: string;
   canContinue: boolean; // a saved in-progress game exists
+  saveStatus: SaveStatus; // how the stored save loaded at startup
+  deleteSave: () => void; // wipe the save and return to a clean slate
   advisorBalance: number;
   upgrades: Upgrades;
   maxClients: number;
@@ -936,11 +976,17 @@ const GameContext = createContext<GameContextValue | undefined>(undefined);
 
 export function GameProvider({ children }: { children: React.ReactNode }) {
   const [state, dispatch] = useReducer(reducer, undefined, initialState);
+  // How the stored save loaded when the app booted (drives title-screen recovery).
+  const [saveStatus, setSaveStatus] = React.useState<SaveStatus>(() => probeSave());
 
-  // Autosave every change once a game is under way, so "Continue" can resume it.
+  // Autosave every change once a game is under way, so "Continue" can resume it
+  // — unless the player has switched autosave off in Settings.
   useEffect(() => {
-    if (state.started) saveJSON(SAVE_KEY, { version: SAVE_VERSION, state });
-  }, [state]);
+    if (state.started && getSettings().autosave) {
+      saveJSON(SAVE_KEY, { version: SAVE_VERSION, state });
+      if (saveStatus !== 'ok') setSaveStatus('ok');
+    }
+  }, [state, saveStatus]);
 
   const value = useMemo<GameContextValue>(() => {
     const all = Object.values(state.clients);
@@ -962,6 +1008,12 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       advisorName: state.advisorName,
       firmName: state.firmName,
       canContinue: state.started && state.phase !== 'gameOver',
+      saveStatus,
+      deleteSave: () => {
+        clearSave();
+        setSaveStatus('none');
+        dispatch({ type: 'HARD_RESET' });
+      },
       advisorBalance: state.advisorBalance,
       upgrades: state.upgrades,
       maxClients: maxClientsFor(state.upgrades),
@@ -986,7 +1038,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       openDetail: (clientId: string) => dispatch({ type: 'OPEN_DETAIL', clientId }),
       closeDetail: () => dispatch({ type: 'CLOSE_DETAIL' }),
     };
-  }, [state]);
+  }, [state, saveStatus]);
 
   return <GameContext.Provider value={value}>{children}</GameContext.Provider>;
 }

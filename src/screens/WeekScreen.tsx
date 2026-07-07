@@ -24,6 +24,7 @@ import { useIsWide } from '../utils/layout';
 import { REGIME_LABEL } from '../data/economicCycles';
 import { SHOP_ITEMS } from '../data/advisorEconomy';
 import { careerTitle } from '../data/careerRecords';
+import { VERSION_LABEL } from '../version';
 import { formatMoney } from '../utils/format';
 import { FONT_PIXEL, BORDER_W, Palette } from '../theme';
 import { makeUseStyles, useTheme } from '../contexts/ThemeContext';
@@ -137,6 +138,7 @@ export default function WeekScreen() {
               <Text style={styles.hudRank} numberOfLines={1}>
                 {rank.toUpperCase()} · {state.firmName ? `${state.firmName.toUpperCase()} INC` : 'THE FIRM'}
               </Text>
+              <Text style={styles.hudVersion}>{VERSION_LABEL}</Text>
             </View>
             {goalText && <Text style={[styles.goalText, styles.hudGoal]} numberOfLines={1}>◆ {goalText}</Text>}
             <View style={styles.hudRight}>
@@ -801,6 +803,7 @@ const useStyles = makeUseStyles((c: Palette) =>
   qaInfo: { borderTopWidth: 1, borderTopColor: c.divider, paddingTop: 7, marginTop: 2 },
   qaInfoLine: { fontFamily: FONT_PIXEL, color: c.textDim, fontSize: 9, fontWeight: '800', lineHeight: 16 },
   hudRank: { fontFamily: FONT_PIXEL, color: c.textDim, fontSize: 10, fontWeight: '900', letterSpacing: 1, marginLeft: 14 },
+  hudVersion: { fontFamily: FONT_PIXEL, color: c.muted, fontSize: 9, fontWeight: '800', letterSpacing: 0.5, marginLeft: 12 },
   hudGoal: { flex: 1, textAlign: 'center', marginHorizontal: 12 },
   panelStatic: { backgroundColor: c.panelDark, borderWidth: 2, borderColor: c.border, padding: 10, marginBottom: 8 },
   panelHead: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },

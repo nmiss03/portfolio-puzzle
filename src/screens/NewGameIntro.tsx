@@ -25,9 +25,11 @@ export default function NewGameIntro({
   const [firm, setFirm] = useState('');
 
   useEffect(() => {
-    Animated.timing(walk, { toValue: 1, duration: 1700, easing: Easing.inOut(Easing.quad), useNativeDriver: true }).start(() => {
+    // JS-driven so the browser never warns about the missing native module
+    // (this is a web-first build; transform/opacity animate fine either way).
+    Animated.timing(walk, { toValue: 1, duration: 1700, easing: Easing.inOut(Easing.quad), useNativeDriver: false }).start(() => {
       setArrived(true);
-      Animated.timing(formOpacity, { toValue: 1, duration: 400, useNativeDriver: true }).start();
+      Animated.timing(formOpacity, { toValue: 1, duration: 400, useNativeDriver: false }).start();
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

@@ -14,10 +14,20 @@ function backend(): Storage | null {
   return null;
 }
 
-export function loadJSON<T>(key: string): T | null {
+// The raw stored string (unparsed), or null. Lets callers tell "no save" apart
+// from "a save exists but won't parse" for graceful recovery.
+export function loadRaw(key: string): string | null {
   try {
     const store = backend();
-    const raw = store ? store.getItem(key) : memory[key];
+    return store ? store.getItem(key) : memory[key] ?? null;
+  } catch {
+    return null;
+  }
+}
+
+export function loadJSON<T>(key: string): T | null {
+  try {
+    const raw = loadRaw(key);
     if (!raw) return null;
     return JSON.parse(raw) as T;
   } catch {

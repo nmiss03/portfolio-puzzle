@@ -1,13 +1,14 @@
 {
   "name": "portfolio-puzzle",
-  "version": "1.0.0",
-  "description": "A portfolio rebalancing puzzle game built with React Native + Expo + TypeScript.",
+  "version": "0.1.0",
+  "description": "The Advisor — a boutique investment-firm management sim. Read the news, manage client portfolios, fund their dreams. Built with React Native + Expo + TypeScript.",
   "main": "expo-router/entry",
   "scripts": {
     "start": "expo start",
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
+    "build": "expo export -p web",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

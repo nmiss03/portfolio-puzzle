@@ -3,7 +3,7 @@
     "name": "Portfolio Puzzle",
     "slug": "portfolio-puzzle",
     "scheme": "portfoliopuzzle",
-    "version": "1.0.0",
+    "version": "0.1.0",
     "orientation": "default",
     "userInterfaceStyle": "automatic",
     "backgroundColor": "#1a1a1a",
